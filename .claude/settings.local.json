@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(netstat -ano)",
-      "Bash(pnpm -C \"D:/Project/FOXAINATIVE/apps/backend\" run dev)"
+      "Bash(pnpm -C \"D:/Project/FOXAINATIVE/apps/backend\" run dev)",
+      "PowerShell($root='d:\\\\FOXAI NATIVE\\\\FOXAINATIVE\\\\apps\\\\system-service'; @\\('src\\\\SystemService.Domain','src\\\\SystemService.Application','src\\\\SystemService.Infrastructure','src\\\\SystemService.Api','tests\\\\SystemService.UnitTests','tests\\\\SystemService.IntegrationTests'\\) | ForEach-Object { New-Item -ItemType Directory -Force -Path \\(Join-Path $root $_\\) | Out-Null }; \"OK\")"
     ]
   }
 }

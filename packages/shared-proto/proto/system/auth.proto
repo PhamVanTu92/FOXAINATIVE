@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package foxai.system;
+
+import "common/pagination.proto";
+
+option csharp_namespace = "Foxai.System.V1";
+
+service AuthService {
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc RefreshToken(RefreshTokenRequest) returns (LoginResponse);
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+  rpc Logout(LogoutRequest) returns (foxai.common.EmptyResponse);
+}
+
+message UserProfile {
+  string id = 1;
+  string email = 2;
+  string full_name = 3;
+  repeated string roles = 4;
+  repeated string permissions = 5;
+  optional string organization_id = 6;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  int64 expires_in = 3;
+  UserProfile user = 4;
+}
+
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+message ValidateTokenRequest {
+  string access_token = 1;
+}
+
+message ValidateTokenResponse {
+  bool valid = 1;
+  UserProfile user = 2;
+  string error = 3;
+}
+
+message LogoutRequest {
+  string refresh_token = 1;
+}

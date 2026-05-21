@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package foxai.system;
+
+import "common/pagination.proto";
+
+option csharp_namespace = "Foxai.System.V1";
+
+service RolesService {
+  rpc CreateRole(CreateRoleRequest) returns (RoleDto);
+  rpc GetRole(GetRoleRequest) returns (RoleDto);
+  rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
+  rpc UpdateRole(UpdateRoleRequest) returns (RoleDto);
+  rpc DeleteRole(DeleteRoleRequest) returns (foxai.common.EmptyResponse);
+  rpc AssignPermissions(AssignPermissionsRequest) returns (RoleDto);
+  rpc RevokePermissions(RevokePermissionsRequest) returns (RoleDto);
+}
+
+message RoleDto {
+  string id = 1;
+  string code = 2;
+  string name = 3;
+  optional string description = 4;
+  bool is_system = 5;
+  repeated string permissions = 6;
+  string created_at = 7;
+  string updated_at = 8;
+}
+
+message CreateRoleRequest {
+  string code = 1;
+  string name = 2;
+  optional string description = 3;
+  repeated string permission_codes = 4;
+}
+
+message GetRoleRequest {
+  string id = 1;
+}
+
+message ListRolesRequest {
+  foxai.common.PageRequest pagination = 1;
+  bool include_permissions = 2;
+}
+
+message ListRolesResponse {
+  repeated RoleDto items = 1;
+  foxai.common.PageMetadata page = 2;
+}
+
+message UpdateRoleRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string description = 3;
+}
+
+message DeleteRoleRequest {
+  string id = 1;
+}
+
+message AssignPermissionsRequest {
+  string role_id = 1;
+  repeated string permission_codes = 2;
+}
+
+message RevokePermissionsRequest {
+  string role_id = 1;
+  repeated string permission_codes = 2;
+}

@@ -2,7 +2,7 @@
 
 Nền tảng AI xử lý chứng từ & chatbot doanh nghiệp – kiến trúc Microservices Monorepo.
 
-> **Tech stack:** pnpm Workspaces · TypeScript · NestJS · Next.js 14 · PostgreSQL × 3 + pgvector · Prisma · BullMQ · Redis · gRPC
+> **Tech stack:** pnpm Workspaces · TypeScript · NestJS · .NET 9 · Next.js 14 · PostgreSQL × 3 + pgvector · Prisma + EF Core · BullMQ · Redis · gRPC
 
 ---
 
@@ -13,9 +13,9 @@ Client (Next.js 14)
         │
         ▼
 API Gateway  (:3001)  ← JWT Auth · Rate Limit · gRPC Proxy
-  ├── System Service  (:3002)  → System DB  (:5432)
-  ├── OCR Service     (:3003)  → OCR DB     (:5433)  ← BullMQ Workers
-  └── Chatbot Service (:3004)  → Chatbot DB (:5434)  ← BullMQ Workers
+  ├── System Service  gRPC :50051  health :3002  → System DB  (:5432)   [.NET 9 + EF Core]
+  ├── OCR Service     (:3003)                    → OCR DB     (:5433)   ← BullMQ Workers
+  └── Chatbot Service (:3004)                    → Chatbot DB (:5434)   ← BullMQ Workers
                                                   ↑
                                            Redis  (:6379)
 ```
@@ -28,14 +28,14 @@ API Gateway  (:3001)  ← JWT Auth · Rate Limit · gRPC Proxy
 foxainative/
 ├── apps/
 │   ├── api-gateway/          # NestJS – JWT Auth, gRPC proxy tới các service
-│   ├── system-service/       # NestJS – Người dùng, Vai trò, Cơ cấu tổ chức
+│   ├── system-service/       # .NET 9 + gRPC – User, Role, Permission, Org Tree, JWT
 │   ├── ocr-service/          # NestJS – OCR, Schema, Document + BullMQ worker
 │   ├── chatbot-service/      # NestJS – Knowledge Base, Chat AI + BullMQ worker
 │   └── web-portal/           # Next.js 14 (App Router) – Giao diện quản trị
 │
 ├── packages/
 │   ├── shared-types/         # @foxai/shared-types  – Types & DTOs dùng chung
-│   ├── system-db/            # @foxai/system-db     – Prisma client System DB
+│   ├── shared-proto/         # @foxai/shared-proto  – gRPC proto contracts (System + chung)
 │   ├── ocr-db/               # @foxai/ocr-db        – Prisma client OCR DB
 │   └── chatbot-db/           # @foxai/chatbot-db    – Prisma client Chatbot DB
 │
@@ -54,7 +54,7 @@ foxainative/
 |---|---|---|---|
 | Web Portal | `@foxai/web-portal` | 3000 | – |
 | API Gateway | `@foxai/api-gateway` | 3001 | – |
-| System Service | `@foxai/system-service` | 3002 | system-db :5432 |
+| System Service | `@foxai/system-service` | gRPC **51051** (native + Docker host) · health 3002 · container internal 50051 | system-db :5432 |
 | OCR Service | `@foxai/ocr-service` | 3003 | ocr-db :5433 |
 | Chatbot Service | `@foxai/chatbot-service` | 3004 | chatbot-db :5434 |
 | Redis | – | 6379 | – |
@@ -98,6 +98,8 @@ foxainative/
 |---|---|
 | Node.js | ≥ 20 LTS |
 | pnpm | ≥ 8.0 |
+| .NET SDK | ≥ 9.0.100 (cho `system-service`) |
+| `dotnet-ef` global tool | `dotnet tool install -g dotnet-ef` |
 | Docker Desktop | mới nhất |
 
 ---
@@ -122,7 +124,7 @@ cp .env.example .env
 pnpm docker:up
 ```
 
-### 4. Generate Prisma clients
+### 4. Generate Prisma clients (OCR + Chatbot)
 
 ```bash
 pnpm db:generate:all
@@ -131,19 +133,22 @@ pnpm db:generate:all
 Hoặc từng DB riêng:
 
 ```bash
-pnpm db:system:generate
 pnpm db:ocr:generate
 pnpm db:chatbot:generate
 ```
 
+> **System DB** dùng EF Core Code-First (.NET 9) — không cần generate, schema sinh từ entities C#.
+
 ### 5. Chạy migrations + seed
 
 ```bash
-pnpm db:migrate:all
+pnpm db:migrate:all                 # bao gồm: db:system:migrate (EF) + db:ocr:migrate + db:chatbot:migrate
 
 # Seed dữ liệu mẫu OCR (schema INVOICE-VAT-IN)
 pnpm db:ocr:seed
 ```
+
+> System Service tự seed admin (`admin@foxai.local` / `Admin@12345`) + 3 roles + 25 permissions lúc khởi động Development/Test.
 
 ### 6. Chạy toàn bộ ứng dụng
 
@@ -163,10 +168,16 @@ pnpm --filter @foxai/ocr-service dev        # Chỉ chạy OCR service
 pnpm --filter @foxai/api-gateway dev        # Chỉ chạy API Gateway
 
 # ── Database ─────────────────────────────────────────────────
-pnpm db:generate:all                        # Generate tất cả Prisma clients
+pnpm db:generate:all                        # Generate Prisma clients (OCR + Chatbot)
 pnpm db:migrate:all                         # Migrate tất cả DB
 
-pnpm db:system:generate / migrate / seed / studio
+# System (EF Core)
+pnpm db:system:migrate                      # dotnet ef database update
+pnpm db:system:migration:add Name           # dotnet ef migrations add
+pnpm db:system:migration:remove
+pnpm db:system:reset                        # DROP + apply lại
+
+# OCR / Chatbot (Prisma)
 pnpm db:ocr:generate    / migrate / seed / studio
 pnpm db:chatbot:generate / migrate / seed / studio
 
@@ -222,7 +233,7 @@ OCR Service hỗ trợ nhiều provider, cấu hình qua biến `OCR_PROVIDER` t
 | OCR Service (Schema · Document · Queue · Providers) | ✅ Hoàn thành |
 | Web Portal – Sidebar + 19 routes | ✅ Hoàn thành |
 | API Gateway (JWT · gRPC proxy) | ⏳ Scaffold – chưa implement |
-| System Service (User · Role · Org) | ⏳ Scaffold – chưa implement |
+| System Service (.NET 9 + gRPC · User · Role · Permission · Org · JWT) | ✅ Hoàn thành (5 service / 29 RPC · 35 integration tests pass · Dockerized) |
 | Chatbot Service (Knowledge · Chat · Embedding) | ⏳ Scaffold – chưa implement |
 | Web Portal – UI các màn hình | ⏳ Màn trắng – chờ implement |
 | Auth JWT end-to-end | ⏳ Chưa wire |

@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package foxai.common;
+
+option csharp_namespace = "Foxai.Common";
+
+message PageRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string search = 3;
+  string sort_by = 4;
+  string sort_order = 5;
+}
+
+message PageMetadata {
+  int32 page = 1;
+  int32 page_size = 2;
+  int64 total_items = 3;
+  int32 total_pages = 4;
+}
+
+message EmptyResponse {}

@@ -1,0 +1,25 @@
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.idea/
+node_modules/
+.DS_Store
+
+# EF Core
+**/Migrations/Snapshot/
+
+# Logs
+logs/
+*.log
+
+# Coverage
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+# Local secrets
+appsettings.Local.json
+.env.local

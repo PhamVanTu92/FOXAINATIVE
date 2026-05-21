@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package foxai.system;
+
+import "common/pagination.proto";
+
+option csharp_namespace = "Foxai.System.V1";
+
+service UsersService {
+  rpc CreateUser(CreateUserRequest) returns (UserDto);
+  rpc GetUser(GetUserRequest) returns (UserDto);
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  rpc UpdateUser(UpdateUserRequest) returns (UserDto);
+  rpc DeleteUser(DeleteUserRequest) returns (foxai.common.EmptyResponse);
+  rpc ChangePassword(ChangePasswordRequest) returns (foxai.common.EmptyResponse);
+  rpc ChangeStatus(ChangeStatusRequest) returns (UserDto);
+  rpc AssignRole(AssignRoleRequest) returns (foxai.common.EmptyResponse);
+  rpc UnassignRole(UnassignRoleRequest) returns (foxai.common.EmptyResponse);
+}
+
+message UserDto {
+  string id = 1;
+  string email = 2;
+  string full_name = 3;
+  optional string phone = 4;
+  optional string avatar_url = 5;
+  string status = 6;
+  optional string organization_id = 7;
+  repeated string roles = 8;
+  string created_at = 9;
+  string updated_at = 10;
+  optional string last_login_at = 11;
+}
+
+message CreateUserRequest {
+  string email = 1;
+  string password = 2;
+  string full_name = 3;
+  optional string phone = 4;
+  optional string organization_id = 5;
+  repeated string role_codes = 6;
+}
+
+message GetUserRequest {
+  string id = 1;
+}
+
+message ListUsersRequest {
+  foxai.common.PageRequest pagination = 1;
+  optional string status = 2;
+  optional string organization_id = 3;
+}
+
+message ListUsersResponse {
+  repeated UserDto items = 1;
+  foxai.common.PageMetadata page = 2;
+}
+
+message UpdateUserRequest {
+  string id = 1;
+  optional string full_name = 2;
+  optional string phone = 3;
+  optional string avatar_url = 4;
+  optional string organization_id = 5;
+}
+
+message DeleteUserRequest {
+  string id = 1;
+}
+
+message ChangePasswordRequest {
+  string user_id = 1;
+  string old_password = 2;
+  string new_password = 3;
+}
+
+message ChangeStatusRequest {
+  string user_id = 1;
+  string status = 2;
+}
+
+message AssignRoleRequest {
+  string user_id = 1;
+  string role_code = 2;
+}
+
+message UnassignRoleRequest {
+  string user_id = 1;
+  string role_code = 2;
+}

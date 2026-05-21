@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   # ─── System DB ──────────────────────────────────────────────────────────────
   system-db:
@@ -7,15 +5,15 @@ services:
     container_name: foxai-system-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: system_user
-      POSTGRES_PASSWORD: system_pass
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: YdESBSZ@1%a22
       POSTGRES_DB: system_db
     ports:
       - '5432:5432'
     volumes:
       - system_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U system_user -d system_db']
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d system_db']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -58,6 +56,41 @@ services:
       test: ['CMD-SHELL', 'pg_isready -U chatbot_user -d chatbot_db']
       interval: 10s
       timeout: 5s
+      retries: 5
+
+  # ─── System Service (.NET 9 + gRPC) ─────────────────────────────────────────
+  system-service:
+    build:
+      context: .
+      dockerfile: apps/system-service/Dockerfile
+    container_name: foxai-system-service
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${SYSTEM_SERVICE_ENV:-Production}
+      SYSTEM_DATABASE_URL: postgresql://myuser:mypassword@system-db:5432/system_db
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-use-a-long-random-string-32+}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      Jwt__Secret: ${JWT_SECRET:-change-me-in-production-use-a-long-random-string-32+}
+      Jwt__Issuer: foxai-system-service
+      Jwt__Audience: foxai-platform
+      Jwt__ExpiresIn: ${JWT_EXPIRES_IN:-7d}
+      GRPC_PORT: '50051'
+      HTTP_PORT: '3002'
+      SYSTEM_SERVICE_AUTOMIGRATE: 'true'
+      SYSTEM_SERVICE_SEED: 'true'
+    # Host port 51051 because Windows often reserves 49960-50059 for HyperV/WSL2.
+    # Container-to-container traffic uses internal 50051.
+    ports:
+      - '51051:50051'
+      - '3002:3002'
+    depends_on:
+      system-db:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:3002/health']
+      interval: 20s
+      timeout: 5s
+      start_period: 30s
       retries: 5
 
   # ─── Redis (BullMQ) ─────────────────────────────────────────────────────────
