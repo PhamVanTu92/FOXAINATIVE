@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package foxai.system;
+
+import "common/pagination.proto";
+import "system/users.proto";
+
+option csharp_namespace = "Foxai.System.V1";
+
+service OrganizationsService {
+  rpc CreateNode(CreateNodeRequest) returns (OrganizationNodeDto);
+  rpc GetNode(GetNodeRequest) returns (OrganizationNodeDto);
+  rpc GetTree(GetTreeRequest) returns (OrganizationTreeResponse);
+  rpc UpdateNode(UpdateNodeRequest) returns (OrganizationNodeDto);
+  rpc MoveNode(MoveNodeRequest) returns (OrganizationNodeDto);
+  rpc DeleteNode(DeleteNodeRequest) returns (foxai.common.EmptyResponse);
+  rpc ListUsersByOrg(ListUsersByOrgRequest) returns (foxai.system.ListUsersResponse);
+}
+
+message OrganizationNodeDto {
+  string id = 1;
+  string code = 2;
+  string name = 3;
+  optional string parent_id = 4;
+  int32 level = 5;
+  string path = 6;
+  repeated OrganizationNodeDto children = 7;
+  string created_at = 8;
+  string updated_at = 9;
+}
+
+message CreateNodeRequest {
+  string code = 1;
+  string name = 2;
+  optional string parent_id = 3;
+}
+
+message GetNodeRequest {
+  string id = 1;
+}
+
+message GetTreeRequest {
+  optional string root_id = 1;
+}
+
+message OrganizationTreeResponse {
+  repeated OrganizationNodeDto nodes = 1;
+}
+
+message UpdateNodeRequest {
+  string id = 1;
+  optional string name = 2;
+}
+
+message MoveNodeRequest {
+  string id = 1;
+  optional string new_parent_id = 2;
+}
+
+message DeleteNodeRequest {
+  string id = 1;
+}
+
+message ListUsersByOrgRequest {
+  string organization_id = 1;
+  foxai.common.PageRequest pagination = 2;
+  bool include_sub_orgs = 3;
+}

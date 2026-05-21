@@ -1,0 +1,12 @@
+**/bin
+**/obj
+**/.vs
+**/.idea
+**/*.user
+**/*.suo
+**/node_modules
+**/TestResults
+**/coverage
+**/*.log
+appsettings.Local.json
+.env.local

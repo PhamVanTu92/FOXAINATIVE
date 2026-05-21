@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package foxai.common;
+
+option csharp_namespace = "Foxai.Common";
+
+message FieldError {
+  string field = 1;
+  string message = 2;
+  string code = 3;
+}
+
+message ValidationErrors {
+  repeated FieldError errors = 1;
+}
