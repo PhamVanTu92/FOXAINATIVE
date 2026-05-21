@@ -1,164 +1,228 @@
-# FOXAINATIVE – AI OCR Document Management System
+# FOXAI – NATIVE
 
-Hệ thống quản lý chứng từ tự động hóa bằng AI OCR, gồm 3 phân hệ: **Thiết lập Schema**, **Nhận dạng OCR**, **Quản lý Chứng từ**.
+Nền tảng AI xử lý chứng từ & chatbot doanh nghiệp – kiến trúc Microservices Monorepo.
 
-> **Tech stack:** pnpm Workspaces · TypeScript · NestJS · Next.js 14 · PostgreSQL + pgvector · Prisma · BullMQ · Redis · MinIO
+> **Tech stack:** pnpm Workspaces · TypeScript · NestJS · Next.js 14 · PostgreSQL × 3 + pgvector · Prisma · BullMQ · Redis · gRPC
 
 ---
 
-## 1. Cấu trúc Monorepo
+## Kiến trúc tổng quan
+
+```
+Client (Next.js 14)
+        │
+        ▼
+API Gateway  (:3001)  ← JWT Auth · Rate Limit · gRPC Proxy
+  ├── System Service  (:3002)  → System DB  (:5432)
+  ├── OCR Service     (:3003)  → OCR DB     (:5433)  ← BullMQ Workers
+  └── Chatbot Service (:3004)  → Chatbot DB (:5434)  ← BullMQ Workers
+                                                  ↑
+                                           Redis  (:6379)
+```
+
+---
+
+## Cấu trúc Monorepo
 
 ```
 foxainative/
 ├── apps/
-│   ├── web/           # Next.js Frontend (3 màn hình UI)
-│   ├── backend/       # NestJS API Gateway
-│   └── worker/        # NestJS Standalone (BullMQ Consumer + Mock OCR)
+│   ├── api-gateway/          # NestJS – JWT Auth, gRPC proxy tới các service
+│   ├── system-service/       # NestJS – Người dùng, Vai trò, Cơ cấu tổ chức
+│   ├── ocr-service/          # NestJS – OCR, Schema, Document + BullMQ worker
+│   ├── chatbot-service/      # NestJS – Knowledge Base, Chat AI + BullMQ worker
+│   └── web-portal/           # Next.js 14 (App Router) – Giao diện quản trị
+│
 ├── packages/
-│   ├── database/      # Prisma schema + client singleton + seed
-│   ├── dto/           # Shared DTOs (class-validator)
-│   └── types/         # Shared TS types (OCR result, queue payload, API envelope)
-├── docs/              # 5 file đặc tả nghiệp vụ & kiến trúc
-├── scripts/           # init-pgvector.sql
-└── docker-compose.yml # Postgres + Redis + MinIO
+│   ├── shared-types/         # @foxai/shared-types  – Types & DTOs dùng chung
+│   ├── system-db/            # @foxai/system-db     – Prisma client System DB
+│   ├── ocr-db/               # @foxai/ocr-db        – Prisma client OCR DB
+│   └── chatbot-db/           # @foxai/chatbot-db    – Prisma client Chatbot DB
+│
+├── docs/                     # Đặc tả nghiệp vụ & kiến trúc
+├── scripts/                  # SQL init scripts (pgvector, pg_trgm)
+├── docker-compose.yml        # 3× PostgreSQL + Redis
+├── .env.example
+└── pnpm-workspace.yaml
 ```
 
 ---
 
-## 2. Yêu cầu cài đặt
+## Ports & Services
+
+| Service | Package | Port | DB |
+|---|---|---|---|
+| Web Portal | `@foxai/web-portal` | 3000 | – |
+| API Gateway | `@foxai/api-gateway` | 3001 | – |
+| System Service | `@foxai/system-service` | 3002 | system-db :5432 |
+| OCR Service | `@foxai/ocr-service` | 3003 | ocr-db :5433 |
+| Chatbot Service | `@foxai/chatbot-service` | 3004 | chatbot-db :5434 |
+| Redis | – | 6379 | – |
+
+---
+
+## Web Portal – Cấu trúc điều hướng
+
+| Section | Route |
+|---|---|
+| **Tổng quan** | |
+| Dashboard | `/` |
+| Báo cáo & Thống kê | `/bao-cao` |
+| Thông báo | `/thong-bao` |
+| **Cấu hình hệ thống** | |
+| Cấu hình vai trò | `/he-thong/vai-tro` |
+| Cấu hình người dùng | `/he-thong/nguoi-dung` |
+| Cơ cấu tổ chức | `/he-thong/to-chuc` |
+| Thiết lập Chứng từ OCR | `/he-thong/ocr` |
+| Thiết lập bot hội thoại | `/he-thong/chatbot` |
+| **Tri thức AI** | |
+| Quản lý tri thức | `/tri-thuc` |
+| Kiểm duyệt & Phê duyệt | `/tri-thuc/kiem-duyet` |
+| Upload tài liệu | `/tri-thuc/upload` |
+| Kết nối dữ liệu tự động | `/tri-thuc/ket-noi` |
+| OCR & Chuẩn hóa nội dung | `/tri-thuc/ocr-chuan-hoa` |
+| **Xử lý tài liệu** | |
+| Hóa đơn VAT đầu vào | `/xu-ly/hoa-don-vat` |
+| Hợp đồng mua bán | `/xu-ly/hop-dong` |
+| Phiếu nhập kho | `/xu-ly/phieu-nhap-kho` |
+| Quản lý Chứng từ | `/xu-ly/chung-tu` |
+| **Chatbot AI** | |
+| Bot Kế toán Nội bộ | `/chatbot/ke-toan` |
+| Bot CSKH – Kinh doanh | `/chatbot/cskh` |
+
+---
+
+## Yêu cầu cài đặt
 
 | Thành phần | Phiên bản |
 |---|---|
 | Node.js | ≥ 20 LTS |
-| pnpm | ≥ 8.0 (cài bằng `npm i -g pnpm`) |
+| pnpm | ≥ 8.0 |
 | Docker Desktop | mới nhất |
 
 ---
 
-## 3. Quy trình khởi động (Bootstrap)
+## Khởi động (Bootstrap)
 
-### Bước 1 – Cài dependencies
+### 1. Cài dependencies
 
 ```bash
 pnpm install
 ```
 
-### Bước 2 – Tạo file `.env`
+### 2. Tạo file `.env`
 
 ```bash
 cp .env.example .env
 ```
 
-> Mặc định `.env` đã trỏ về cụm Docker local. Không cần sửa nếu chỉ chạy thử.
-
-### Bước 3 – Bật hạ tầng (PostgreSQL + Redis + MinIO)
+### 3. Bật hạ tầng (3× PostgreSQL + Redis)
 
 ```bash
 pnpm docker:up
 ```
 
-Kiểm tra extension `pgvector` đã được bật:
+### 4. Generate Prisma clients
 
 ```bash
-docker exec ocr-postgres psql -U ocr_user -d ocr_db -c "SELECT * FROM pg_extension WHERE extname='vector';"
+pnpm db:generate:all
 ```
 
-### Bước 4 – Generate Prisma Client + migrate + seed
+Hoặc từng DB riêng:
 
 ```bash
-pnpm db:generate
-pnpm db:migrate
-pnpm db:seed
+pnpm db:system:generate
+pnpm db:ocr:generate
+pnpm db:chatbot:generate
 ```
 
-Lệnh seed sẽ tạo schema mặc định `INVOICE-VAT-IN` với 7 trường đơn (Số HĐ, Ngày, MST, Tên người bán, Tổng tiền, VAT, Tổng thanh toán) và bảng lặp 6 cột (STT, Tên hàng, ĐVT, SL, Đơn giá, Thành tiền).
+### 5. Chạy migrations + seed
 
-### Bước 5 – Chạy song song 3 ứng dụng
+```bash
+pnpm db:migrate:all
+
+# Seed dữ liệu mẫu OCR (schema INVOICE-VAT-IN)
+pnpm db:ocr:seed
+```
+
+### 6. Chạy toàn bộ ứng dụng
 
 ```bash
 pnpm dev
 ```
 
-Các service sẽ chạy tại:
-
-| Service | URL |
-|---|---|
-| Web (Next.js) | http://localhost:3000 |
-| Backend (NestJS) | http://localhost:3001 |
-| Swagger API Docs | http://localhost:3001/api/docs |
-| MinIO Console | http://localhost:9001 (user: `minio_admin` / pass: `minio_password`) |
-| Prisma Studio | `pnpm db:studio` → http://localhost:5555 |
-
 ---
 
-## 4. Luồng thử nghiệm End-to-End
-
-1. Truy cập http://localhost:3000/schemas → thấy 1 schema `INVOICE-VAT-IN`.
-2. Sang http://localhost:3000/ocr → chọn schema, chọn file bất kỳ (PDF/PNG/JPG), bấm **Quét OCR**.
-3. Backend trả về HTTP 202 + `documentId` ngay tức thì. Worker pull job từ Redis, chạy mock OCR (sleep 1.5s) và ghi kết quả vào DB.
-4. Sang http://localhost:3000/documents → thấy chứng từ mới với trạng thái `Nháp` và 94% confidence.
-
----
-
-## 5. Lệnh thường dùng
+## Lệnh thường dùng
 
 ```bash
-# Dev
-pnpm dev                       # Chạy song song web + backend + worker
-pnpm --filter @ocr/backend dev # Chỉ chạy backend
-pnpm --filter @ocr/web dev     # Chỉ chạy web
+# ── Dev ──────────────────────────────────────────────────────
+pnpm dev                                    # Chạy tất cả song song
+pnpm --filter @foxai/web-portal dev         # Chỉ chạy frontend
+pnpm --filter @foxai/ocr-service dev        # Chỉ chạy OCR service
+pnpm --filter @foxai/api-gateway dev        # Chỉ chạy API Gateway
 
-# Database
-pnpm db:generate               # Generate Prisma Client
-pnpm db:migrate                # Tạo + apply migration mới
-pnpm db:seed                   # Seed schema mẫu
-pnpm db:studio                 # Mở Prisma Studio UI
+# ── Database ─────────────────────────────────────────────────
+pnpm db:generate:all                        # Generate tất cả Prisma clients
+pnpm db:migrate:all                         # Migrate tất cả DB
 
-# Docker
-pnpm docker:up                 # Bật Postgres + Redis + MinIO
-pnpm docker:down               # Tắt
-pnpm docker:logs               # Theo dõi logs
+pnpm db:system:generate / migrate / seed / studio
+pnpm db:ocr:generate    / migrate / seed / studio
+pnpm db:chatbot:generate / migrate / seed / studio
 
-# Build & type-check
+# ── Docker ───────────────────────────────────────────────────
+pnpm docker:up                              # Bật 3× Postgres + Redis
+pnpm docker:down                            # Tắt
+pnpm docker:logs                            # Theo dõi logs
+
+# ── Build & Typecheck ────────────────────────────────────────
 pnpm build
 pnpm typecheck
+pnpm lint
 ```
 
 ---
 
-## 6. Đổi sang OCR provider thật
+## OCR Provider
 
-Hệ thống đang dùng **Mock OCR Provider** (trả dữ liệu giả). Để dùng provider thật:
+OCR Service hỗ trợ nhiều provider, cấu hình qua biến `OCR_PROVIDER` trong `.env`:
 
-1. Tạo file mới trong `apps/worker/src/providers/` (vd: `google-document-ai.provider.ts`) implement interface `IOcrProvider`.
-2. Đăng ký provider mới trong `apps/worker/src/worker.module.ts` thay cho `MockOcrProvider`.
-3. Set biến môi trường `OCR_PROVIDER` và các API key tương ứng trong `.env`.
+| Giá trị | Mô tả |
+|---|---|
+| `mock` | Dữ liệu giả – dùng để dev/test (mặc định) |
+| `local-pdf` | Trích xuất text từ PDF local bằng pdfjs |
+| `google-document-ai` | Google Document AI API |
+| `aws-textract` | AWS Textract API |
+| `fpt-ai` | FPT.AI OCR API |
 
----
-
-## 7. Tài liệu tham chiếu
-
-Toàn bộ đặc tả nghiệp vụ và kiến trúc nằm trong [docs/](docs/):
-
-- [Thiet_lap_Chung_tu_OCR.md](docs/Thiet_lap_Chung_tu_OCR.md) – BA spec Module 1
-- [Nhan_dang_Chung_tu_OCR.md](docs/Nhan_dang_Chung_tu_OCR.md) – BA spec Module 2
-- [Quan_ly_Chung_tu_OCR.md](docs/Quan_ly_Chung_tu_OCR.md) – BA spec Module 3
-- [Database_Design_OCR_System.md](docs/Database_Design_OCR_System.md) – DB design (PostgreSQL + Prisma)
-- [Tech_Stack_Architecture.md](docs/Tech_Stack_Architecture.md) – Tech Stack Specification
+Để thêm provider mới: tạo file trong `apps/ocr-service/src/modules/ocr/providers/` implement interface `IOcrProvider`, rồi đăng ký trong `ocr.module.ts`.
 
 ---
 
-## 8. Trạng thái dự án
+## Tài liệu tham chiếu
+
+| File | Nội dung |
+|---|---|
+| [docs/Tech_Stack_Architecture.md](docs/Tech_Stack_Architecture.md) | Kiến trúc kỹ thuật tổng thể |
+| [docs/Thiet_lap_Chung_tu_OCR.md](docs/Thiet_lap_Chung_tu_OCR.md) | BA spec – Module Thiết lập Schema |
+| [docs/Nhan_dang_Chung_tu_OCR.md](docs/Nhan_dang_Chung_tu_OCR.md) | BA spec – Module Nhận dạng OCR |
+| [docs/Quan_ly_Chung_tu_OCR.md](docs/Quan_ly_Chung_tu_OCR.md) | BA spec – Module Quản lý Chứng từ |
+| [docs/Database_Design_OCR_System.md](docs/Database_Design_OCR_System.md) | Thiết kế Database (PostgreSQL + Prisma) |
+
+---
+
+## Trạng thái dự án
 
 | Hạng mục | Trạng thái |
 |---|---|
-| Monorepo skeleton | ✅ Đã có |
-| Prisma schema (8 bảng + pgvector) | ✅ Đã có |
-| Seed dữ liệu mẫu (7 trường + 6 cột) | ✅ Đã có |
-| Backend modules (Health/Schema/Document/OCR Producer) | ✅ Đã có |
-| Worker (Mock OCR + Embedding processors) | ✅ Đã có |
-| Next.js 3 màn hình cơ bản | ✅ Đã có |
-| MinIO upload integration | ⏳ Placeholder URL (cần wire vào S3 SDK) |
-| Auth JWT | ⏳ Chưa wire (controller hiện public) |
-| Excel export | ⏳ Chưa implement |
-| Knowledge Base push | ⏳ Cấu trúc sẵn, chưa wire |
+| Monorepo skeleton (5 apps · 4 packages) | ✅ Hoàn thành |
+| Docker Compose (3× Postgres + Redis) | ✅ Hoàn thành |
+| Prisma schemas (system · ocr · chatbot) | ✅ Hoàn thành |
+| Seed dữ liệu mẫu OCR | ✅ Hoàn thành |
+| OCR Service (Schema · Document · Queue · Providers) | ✅ Hoàn thành |
+| Web Portal – Sidebar + 19 routes | ✅ Hoàn thành |
+| API Gateway (JWT · gRPC proxy) | ⏳ Scaffold – chưa implement |
+| System Service (User · Role · Org) | ⏳ Scaffold – chưa implement |
+| Chatbot Service (Knowledge · Chat · Embedding) | ⏳ Scaffold – chưa implement |
+| Web Portal – UI các màn hình | ⏳ Màn trắng – chờ implement |
+| Auth JWT end-to-end | ⏳ Chưa wire |
