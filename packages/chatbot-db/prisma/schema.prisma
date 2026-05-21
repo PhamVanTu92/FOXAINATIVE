@@ -1,0 +1,81 @@
+// ============================================================================
+// FOXAINATIVE - Chatbot Service Database Schema
+// Quản lý: Knowledge Base, Chat Sessions, Vector Embeddings
+// ============================================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../node_modules/.prisma/chatbot-client"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("CHATBOT_DATABASE_URL")
+  extensions = [vector]
+}
+
+enum EmbeddingStatus {
+  PENDING
+  DONE
+  ERROR
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+}
+
+// Knowledge Base
+model KnowledgeDocument {
+  id      String @id @default(cuid())
+  title   String
+  content String
+  tags    String[]
+  source  String?
+
+  embeddingStatus EmbeddingStatus @default(PENDING)
+  embeddingModel  String?
+  embeddedAt      DateTime?
+  embedding       Unsupported("vector(1536)")?
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([embeddingStatus])
+  @@map("knowledge_documents")
+}
+
+// Chat Sessions
+model ChatSession {
+  id        String  @id @default(cuid())
+  userId    String
+  title     String?
+  isActive  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages ChatMessage[]
+
+  @@index([userId])
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  sessionId String
+  role      ChatRole
+  content   String
+
+  // Sources used for this assistant message
+  sourceIds String[]
+
+  createdAt DateTime @default(now())
+
+  session ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("chat_messages")
+}

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(netstat -ano)",
+      "Bash(pnpm -C \"D:/Project/FOXAINATIVE/apps/backend\" run dev)"
+    ]
+  }
+}

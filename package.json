@@ -1,0 +1,53 @@
+{
+  "name": "foxai-native-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "FOXAI Native – AI Document & Chatbot Platform (Monorepo)",
+  "packageManager": "pnpm@8.15.4",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "build": "pnpm -r run build",
+    "lint": "pnpm -r run lint",
+    "test": "pnpm -r run test",
+    "typecheck": "pnpm -r run typecheck",
+    "clean": "pnpm -r run clean && rimraf node_modules",
+
+    "db:system:generate": "pnpm -C packages/system-db run prisma:generate",
+    "db:system:migrate": "pnpm -C packages/system-db run prisma:migrate:dev",
+    "db:system:seed": "pnpm -C packages/system-db run prisma:seed",
+    "db:system:studio": "pnpm -C packages/system-db run prisma:studio",
+
+    "db:ocr:generate": "pnpm -C packages/ocr-db run prisma:generate",
+    "db:ocr:migrate": "pnpm -C packages/ocr-db run prisma:migrate:dev",
+    "db:ocr:seed": "pnpm -C packages/ocr-db run prisma:seed",
+    "db:ocr:studio": "pnpm -C packages/ocr-db run prisma:studio",
+
+    "db:chatbot:generate": "pnpm -C packages/chatbot-db run prisma:generate",
+    "db:chatbot:migrate": "pnpm -C packages/chatbot-db run prisma:migrate:dev",
+    "db:chatbot:seed": "pnpm -C packages/chatbot-db run prisma:seed",
+    "db:chatbot:studio": "pnpm -C packages/chatbot-db run prisma:studio",
+
+    "db:generate:all": "pnpm db:system:generate && pnpm db:ocr:generate && pnpm db:chatbot:generate",
+    "db:migrate:all": "pnpm db:system:migrate && pnpm db:ocr:migrate && pnpm db:chatbot:migrate",
+
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "prettier": "^3.2.5",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.3.3"
+  },
+  "prettier": {
+    "singleQuote": true,
+    "trailingComma": "all",
+    "printWidth": 100,
+    "semi": true
+  }
+}

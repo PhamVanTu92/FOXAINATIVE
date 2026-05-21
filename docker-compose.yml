@@ -1,0 +1,83 @@
+version: '3.9'
+
+services:
+  # ─── System DB ──────────────────────────────────────────────────────────────
+  system-db:
+    image: postgres:16-alpine
+    container_name: foxai-system-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: system_user
+      POSTGRES_PASSWORD: system_pass
+      POSTGRES_DB: system_db
+    ports:
+      - '5432:5432'
+    volumes:
+      - system_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U system_user -d system_db']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── OCR DB (pgvector) ──────────────────────────────────────────────────────
+  ocr-db:
+    image: pgvector/pgvector:pg16
+    container_name: foxai-ocr-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ocr_user
+      POSTGRES_PASSWORD: ocr_pass
+      POSTGRES_DB: ocr_db
+    ports:
+      - '5433:5432'
+    volumes:
+      - ocr_db_data:/var/lib/postgresql/data
+      - ./scripts/init-ocr-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ocr_user -d ocr_db']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Chatbot DB (pgvector) ──────────────────────────────────────────────────
+  chatbot-db:
+    image: pgvector/pgvector:pg16
+    container_name: foxai-chatbot-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: chatbot_user
+      POSTGRES_PASSWORD: chatbot_pass
+      POSTGRES_DB: chatbot_db
+    ports:
+      - '5434:5432'
+    volumes:
+      - chatbot_db_data:/var/lib/postgresql/data
+      - ./scripts/init-chatbot-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U chatbot_user -d chatbot_db']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Redis (BullMQ) ─────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: foxai-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  system_db_data:
+  ocr_db_data:
+  chatbot_db_data:
+  redis_data:

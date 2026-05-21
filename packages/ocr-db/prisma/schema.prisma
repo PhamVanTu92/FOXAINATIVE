@@ -1,0 +1,273 @@
+// ============================================================================
+// FOXAINATIVE - OCR Service Database Schema
+// PostgreSQL 16 with pgvector extension
+// ============================================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../node_modules/.prisma/ocr-client"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("OCR_DATABASE_URL")
+  extensions = [pg_trgm]
+}
+
+// ----------------------------------------------------------------------------
+// ENUMS
+// ----------------------------------------------------------------------------
+
+enum DocumentType {
+  INVOICE
+  RECEIPT
+  CONTRACT
+  STATEMENT
+  MINUTES
+  WAREHOUSE_RECEIPT
+  OTHERS
+}
+
+enum FieldDataType {
+  TEXT
+  DATE
+  NUMBER
+  CURRENCY
+  BOOLEAN
+  LIST
+}
+
+enum FieldPosition {
+  HEADER
+  FOOTER
+  BODY
+}
+
+enum DocumentStatus {
+  DRAFT
+  CONFIRMED
+  PROCESSED
+  ERROR
+}
+
+// ----------------------------------------------------------------------------
+// MODULE: SCHEMA CONFIGURATION
+// ----------------------------------------------------------------------------
+
+model DocumentSchema {
+  id          String       @id @default(cuid())
+  code        String       @unique
+  name        String
+  type        DocumentType
+  description String?
+  isActive    Boolean      @default(true)
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  fields    DocumentField[]
+  tables    DocumentTable[]
+  documents Document[]
+
+  @@index([type])
+  @@index([isActive])
+  @@map("document_schemas")
+}
+
+model DocumentField {
+  id              String        @id @default(cuid())
+  schemaId        String
+  fieldKey        String
+  label           String
+  dataType        FieldDataType
+  position        FieldPosition
+  isRequired      Boolean       @default(false)
+  isUnique        Boolean       @default(false)
+  validationRegex String?
+  description     String?
+  displayOrder    Int           @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  schema DocumentSchema  @relation(fields: [schemaId], references: [id], onDelete: Cascade)
+  values DocumentValue[]
+
+  @@unique([schemaId, fieldKey])
+  @@index([schemaId])
+  @@index([position])
+  @@map("document_fields")
+}
+
+model DocumentTable {
+  id           String  @id @default(cuid())
+  schemaId     String
+  tableKey     String
+  name         String
+  description  String?
+  displayOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  schema  DocumentSchema        @relation(fields: [schemaId], references: [id], onDelete: Cascade)
+  columns DocumentTableColumn[]
+
+  @@unique([schemaId, tableKey])
+  @@index([schemaId])
+  @@map("document_tables")
+}
+
+model DocumentTableColumn {
+  id           String        @id @default(cuid())
+  tableId      String
+  columnKey    String
+  label        String
+  dataType     FieldDataType
+  isRequired   Boolean       @default(false)
+  displayOrder Int           @default(0)
+
+  table DocumentTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+
+  @@unique([tableId, columnKey])
+  @@index([tableId])
+  @@map("document_table_columns")
+}
+
+// ----------------------------------------------------------------------------
+// MODULE: DOCUMENTS + VALUES + LINE ITEMS
+// ----------------------------------------------------------------------------
+
+model Document {
+  id         String @id @default(cuid())
+  schemaId   String
+  schemaCode String
+
+  fileUrl  String
+  fileName String?
+  fileSize Int?
+  mimeType String?
+
+  // Denormalized header fields for fast filter
+  invoiceNumber String?
+  issueDate     DateTime? @db.Date
+  sellerTaxCode String?
+  sellerName    String?
+
+  // Denormalized footer fields
+  totalAmount Decimal? @db.Decimal(18, 2)
+  vatAmount   Decimal? @db.Decimal(18, 2)
+  grandTotal  Decimal? @db.Decimal(18, 2)
+
+  // OCR metadata
+  status           DocumentStatus @default(DRAFT)
+  ocrConfidence    Float?
+  ocrLanguage      String?
+  ocrEngineVersion String?
+  ocrError         String?
+
+  // Lifecycle audit
+  createdBy   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  confirmedBy String?
+  confirmedAt DateTime?
+  processedBy String?
+  processedAt DateTime?
+
+  schema    DocumentSchema     @relation(fields: [schemaId], references: [id])
+  values    DocumentValue[]
+  lineItems DocumentLineItem[]
+  auditLogs DocumentAuditLog[]
+
+  @@unique([sellerTaxCode, invoiceNumber], name: "uq_seller_invoice")
+  @@index([status])
+  @@index([createdAt])
+  @@index([schemaCode])
+  @@index([invoiceNumber])
+  @@index([sellerTaxCode])
+  @@index([issueDate])
+  @@index([schemaId, status])
+  @@index([status, createdAt(sort: Desc)])
+  @@map("documents")
+}
+
+model DocumentValue {
+  id          String  @id @default(cuid())
+  documentId  String
+  fieldId     String
+  stringValue String?
+
+  bboxX      Float?
+  bboxY      Float?
+  bboxWidth  Float?
+  bboxHeight Float?
+  pageNumber Int?
+
+  confidence       Float?
+  isManuallyEdited Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  document Document      @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  field    DocumentField @relation(fields: [fieldId], references: [id], onDelete: Restrict)
+
+  @@unique([documentId, fieldId])
+  @@index([documentId])
+  @@index([fieldId])
+  @@map("document_values")
+}
+
+model DocumentLineItem {
+  id         String @id @default(cuid())
+  documentId String
+  stt        Int
+
+  name      String?
+  unit      String?
+  quantity  Decimal? @db.Decimal(18, 4)
+  unitPrice Decimal? @db.Decimal(18, 2)
+  amount    Decimal? @db.Decimal(18, 2)
+
+  extraData       Json?
+  isManuallyAdded Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, stt])
+  @@index([documentId])
+  @@map("document_line_items")
+}
+
+model DocumentAuditLog {
+  id         String @id @default(cuid())
+  documentId String
+  action     String
+
+  fieldName String?
+  oldValue  String?
+  newValue  String?
+
+  oldStatus DocumentStatus?
+  newStatus DocumentStatus?
+
+  changedBy String
+  changedAt DateTime @default(now())
+  note      String?
+  ipAddress String?
+  userAgent String?
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@index([changedAt(sort: Desc)])
+  @@index([changedBy])
+  @@index([action])
+  @@map("document_audit_logs")
+}
