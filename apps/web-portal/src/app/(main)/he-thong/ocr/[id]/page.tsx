@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Plus, Trash2, X, AlertCircle, FileText, Grid3X3, Table2,
-  ArrowLeft, Save, ChevronDown, ChevronRight, Settings, ScanLine, Check,
+  ArrowLeft, Save, ChevronDown, ChevronRight, Settings, ScanLine, Check, GripVertical,
 } from 'lucide-react';
 import { ocrApi } from '@/lib/ocr-api';
 import type { SchemaDetail, SchemaField, SchemaTable, DataType, FieldPosition, DocType } from '@/lib/ocr-api';
@@ -62,17 +62,17 @@ function DataTypeBadge({ dt }: { dt: DataType }) {
 
 // ─── Edit-state types ──────────────────────────────────────────────────────────
 
-interface FieldEdit { label: string; dataType: DataType; position: FieldPosition; saving: boolean; }
+interface FieldEdit { label: string; dataType: DataType; position: FieldPosition; description: string; saving: boolean; }
 interface ColEdit   { label: string; dataType: DataType; saving: boolean; }
 interface TableEdit { name: string; saving: boolean; }
 
 // ─── Add-form types ───────────────────────────────────────────────────────────
 
-interface NewFieldForm { label: string; dataType: DataType; position: FieldPosition; }
+interface NewFieldForm { label: string; fieldKey: string; dataType: DataType; position: FieldPosition; description: string; _keyManuallySet: boolean; }
 interface NewColForm   { label: string; dataType: DataType; }
 interface NewTableForm { name: string; initColLabel: string; initColType: DataType; }
 
-const emptyField = (): NewFieldForm => ({ label: '', dataType: 'TEXT', position: 'HEADER' });
+const emptyField = (): NewFieldForm => ({ label: '', fieldKey: '', dataType: 'TEXT', position: 'HEADER', description: '', _keyManuallySet: false });
 const emptyCol   = (): NewColForm   => ({ label: '', dataType: 'TEXT' });
 const emptyTable = (): NewTableForm => ({ name: '', initColLabel: '', initColType: 'TEXT' });
 
@@ -117,6 +117,11 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
   const [newCol, setNewCol]               = useState<NewColForm>(emptyCol());
   const [colAdding, setColAdding]         = useState(false);
 
+  // ── Column drag-and-drop ──────────────────────────────────────────────────
+  const [dragColId, setDragColId]       = useState<string | null>(null);
+  const [dragColOverId, setDragColOverId] = useState<string | null>(null);
+  const dragColFromHandle               = useRef(false);
+
   // ── Load ──────────────────────────────────────────────────────────────────
 
   const loadSchema = useCallback(async () => {
@@ -131,7 +136,7 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
       setExpandedTables(new Set(data.tables.map(t => t.id)));
 
       const fEdits: Record<string, FieldEdit> = {};
-      data.fields.forEach(f => { fEdits[f.id] = { label: f.label, dataType: f.dataType, position: f.position, saving: false }; });
+      data.fields.forEach(f => { fEdits[f.id] = { label: f.label, dataType: f.dataType, position: f.position, description: f.description ?? '', saving: false }; });
       setFieldEdits(fEdits);
 
       const tEdits: Record<string, TableEdit> = {};
@@ -152,7 +157,7 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
 
   const isFieldDirty = (f: SchemaField) => {
     const e = fieldEdits[f.id];
-    return e && (e.label !== f.label || e.dataType !== f.dataType || e.position !== f.position);
+    return e && (e.label !== f.label || e.dataType !== f.dataType || e.position !== f.position || e.description !== (f.description ?? ''));
   };
 
   // ── Metadata save ──────────────────────────────────────────────────────────
@@ -175,9 +180,9 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
     setFieldEdits(prev => ({ ...prev, [fieldId]: { ...prev[fieldId], saving: true } }));
     setSaveError(null);
     try {
-      const updated = await ocrApi.updateField(id, fieldId, { label: e.label.trim(), dataType: e.dataType, position: e.position });
+      const updated = await ocrApi.updateField(id, fieldId, { label: e.label.trim(), dataType: e.dataType, position: e.position, description: e.description.trim() || undefined });
       setSchema(prev => prev ? { ...prev, fields: prev.fields.map(f => f.id === fieldId ? updated : f) } : prev);
-      setFieldEdits(prev => ({ ...prev, [fieldId]: { label: updated.label, dataType: updated.dataType, position: updated.position, saving: false } }));
+      setFieldEdits(prev => ({ ...prev, [fieldId]: { label: updated.label, dataType: updated.dataType, position: updated.position, description: updated.description ?? '', saving: false } }));
     } catch (err: unknown) { setSaveError((err as Error).message); setFieldEdits(prev => ({ ...prev, [fieldId]: { ...prev[fieldId], saving: false } })); }
   };
 
@@ -187,9 +192,10 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
     if (!newField.label.trim()) { setSaveError('Vui lòng nhập tên trường.'); return; }
     setFieldAdding(true);
     try {
-      const added = await ocrApi.addField(id, { fieldKey: toKey(newField.label), label: newField.label.trim(), dataType: newField.dataType, position: newField.position, isRequired: false });
+      const fieldKey = newField._keyManuallySet && newField.fieldKey.trim() ? newField.fieldKey.trim() : toKey(newField.label);
+      const added = await ocrApi.addField(id, { fieldKey, label: newField.label.trim(), dataType: newField.dataType, position: newField.position, isRequired: false, description: newField.description.trim() || undefined });
       setSchema(prev => prev ? { ...prev, fields: [...prev.fields, added] } : prev);
-      setFieldEdits(prev => ({ ...prev, [added.id]: { label: added.label, dataType: added.dataType, position: added.position, saving: false } }));
+      setFieldEdits(prev => ({ ...prev, [added.id]: { label: added.label, dataType: added.dataType, position: added.position, description: added.description ?? '', saving: false } }));
       setAddingField(false); setNewField(emptyField());
     } catch (e: unknown) { setSaveError((e as Error).message); }
     finally { setFieldAdding(false); }
@@ -248,6 +254,26 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
 
   const toggleExpand = (tableId: string) =>
     setExpandedTables(prev => { const next = new Set(prev); next.has(tableId) ? next.delete(tableId) : next.add(tableId); return next; });
+
+  const reorderColumnsLocal = (tableId: string, fromId: string, toId: string) => {
+    if (fromId === toId) return;
+    setSchema(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        tables: prev.tables.map(t => {
+          if (t.id !== tableId) return t;
+          const cols = [...t.columns];
+          const fromIdx = cols.findIndex(c => c.id === fromId);
+          const toIdx   = cols.findIndex(c => c.id === toId);
+          if (fromIdx === -1 || toIdx === -1) return t;
+          const [item] = cols.splice(fromIdx, 1);
+          cols.splice(toIdx, 0, item!);
+          return { ...t, columns: cols };
+        }),
+      };
+    });
+  };
 
   // ── Column save ───────────────────────────────────────────────────────────
 
@@ -406,20 +432,12 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
 
         {/* ── Card 2: Các trường OCR ── */}
         <div className="bg-white rounded-xl border overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-3.5 border-b bg-blue-50">
-            <div className="flex items-center gap-2">
-              <Grid3X3 className="w-4 h-4 text-blue-500" />
-              <h2 className="text-sm font-semibold text-gray-800">
-                Các trường OCR
-                <span className="ml-1.5 text-xs font-normal text-gray-500 bg-white px-1.5 py-0.5 rounded-full border">{schema?.fields.length ?? 0}</span>
-              </h2>
-            </div>
-            <button
-              onClick={() => { setAddingField(true); setNewField(emptyField()); }}
-              className="flex items-center gap-1.5 text-xs font-medium bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-lg transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" /> Thêm trường
-            </button>
+          <div className="flex items-center gap-2 px-5 py-3.5 border-b bg-blue-50">
+            <Grid3X3 className="w-4 h-4 text-blue-500" />
+            <h2 className="text-sm font-semibold text-gray-800">
+              Các trường OCR
+              <span className="ml-1.5 text-xs font-normal text-gray-500 bg-white px-1.5 py-0.5 rounded-full border">{schema?.fields.length ?? 0}</span>
+            </h2>
           </div>
 
           {(schema?.fields.length ?? 0) === 0 && !addingField ? (
@@ -433,8 +451,9 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
                 <tr className="border-b bg-green-50 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                   <th className="px-4 py-2.5 text-left w-12">STT</th>
                   <th className="px-4 py-2.5 text-left">Tên trường</th>
-                  <th className="px-4 py-2.5 text-left w-48">Kiểu dữ liệu</th>
-                  <th className="px-4 py-2.5 text-left w-32">Vị trí</th>
+                  <th className="px-4 py-2.5 text-left w-40">Kiểu dữ liệu</th>
+                  <th className="px-4 py-2.5 text-left w-28">Vị trí</th>
+                  <th className="px-4 py-2.5 text-left">Mô tả cho AI</th>
                   <th className="px-4 py-2.5 text-center w-20">Thao tác</th>
                 </tr>
               </thead>
@@ -473,6 +492,15 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
                           {POSITION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
                       </td>
+                      <td className="px-4 py-2.5">
+                        <input
+                          type="text"
+                          value={e.description}
+                          onChange={ev => setFieldEdits(prev => ({ ...prev, [f.id]: { ...prev[f.id], description: ev.target.value } }))}
+                          placeholder="Gợi ý vị trí cho AI (VD: khu vực trên, sau dòng người mua...)"
+                          className="w-full px-2.5 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                        />
+                      </td>
                       <td className="px-4 py-2.5 text-center">
                         <div className="flex items-center justify-center gap-1">
                           <button
@@ -499,15 +527,25 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
                 {/* Inline add row */}
                 {addingField && (
                   <tr className="border-b last:border-0 bg-blue-50/40">
-                    <td className="px-4 py-2.5 text-gray-400 text-xs align-top pt-3">{(schema?.fields.length ?? 0) + 1}</td>
+                    <td className="px-4 py-2.5 text-gray-400 text-xs align-top pt-3" />
                     <td className="px-4 py-2.5">
                       <input
                         autoFocus
                         type="text"
                         value={newField.label}
-                        onChange={e => setNewField(prev => ({ ...prev, label: e.target.value }))}
+                        onChange={e => {
+                          const label = e.target.value;
+                          setNewField(prev => ({ ...prev, label, fieldKey: prev._keyManuallySet ? prev.fieldKey : toKey(label) }));
+                        }}
                         placeholder="Tên trường *"
                         className="w-full px-2.5 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                      <input
+                        type="text"
+                        value={newField.fieldKey}
+                        onChange={e => setNewField(prev => ({ ...prev, fieldKey: e.target.value.replace(/[^a-zA-Z0-9_]/g, ''), _keyManuallySet: true }))}
+                        placeholder="field_key (tự tạo)"
+                        className="w-full mt-1 px-2.5 py-1 text-xs border border-dashed rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono text-gray-500 bg-gray-50"
                       />
                     </td>
                     <td className="px-4 py-2.5 align-top">
@@ -521,6 +559,15 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
                       </select>
                     </td>
                     <td className="px-4 py-2.5 align-top">
+                      <input
+                        type="text"
+                        value={newField.description}
+                        onChange={e => setNewField(prev => ({ ...prev, description: e.target.value }))}
+                        placeholder="Gợi ý vị trí cho AI..."
+                        className="w-full px-2.5 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </td>
+                    <td className="px-4 py-2.5 align-top">
                       <div className="flex items-center justify-center gap-1">
                         <button onClick={handleAddField} disabled={fieldAdding} className="p-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg disabled:opacity-50" title="Xác nhận"><Check className="w-3.5 h-3.5" /></button>
                         <button onClick={() => { setAddingField(false); setNewField(emptyField()); }} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg" title="Hủy"><X className="w-3.5 h-3.5" /></button>
@@ -529,6 +576,19 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
                   </tr>
                 )}
               </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan={6} className="px-4 py-3 border-t bg-gray-50/50">
+                    <button
+                      onClick={() => { setAddingField(true); setNewField(emptyField()); }}
+                      disabled={addingField}
+                      className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Thêm trường
+                    </button>
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           )}
         </div>
@@ -596,12 +656,6 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
                           <span className="ml-2 text-xs text-gray-400">· {t.columns.length} cột</span>
                         </div>
                       )}
-                      <button
-                        onClick={() => { setAddColTableId(t.id); setNewCol(emptyCol()); setExpandedTables(prev => new Set([...prev, t.id])); }}
-                        className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
-                      >
-                        <Plus className="w-3 h-3" /> Thêm cột
-                      </button>
                       <button onClick={() => handleRemoveTable(t)} className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Xóa bảng">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -613,6 +667,7 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
                         <table className="w-full text-xs">
                           <thead>
                             <tr className="bg-green-50 border-b text-gray-500 uppercase tracking-wide font-semibold">
+                              <th className="px-3 py-2 w-8"></th>
                               <th className="px-3 py-2 text-left w-8">STT</th>
                               <th className="px-3 py-2 text-left">Tên cột</th>
                               <th className="px-3 py-2 text-left w-44">Kiểu dữ liệu</th>
@@ -625,7 +680,23 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
                               const colDirty = ce && (ce.label !== c.label || ce.dataType !== c.dataType);
                               if (!ce) return null;
                               return (
-                                <tr key={c.id} className={`border-b last:border-0 transition-colors ${colDirty ? 'bg-amber-50/30' : 'hover:bg-gray-50'}`}>
+                                <tr
+                                  key={c.id}
+                                  draggable
+                                  onDragStart={e => { if (!dragColFromHandle.current) { e.preventDefault(); return; } setDragColId(c.id); dragColFromHandle.current = false; }}
+                                  onDragOver={e => { e.preventDefault(); setDragColOverId(c.id); }}
+                                  onDrop={e => { e.preventDefault(); if (dragColId) reorderColumnsLocal(t.id, dragColId, c.id); setDragColId(null); setDragColOverId(null); }}
+                                  onDragEnd={() => { setDragColId(null); setDragColOverId(null); dragColFromHandle.current = false; }}
+                                  className={`border-b last:border-0 transition-colors ${
+                                    dragColOverId === c.id && dragColId !== c.id ? 'border-t-2 border-blue-400' : ''
+                                  } ${dragColId === c.id ? 'opacity-40' : colDirty ? 'bg-amber-50/30' : 'hover:bg-gray-50'}`}
+                                >
+                                  <td className="px-3 py-2">
+                                    <GripVertical
+                                      className="w-3.5 h-3.5 text-gray-300 cursor-grab active:cursor-grabbing"
+                                      onMouseDown={() => { dragColFromHandle.current = true; }}
+                                    />
+                                  </td>
                                   <td className="px-3 py-2 text-gray-400">{cIdx + 1}</td>
                                   <td className="px-3 py-2">
                                     <input
@@ -666,6 +737,7 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
                             {/* Inline add column */}
                             {isAddingCol && (
                               <tr className="border-b last:border-0 bg-blue-50/30">
+                                <td className="px-3 py-2" />
                                 <td className="px-3 py-2 text-gray-400 align-top pt-2.5">{t.columns.length + 1}</td>
                                 <td className="px-3 py-2">
                                   <input autoFocus value={newCol.label} onChange={e => setNewCol(prev => ({ ...prev, label: e.target.value }))} placeholder="Tên cột *" className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-1 focus:ring-blue-500" />
@@ -684,6 +756,19 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
                               </tr>
                             )}
                           </tbody>
+                          <tfoot>
+                            <tr>
+                              <td colSpan={5} className="px-3 py-2 border-t bg-gray-50/50">
+                                <button
+                                  onClick={() => { setAddColTableId(t.id); setNewCol(emptyCol()); setExpandedTables(prev => new Set([...prev, t.id])); }}
+                                  disabled={isAddingCol}
+                                  className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                  <Plus className="w-3 h-3" /> Thêm cột
+                                </button>
+                              </td>
+                            </tr>
+                          </tfoot>
                         </table>
                       </div>
                     )}

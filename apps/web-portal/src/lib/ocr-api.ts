@@ -53,6 +53,7 @@ export interface SchemaField {
   dataType: DataType;
   position: FieldPosition;
   isRequired: boolean;
+  description: string | null;
   displayOrder: number;
 }
 
@@ -226,6 +227,7 @@ export const ocrApi = {
       dataType: DataType;
       position: FieldPosition;
       isRequired?: boolean;
+      description?: string;
     }>;
     tables?: Array<{
       tableKey: string;
@@ -254,6 +256,7 @@ export const ocrApi = {
     dataType: DataType;
     position: FieldPosition;
     isRequired?: boolean;
+    description?: string;
   }) => req<SchemaField>(`/schemas/${schemaId}/fields`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

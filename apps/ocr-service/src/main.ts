@@ -33,7 +33,7 @@ async function bootstrap() {
   app.enableShutdownHooks();
 
   const port = Number(process.env['OCR_SERVICE_PORT'] ?? 3003);
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   new Logger('OcrService').log(`🚀 OCR Service chạy tại http://localhost:${port}`);
   new Logger('OcrService').log(`📖 Swagger: http://localhost:${port}/api/docs`);
 }

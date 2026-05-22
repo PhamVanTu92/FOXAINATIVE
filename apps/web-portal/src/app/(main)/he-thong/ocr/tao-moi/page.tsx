@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Plus, Trash2, X, AlertCircle, FileText, Grid3X3,
   Table2, ArrowLeft, Save, ChevronDown, ChevronRight,
-  Settings, ScanLine, Pencil, Check, GripVertical,
+  Settings, ScanLine, GripVertical,
 } from 'lucide-react';
 import { ocrApi } from '@/lib/ocr-api';
 import type { DataType, FieldPosition, DocType } from '@/lib/ocr-api';
@@ -23,34 +23,19 @@ const TYPE_OPTIONS: { value: DocType; label: string }[] = [
 ];
 
 const DATA_TYPE_OPTIONS: { value: DataType; label: string }[] = [
-  { value: 'TEXT',     label: 'Văn bản (Text)' },
-  { value: 'DATE',     label: 'Ngày tháng (Date)' },
-  { value: 'NUMBER',   label: 'Số (Number)' },
-  { value: 'CURRENCY', label: 'Tiền tệ (Currency)' },
-  { value: 'BOOLEAN',  label: 'Đúng/Sai (Boolean)' },
-  { value: 'LIST',     label: 'Danh sách (List)' },
+  { value: 'TEXT',     label: 'Văn bản' },
+  { value: 'DATE',     label: 'Ngày tháng' },
+  { value: 'NUMBER',   label: 'Số' },
+  { value: 'CURRENCY', label: 'Tiền tệ' },
+  { value: 'BOOLEAN',  label: 'Đúng/Sai' },
+  { value: 'LIST',     label: 'Danh sách' },
 ];
-
-const DATA_TYPE_BADGE: Record<DataType, string> = {
-  TEXT:     'bg-gray-100 text-gray-700',
-  DATE:     'bg-purple-50 text-purple-700',
-  NUMBER:   'bg-blue-50 text-blue-700',
-  CURRENCY: 'bg-green-50 text-green-700',
-  BOOLEAN:  'bg-amber-50 text-amber-700',
-  LIST:     'bg-orange-50 text-orange-700',
-};
 
 const POSITION_OPTIONS: { value: FieldPosition; label: string }[] = [
   { value: 'HEADER', label: 'Header' },
   { value: 'FOOTER', label: 'Footer' },
   { value: 'BODY',   label: 'Body' },
 ];
-
-const POSITION_BADGE: Record<FieldPosition, { arrow: string; cls: string }> = {
-  HEADER: { arrow: '↑', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
-  FOOTER: { arrow: '↓', cls: 'bg-purple-50 text-purple-700 border-purple-200' },
-  BODY:   { arrow: '↔', cls: 'bg-gray-100 text-gray-700 border-gray-200' },
-};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -67,24 +52,6 @@ function toKey(text: string): string {
     .join('');
 }
 
-function DataTypeBadge({ dt }: { dt: DataType }) {
-  const label = DATA_TYPE_OPTIONS.find(o => o.value === dt)?.label ?? dt;
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${DATA_TYPE_BADGE[dt]}`}>
-      {label}
-    </span>
-  );
-}
-
-function PositionBadge({ pos }: { pos: FieldPosition }) {
-  const conf = POSITION_BADGE[pos];
-  return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-medium ${conf.cls}`}>
-      {conf.arrow} {pos.charAt(0) + pos.slice(1).toLowerCase()}
-    </span>
-  );
-}
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface FieldRow {
@@ -95,7 +62,6 @@ interface FieldRow {
   isRequired: boolean;
   description: string;
   _keyManuallySet: boolean;
-  isEditing: boolean;
 }
 
 interface ColumnRow {
@@ -105,7 +71,6 @@ interface ColumnRow {
   isRequired: boolean;
   description: string;
   _keyManuallySet: boolean;
-  isEditing: boolean;
 }
 
 interface TableRow {
@@ -114,17 +79,16 @@ interface TableRow {
   columns: ColumnRow[];
   expanded: boolean;
   _keyManuallySet: boolean;
-  isEditingMeta: boolean;
 }
 
 const newField = (): FieldRow => ({
   label: '', fieldKey: '', dataType: 'TEXT', position: 'HEADER',
-  isRequired: false, description: '', _keyManuallySet: false, isEditing: true,
+  isRequired: false, description: '', _keyManuallySet: false,
 });
 
 const newColumn = (): ColumnRow => ({
   label: '', columnKey: '', dataType: 'TEXT', isRequired: false,
-  description: '', _keyManuallySet: false, isEditing: true,
+  description: '', _keyManuallySet: false,
 });
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -136,13 +100,17 @@ export default function TaoMoiOcrPage() {
   const [name, setName] = useState('');
   const [type, setType] = useState<DocType>('INVOICE');
   const [description, setDescription] = useState('');
-  const [notes, setNotes] = useState('');
-  const [fields, setFields] = useState<FieldRow[]>([]);
+  const [fields, setFields] = useState<FieldRow[]>([newField()]);
   const [tables, setTables] = useState<TableRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const dragFromHandle = useRef(false);
+
+  const [dragColState, setDragColState] = useState<{ tIdx: number; cIdx: number } | null>(null);
+  const [dragColOverIdx, setDragColOverIdx] = useState<{ tIdx: number; cIdx: number } | null>(null);
+  const dragColFromHandle = useRef(false);
 
   const reorderFields = (from: number, to: number) => {
     if (from === to) return;
@@ -152,6 +120,17 @@ export default function TaoMoiOcrPage() {
       arr.splice(to, 0, item!);
       return arr;
     });
+  };
+
+  const reorderColumns = (tIdx: number, from: number, to: number) => {
+    if (from === to) return;
+    setTables(prev => prev.map((t, i) => {
+      if (i !== tIdx) return t;
+      const cols = [...t.columns];
+      const [item] = cols.splice(from, 1);
+      cols.splice(to, 0, item!);
+      return { ...t, columns: cols };
+    }));
   };
 
   // ── Field handlers ───────────────────────────────────────────────────────────
@@ -172,19 +151,13 @@ export default function TaoMoiOcrPage() {
   const updateField = (idx: number, key: keyof FieldRow, val: string | boolean) =>
     setFields(prev => prev.map((f, i) => i !== idx ? f : { ...f, [key]: val } as FieldRow));
 
-  const confirmField = (idx: number) =>
-    setFields(prev => prev.map((f, i) => i !== idx ? f : { ...f, isEditing: false }));
-
-  const editField = (idx: number) =>
-    setFields(prev => prev.map((f, i) => i !== idx ? f : { ...f, isEditing: true }));
-
   const removeField = (idx: number) => setFields(prev => prev.filter((_, i) => i !== idx));
 
   // ── Table handlers ───────────────────────────────────────────────────────────
 
   const addTable = () => setTables(prev => [...prev, {
     name: '', tableKey: '', expanded: true,
-    _keyManuallySet: false, isEditingMeta: true,
+    _keyManuallySet: false,
     columns: [newColumn()],
   }]);
 
@@ -198,12 +171,6 @@ export default function TaoMoiOcrPage() {
     setTables(prev => prev.map((t, i) => i !== tIdx ? t : {
       ...t, tableKey: val.replace(/[^a-zA-Z0-9_]/g, ''), _keyManuallySet: true,
     }));
-
-  const confirmTableMeta = (tIdx: number) =>
-    setTables(prev => prev.map((t, i) => i !== tIdx ? t : { ...t, isEditingMeta: false }));
-
-  const editTableMeta = (tIdx: number) =>
-    setTables(prev => prev.map((t, i) => i !== tIdx ? t : { ...t, isEditingMeta: true }));
 
   const removeTable = (tIdx: number) => setTables(prev => prev.filter((_, i) => i !== tIdx));
 
@@ -237,16 +204,6 @@ export default function TaoMoiOcrPage() {
       ...t, columns: t.columns.map((c, j) => j !== cIdx ? c : { ...c, [key]: val } as ColumnRow),
     }));
 
-  const confirmColumn = (tIdx: number, cIdx: number) =>
-    setTables(prev => prev.map((t, i) => i !== tIdx ? t : {
-      ...t, columns: t.columns.map((c, j) => j !== cIdx ? c : { ...c, isEditing: false }),
-    }));
-
-  const editColumn = (tIdx: number, cIdx: number) =>
-    setTables(prev => prev.map((t, i) => i !== tIdx ? t : {
-      ...t, columns: t.columns.map((c, j) => j !== cIdx ? c : { ...c, isEditing: true }),
-    }));
-
   const removeColumn = (tIdx: number, cIdx: number) =>
     setTables(prev => prev.map((t, i) => i !== tIdx ? t : {
       ...t, columns: t.columns.filter((_, j) => j !== cIdx),
@@ -264,10 +221,9 @@ export default function TaoMoiOcrPage() {
       .map(t => ({ ...t, columns: t.columns.filter(c => c.label.trim() && c.columnKey.trim()) }))
       .filter(t => t.name.trim() && t.tableKey.trim() && t.columns.length > 0);
 
-    // Guard: duplicate fieldKeys
     const fkSeen = new Set<string>();
     for (const f of validFields) {
-      if (fkSeen.has(f.fieldKey)) { setSaveError(`Trường "${f.fieldKey}" bị trùng lặp. Hãy đặt tên khác nhau.`); return; }
+      if (fkSeen.has(f.fieldKey)) { setSaveError(`Trường "${f.fieldKey}" bị trùng lặp.`); return; }
       fkSeen.add(f.fieldKey);
     }
 
@@ -281,6 +237,7 @@ export default function TaoMoiOcrPage() {
         fields: validFields.map(f => ({
           fieldKey: f.fieldKey, label: f.label, dataType: f.dataType,
           position: f.position, isRequired: f.isRequired,
+          description: f.description.trim() || undefined,
         })),
         tables: validTables.length > 0 ? validTables.map(t => ({
           tableKey: t.tableKey, name: t.name,
@@ -342,7 +299,7 @@ export default function TaoMoiOcrPage() {
         </div>
       </div>
 
-      {/* ── Content (full width) ── */}
+      {/* ── Content ── */}
       <div className="p-6 space-y-5">
         {saveError && (
           <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
@@ -412,171 +369,119 @@ export default function TaoMoiOcrPage() {
 
         {/* ── Card 2: Các trường OCR ── */}
         <div className="bg-white rounded-xl border overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-3.5 border-b bg-blue-50">
-            <div className="flex items-center gap-2">
-              <Grid3X3 className="w-4 h-4 text-blue-500" />
-              <h2 className="text-sm font-semibold text-gray-800">
-                Các trường OCR
-                <span className="ml-1.5 text-xs font-normal text-gray-500 bg-white px-1.5 py-0.5 rounded-full border">
-                  {fields.length}
-                </span>
-              </h2>
-            </div>
-            <button
-              onClick={addField}
-              className="flex items-center gap-1.5 text-xs font-medium bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-lg transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" /> Thêm trường
-            </button>
+          <div className="flex items-center gap-2 px-5 py-3.5 border-b bg-blue-50">
+            <Grid3X3 className="w-4 h-4 text-blue-500" />
+            <h2 className="text-sm font-semibold text-gray-800">
+              Các trường OCR
+              <span className="ml-1.5 text-xs font-normal text-gray-500 bg-white px-1.5 py-0.5 rounded-full border">
+                {fields.length}
+              </span>
+            </h2>
           </div>
 
-          {fields.length === 0 ? (
-            <div className="px-5 py-10 text-center">
-              <Grid3X3 className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-              <p className="text-sm text-gray-400">Chưa có trường OCR nào. Nhấn &quot;Thêm trường&quot; để bắt đầu.</p>
-            </div>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-green-50 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                  <th className="px-4 py-2.5 text-left w-16">STT</th>
-                  <th className="px-4 py-2.5 text-left">Tên trường</th>
-                  <th className="px-4 py-2.5 text-left w-44">Kiểu dữ liệu</th>
-                  <th className="px-4 py-2.5 text-left w-28">Vị trí</th>
-                  <th className="px-4 py-2.5 text-left">Ghi chú</th>
-                  <th className="px-4 py-2.5 text-center w-24">Thao tác</th>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-green-50 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                <th className="px-4 py-2.5 text-left w-12"></th>
+                <th className="px-4 py-2.5 text-left">Tên trường & Field Key</th>
+                <th className="px-4 py-2.5 text-left w-36">Kiểu dữ liệu</th>
+                <th className="px-4 py-2.5 text-left w-28">Vị trí</th>
+                <th className="px-4 py-2.5 text-left">
+                  Mô tả cho AI
+                  <span className="ml-1 text-[10px] font-normal text-gray-400 normal-case">(gợi ý vị trí để phân biệt trường trùng tên)</span>
+                </th>
+                <th className="px-4 py-2.5 text-center w-12"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {fields.map((f, idx) => (
+                <tr
+                  key={idx}
+                  draggable
+                  onDragStart={e => { if (!dragFromHandle.current) { e.preventDefault(); return; } setDragIdx(idx); dragFromHandle.current = false; }}
+                  onDragOver={e => { e.preventDefault(); setDragOverIdx(idx); }}
+                  onDrop={e => { e.preventDefault(); if (dragIdx !== null) reorderFields(dragIdx, idx); setDragIdx(null); setDragOverIdx(null); }}
+                  onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); dragFromHandle.current = false; }}
+                  className={`border-b last:border-0 transition-colors ${dragOverIdx === idx && dragIdx !== idx ? 'border-t-2 border-blue-400' : ''} ${dragIdx === idx ? 'opacity-40' : 'hover:bg-gray-50/50'}`}
+                >
+                  <td className="px-3 py-3">
+                    <div className="flex items-center gap-1">
+                      <GripVertical
+                        className="w-3.5 h-3.5 text-gray-300 cursor-grab active:cursor-grabbing"
+                        onMouseDown={() => { dragFromHandle.current = true; }}
+                      />
+                      <span className="text-gray-300 text-xs">{idx + 1}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <input
+                      type="text"
+                      value={f.label}
+                      onChange={e => updateFieldLabel(idx, e.target.value)}
+                      placeholder="Tên trường *"
+                      className="w-full px-2.5 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <input
+                      type="text"
+                      value={f.fieldKey}
+                      onChange={e => updateFieldKey(idx, e.target.value)}
+                      placeholder="field_key (tự tạo từ tên)"
+                      className="w-full mt-1 px-2.5 py-1 text-xs border border-dashed rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono text-gray-500 bg-gray-50"
+                    />
+                  </td>
+                  <td className="px-4 py-3">
+                    <select
+                      value={f.dataType}
+                      onChange={e => updateField(idx, 'dataType', e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                    >
+                      {DATA_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </td>
+                  <td className="px-4 py-3">
+                    <select
+                      value={f.position}
+                      onChange={e => updateField(idx, 'position', e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                    >
+                      {POSITION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </td>
+                  <td className="px-4 py-3">
+                    <input
+                      type="text"
+                      value={f.description}
+                      onChange={e => updateField(idx, 'description', e.target.value)}
+                      placeholder="VD: Địa chỉ BÊN BÁN, khu vực phần trên hóa đơn"
+                      className="w-full px-2.5 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <button
+                      onClick={() => removeField(idx)}
+                      disabled={fields.length === 1}
+                      className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="Xóa trường"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {fields.map((f, idx) => f.isEditing ? (
-                  /* ── Edit row ── */
-                  <tr
-                    key={idx}
-                    draggable
-                    onDragStart={() => setDragIdx(idx)}
-                    onDragOver={e => { e.preventDefault(); setDragOverIdx(idx); }}
-                    onDrop={e => { e.preventDefault(); if (dragIdx !== null) reorderFields(dragIdx, idx); setDragIdx(null); setDragOverIdx(null); }}
-                    onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
-                    className={`border-b last:border-0 bg-blue-50/40 transition-colors ${dragOverIdx === idx && dragIdx !== idx ? 'border-t-2 border-blue-400' : ''} ${dragIdx === idx ? 'opacity-40' : ''}`}
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan={6} className="px-4 py-3 border-t bg-gray-50/50">
+                  <button
+                    onClick={addField}
+                    className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors"
                   >
-                    <td className="px-4 py-3 align-top pt-3.5">
-                      <div className="flex items-center gap-1.5">
-                        <GripVertical className="w-3.5 h-3.5 text-gray-300 cursor-grab active:cursor-grabbing shrink-0" />
-                        <span className="text-gray-400 text-xs">{idx + 1}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <input
-                        type="text"
-                        value={f.label}
-                        onChange={e => updateFieldLabel(idx, e.target.value)}
-                        placeholder="Tên trường *"
-                        className="w-full px-2.5 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        autoFocus
-                      />
-                    </td>
-                    <td className="px-4 py-3 align-top pt-3">
-                      <select
-                        value={f.dataType}
-                        onChange={e => updateField(idx, 'dataType', e.target.value)}
-                        className="w-full px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
-                      >
-                        {DATA_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                      </select>
-                    </td>
-                    <td className="px-4 py-3 align-top pt-3">
-                      <select
-                        value={f.position}
-                        onChange={e => updateField(idx, 'position', e.target.value)}
-                        className="w-full px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
-                      >
-                        {POSITION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                      </select>
-                    </td>
-                    <td className="px-4 py-3 align-top pt-3">
-                      <input
-                        type="text"
-                        value={f.description}
-                        onChange={e => updateField(idx, 'description', e.target.value)}
-                        placeholder="Ghi chú (tùy chọn)"
-                        className="w-full px-2.5 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      />
-                    </td>
-                    <td className="px-4 py-3 align-top pt-3">
-                      <div className="flex items-center justify-center gap-1">
-                        <button
-                          onClick={() => confirmField(idx)}
-                          className="p-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
-                          title="Xác nhận"
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => removeField(idx)}
-                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Xóa"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  /* ── Display row ── */
-                  <tr
-                    key={idx}
-                    draggable
-                    onDragStart={() => setDragIdx(idx)}
-                    onDragOver={e => { e.preventDefault(); setDragOverIdx(idx); }}
-                    onDrop={e => { e.preventDefault(); if (dragIdx !== null) reorderFields(dragIdx, idx); setDragIdx(null); setDragOverIdx(null); }}
-                    onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
-                    className={`border-b last:border-0 hover:bg-gray-50 transition-colors ${dragOverIdx === idx && dragIdx !== idx ? 'border-t-2 border-blue-400' : ''} ${dragIdx === idx ? 'opacity-40' : ''}`}
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        <GripVertical className="w-3.5 h-3.5 text-gray-300 cursor-grab active:cursor-grabbing shrink-0" />
-                        <span className="text-gray-400 text-xs">{idx + 1}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-gray-800 text-sm">{f.label}</p>
-                      <code className="text-xs text-gray-400 font-mono">{f.fieldKey}</code>
-                    </td>
-                    <td className="px-4 py-3">
-                      <DataTypeBadge dt={f.dataType} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <PositionBadge pos={f.position} />
-                    </td>
-                    <td className="px-4 py-3 text-xs text-gray-500">
-                      {f.description || '—'}
-                      {f.isRequired && (
-                        <span className="ml-2 text-red-400 text-[10px] font-medium">Bắt buộc</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-center gap-1">
-                        <button
-                          onClick={() => editField(idx)}
-                          className="p-1.5 text-amber-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                          title="Chỉnh sửa"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => removeField(idx)}
-                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Xóa"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                    <Plus className="w-3.5 h-3.5" /> Thêm trường
+                  </button>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
 
         {/* ── Card 3: Các bảng OCR ── */}
@@ -602,172 +507,123 @@ export default function TaoMoiOcrPage() {
           {tables.length === 0 ? (
             <div className="px-5 py-10 text-center">
               <Table2 className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-              <p className="text-sm text-gray-400">Chưa có bảng OCR nào. Nhấn &quot;Thêm bảng&quot; để tạo bảng đầu tiên.</p>
+              <p className="text-sm text-gray-400">Chưa có bảng OCR nào. Nhấn &quot;Thêm bảng&quot; để tạo.</p>
             </div>
           ) : (
             <div className="divide-y">
               {tables.map((t, tIdx) => (
                 <div key={tIdx}>
                   {/* ── Table meta row ── */}
-                  {t.isEditingMeta ? (
-                    <div className="flex items-center gap-3 px-5 py-3 bg-orange-50/40">
-                      <Table2 className="w-4 h-4 text-orange-400 shrink-0" />
+                  <div className="flex items-center gap-3 px-5 py-3">
+                    <button onClick={() => toggleExpand(tIdx)} className="text-gray-400 hover:text-gray-600 shrink-0">
+                      {t.expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                    </button>
+                    <Table2 className="w-4 h-4 text-orange-400 shrink-0" />
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
                       <input
                         value={t.name}
                         onChange={e => updateTableName(tIdx, e.target.value)}
                         placeholder="Tên bảng *"
-                        autoFocus
-                        className="flex-1 px-2.5 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="flex-1 min-w-0 px-2.5 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
-                      <button
-                        onClick={() => confirmTableMeta(tIdx)}
-                        className="p-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
-                        title="Xác nhận"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => removeTable(tIdx)}
-                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Xóa bảng"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <input
+                        value={t.tableKey}
+                        onChange={e => updateTableKey(tIdx, e.target.value)}
+                        placeholder="table_key"
+                        className="w-40 px-2.5 py-1.5 text-xs border border-dashed rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono text-gray-500 bg-gray-50"
+                      />
+                      <span className="text-xs text-gray-400 shrink-0">{t.columns.length} cột</span>
                     </div>
-                  ) : (
-                    <div className="flex items-center gap-3 px-5 py-3">
-                      <button onClick={() => toggleExpand(tIdx)} className="text-gray-400 hover:text-gray-600 shrink-0">
-                        {t.expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                      </button>
-                      <Table2 className="w-4 h-4 text-orange-400 shrink-0" />
-                      <div className="flex-1">
-                        <span className="font-medium text-gray-800 text-sm">{t.name}</span>
-                        <code className="ml-2 text-xs text-gray-400 font-mono">{t.tableKey}</code>
-                        <span className="ml-2 text-xs text-gray-400">· {t.columns.length} cột</span>
-                      </div>
-                      <button
-                        onClick={() => addColumn(tIdx)}
-                        className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
-                      >
-                        <Plus className="w-3 h-3" /> Thêm cột
-                      </button>
-                      <button
-                        onClick={() => editTableMeta(tIdx)}
-                        className="p-1.5 text-amber-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                        title="Sửa tên bảng"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => removeTable(tIdx)}
-                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Xóa bảng"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
+                    <button
+                      onClick={() => removeTable(tIdx)}
+                      className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                      title="Xóa bảng"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
 
                   {/* ── Columns ── */}
-                  {t.expanded && !t.isEditingMeta && (
+                  {t.expanded && (
                     <div className="mx-5 mb-3 rounded-lg border overflow-hidden">
                       <table className="w-full text-xs">
                         <thead>
                           <tr className="bg-green-50 border-b text-gray-500 uppercase tracking-wide font-semibold">
-                            <th className="px-3 py-2 text-left w-8">STT</th>
-                            <th className="px-3 py-2 text-left">Tên cột</th>
-                            <th className="px-3 py-2 text-left w-40">Kiểu dữ liệu</th>
-                            <th className="px-3 py-2 text-left">Ghi chú</th>
-                            <th className="px-3 py-2 text-center w-20">Thao tác</th>
+                            <th className="px-3 py-2 w-8"></th>
+                            <th className="px-3 py-2 text-left w-8">#</th>
+                            <th className="px-3 py-2 text-left">Tên cột & Column Key</th>
+                            <th className="px-3 py-2 text-left w-36">Kiểu dữ liệu</th>
+                            <th className="px-3 py-2 text-center w-10"></th>
                           </tr>
                         </thead>
                         <tbody>
-                          {t.columns.length === 0 ? (
-                            <tr>
-                              <td colSpan={5} className="px-3 py-3 text-center text-gray-400">Chưa có cột nào.</td>
-                            </tr>
-                          ) : t.columns.map((c, cIdx) => c.isEditing ? (
-                            /* ── Edit column row ── */
-                            <tr key={cIdx} className="border-b last:border-0 bg-blue-50/30">
-                              <td className="px-3 py-2 text-gray-400 align-top pt-2.5">{cIdx + 1}</td>
+                          {t.columns.map((c, cIdx) => (
+                            <tr
+                              key={cIdx}
+                              draggable
+                              onDragStart={e => { if (!dragColFromHandle.current) { e.preventDefault(); return; } setDragColState({ tIdx, cIdx }); dragColFromHandle.current = false; }}
+                              onDragOver={e => { e.preventDefault(); setDragColOverIdx({ tIdx, cIdx }); }}
+                              onDrop={e => { e.preventDefault(); if (dragColState && dragColState.tIdx === tIdx) reorderColumns(tIdx, dragColState.cIdx, cIdx); setDragColState(null); setDragColOverIdx(null); }}
+                              onDragEnd={() => { setDragColState(null); setDragColOverIdx(null); dragColFromHandle.current = false; }}
+                              className={`border-b last:border-0 transition-colors ${
+                                dragColOverIdx?.tIdx === tIdx && dragColOverIdx?.cIdx === cIdx && dragColState?.cIdx !== cIdx ? 'border-t-2 border-blue-400' : ''
+                              } ${dragColState?.tIdx === tIdx && dragColState?.cIdx === cIdx ? 'opacity-40' : 'hover:bg-gray-50/50'}`}
+                            >
+                              <td className="px-3 py-2">
+                                <GripVertical
+                                  className="w-3.5 h-3.5 text-gray-300 cursor-grab active:cursor-grabbing"
+                                  onMouseDown={() => { dragColFromHandle.current = true; }}
+                                />
+                              </td>
+                              <td className="px-3 py-2 text-gray-400">{cIdx + 1}</td>
                               <td className="px-3 py-2">
                                 <input
                                   value={c.label}
                                   onChange={e => updateColumnLabel(tIdx, cIdx, e.target.value)}
                                   placeholder="Tên cột *"
-                                  autoFocus
-                                  className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                  className="w-full px-2 py-1.5 border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                />
+                                <input
+                                  value={c.columnKey}
+                                  onChange={e => updateColumnKey(tIdx, cIdx, e.target.value)}
+                                  placeholder="column_key"
+                                  className="w-full mt-1 px-2 py-1 text-[11px] border border-dashed rounded focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono text-gray-500 bg-gray-50"
                                 />
                               </td>
-                              <td className="px-3 py-2 align-top">
+                              <td className="px-3 py-2 align-top pt-2">
                                 <select
                                   value={c.dataType}
                                   onChange={e => updateColumn(tIdx, cIdx, 'dataType', e.target.value)}
-                                  className="w-full px-2 py-1 border rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                  className="w-full px-2 py-1.5 border rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                                 >
                                   {DATA_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                                 </select>
                               </td>
-                              <td className="px-3 py-2 align-top">
-                                <input
-                                  value={c.description}
-                                  onChange={e => updateColumn(tIdx, cIdx, 'description', e.target.value)}
-                                  placeholder="Ghi chú"
-                                  className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                />
-                              </td>
-                              <td className="px-3 py-2 text-center align-top">
-                                <div className="flex items-center justify-center gap-1">
-                                  <button
-                                    onClick={() => confirmColumn(tIdx, cIdx)}
-                                    className="p-1 bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
-                                    title="Xác nhận"
-                                  >
-                                    <Check className="w-3 h-3" />
-                                  </button>
-                                  <button
-                                    onClick={() => removeColumn(tIdx, cIdx)}
-                                    className="p-1 text-gray-300 hover:text-red-400 rounded transition-colors"
-                                    title="Xóa"
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ) : (
-                            /* ── Display column row ── */
-                            <tr key={cIdx} className="border-b last:border-0 hover:bg-gray-50 transition-colors">
-                              <td className="px-3 py-2 text-gray-400">{cIdx + 1}</td>
-                              <td className="px-3 py-2">
-                                <p className="font-medium text-gray-800">{c.label}</p>
-                                <code className="text-[10px] text-gray-400 font-mono">{c.columnKey}</code>
-                              </td>
-                              <td className="px-3 py-2">
-                                <DataTypeBadge dt={c.dataType} />
-                              </td>
-                              <td className="px-3 py-2 text-gray-500">{c.description || '—'}</td>
-                              <td className="px-3 py-2 text-center">
-                                <div className="flex items-center justify-center gap-1">
-                                  <button
-                                    onClick={() => editColumn(tIdx, cIdx)}
-                                    className="p-1 text-amber-500 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors"
-                                    title="Sửa"
-                                  >
-                                    <Pencil className="w-3 h-3" />
-                                  </button>
-                                  <button
-                                    onClick={() => removeColumn(tIdx, cIdx)}
-                                    className="p-1 text-gray-300 hover:text-red-400 rounded transition-colors"
-                                    title="Xóa"
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </button>
-                                </div>
+                              <td className="px-3 py-2 text-center align-top pt-2">
+                                <button
+                                  onClick={() => removeColumn(tIdx, cIdx)}
+                                  disabled={t.columns.length === 1}
+                                  className="p-1 text-gray-300 hover:text-red-400 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                  title="Xóa cột"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
                               </td>
                             </tr>
                           ))}
                         </tbody>
+                        <tfoot>
+                          <tr>
+                            <td colSpan={5} className="px-3 py-2 border-t bg-gray-50/50">
+                              <button
+                                onClick={() => addColumn(tIdx)}
+                                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 rounded transition-colors"
+                              >
+                                <Plus className="w-3 h-3" /> Thêm cột
+                              </button>
+                            </td>
+                          </tr>
+                        </tfoot>
                       </table>
                     </div>
                   )}
@@ -775,23 +631,6 @@ export default function TaoMoiOcrPage() {
               ))}
             </div>
           )}
-        </div>
-
-        {/* ── Card 4: Ghi chú ── */}
-        <div className="bg-white rounded-xl border overflow-hidden">
-          <div className="flex items-center gap-2 px-5 py-3.5 border-b bg-gray-50">
-            <FileText className="w-4 h-4 text-gray-400" />
-            <h2 className="text-sm font-semibold text-gray-800">Ghi chú cấu hình OCR</h2>
-          </div>
-          <div className="p-5">
-            <textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              placeholder="Nhập ghi chú cho các trường hoặc cột đã khai báo, hướng dẫn nhận dạng, hoặc lưu ý đặc biệt khi OCR chứng từ này..."
-              rows={4}
-              className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-            />
-          </div>
         </div>
       </div>
     </div>
