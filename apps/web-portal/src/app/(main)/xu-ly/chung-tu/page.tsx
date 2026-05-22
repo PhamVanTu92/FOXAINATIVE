@@ -1,18 +1,20 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search, ChevronLeft, ChevronRight, FileText, AlertCircle,
-  Pencil, Trash2, Download, X, Database, Check,
+  Pencil, Trash2, Download, X, Database, Check, Eye,
+  ClipboardList, Clock, TrendingUp,
 } from 'lucide-react';
 import { ocrApi } from '@/lib/ocr-api';
-import type { DocListItem, DocStats } from '@/lib/ocr-api';
+import type { DocListItem, DocStats, DocDetail } from '@/lib/ocr-api';
 
 const STATUS_CONFIG = {
-  DRAFT:     { label: 'Nháp',          cls: 'bg-orange-50 text-orange-600 border-orange-200' },
-  PROCESSED: { label: 'Đã chuyển kho', cls: 'bg-purple-50 text-purple-600 border-purple-200' },
-  CONFIRMED: { label: 'Đã xác nhận',   cls: 'bg-green-50  text-green-600  border-green-200' },
-  ERROR:     { label: 'Lỗi',           cls: 'bg-red-50    text-red-600    border-red-200' },
+  DRAFT:       { label: 'Đang xử lý',   cls: 'bg-gray-50    text-gray-500   border-gray-200'  },
+  PROCESSED:   { label: 'Nháp',         cls: 'bg-orange-50  text-orange-600 border-orange-200' },
+  CONFIRMED:   { label: 'Đã xác nhận',  cls: 'bg-green-50   text-green-600  border-green-200'  },
+  TRANSFERRED: { label: 'Đã chuyển kho',cls: 'bg-purple-50  text-purple-600 border-purple-200' },
+  ERROR:       { label: 'Lỗi',          cls: 'bg-red-50     text-red-600    border-red-200'    },
 } as const;
 
 const TYPE_CONFIG: Record<string, { label: string; cls: string }> = {
@@ -49,6 +51,13 @@ function fmtDate(d: string | null | undefined) {
   try { return new Date(d).toLocaleDateString('vi-VN'); } catch { return d; }
 }
 
+function fmtNum(n: number | string | null | undefined) {
+  if (n == null) return '—';
+  const v = typeof n === 'string' ? parseFloat(n) : n;
+  if (isNaN(v)) return '—';
+  return new Intl.NumberFormat('vi-VN').format(v);
+}
+
 function StatCard({
   label, value, colorClass,
 }: { label: string; value: number; colorClass: string }) {
@@ -78,9 +87,37 @@ export default function ChungTuPage() {
   const [editSaving, setEditSaving] = useState(false);
 
   // Transfer modal
-  const [transferOpen, setTransferOpen] = useState(false);
-  const [transferIds, setTransferIds]   = useState<string[]>([]);
-  const [transferring, setTransferring] = useState(false);
+  const [transferOpen, setTransferOpen]   = useState(false);
+  const [transferIds, setTransferIds]     = useState<string[]>([]);
+  const [transferring, setTransferring]   = useState(false);
+  const [loadingTransfer, setLoadingTransfer] = useState(false);
+
+  // Detail panel
+  const [detailOpen, setDetailOpen]     = useState(false);
+  const [detailDoc, setDetailDoc]       = useState<DocDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  // Confirm dialog
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string; message: string;
+    confirmLabel: string; confirmCls: string;
+    onConfirm: () => void;
+  } | null>(null);
+
+  // Toast
+  const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((message: string, type: 'error' | 'success' = 'error') => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ message, type });
+    toastTimer.current = setTimeout(() => setToast(null), 4500);
+  }, []);
+
+  const showConfirm = useCallback((
+    title: string, message: string, onConfirm: () => void,
+    confirmLabel = 'Xác nhận', confirmCls = 'bg-blue-600 hover:bg-blue-700 text-white',
+  ) => setConfirmDialog({ title, message, onConfirm, confirmLabel, confirmCls }), []);
 
   const loadStats = useCallback(async () => {
     try { setStats(await ocrApi.getStats()); } catch { /* silent */ }
@@ -119,52 +156,96 @@ export default function ChungTuPage() {
       await ocrApi.bulkConfirm([...selectedIds]);
       setSelectedIds(new Set());
       await Promise.all([loadStats(), loadDocs()]);
-    } catch (e: unknown) { alert((e as Error).message); }
+      showToast('Đã xác nhận thành công.', 'success');
+    } catch (e: unknown) { showToast((e as Error).message); }
   };
 
   const openTransferModal = (ids: string[]) => {
-    setTransferIds(ids);
+    const confirmedIds = ids.filter(id => docs?.items.find(d => d.id === id)?.status === 'CONFIRMED');
+    setTransferIds(confirmedIds);
     setTransferOpen(true);
   };
+
+  const openTransferAllConfirmed = useCallback(async () => {
+    setLoadingTransfer(true);
+    try {
+      let allIds: string[] = [];
+      let currentPage = 1;
+      while (true) {
+        const result = await ocrApi.getDocuments({ status: 'CONFIRMED', pageSize: '100', page: String(currentPage) });
+        allIds = [...allIds, ...result.items.map(d => d.id)];
+        if (currentPage >= result.totalPages || result.items.length === 0) break;
+        currentPage++;
+      }
+      setTransferIds(allIds);
+      setTransferOpen(true);
+    } catch (e: unknown) {
+      showToast((e as Error).message);
+    } finally {
+      setLoadingTransfer(false);
+    }
+  }, [showToast]);
 
   const handleTransfer = async () => {
     setTransferring(true);
     try {
-      await ocrApi.bulkConfirm(transferIds);
+      await ocrApi.bulkTransfer(transferIds);
       setSelectedIds(new Set());
       setTransferOpen(false);
       await Promise.all([loadStats(), loadDocs()]);
+      showToast(`Đã chuyển ${transferIds.length} chứng từ vào kho tri thức.`, 'success');
     } catch (e: unknown) {
-      alert((e as Error).message);
+      showToast((e as Error).message);
     } finally {
       setTransferring(false);
     }
   };
 
-  const deleteDoc = async (id: string) => {
-    if (!confirm('Xóa chứng từ này?')) return;
+  const deleteDoc = (id: string) => {
+    showConfirm(
+      'Xóa chứng từ',
+      'Bạn có chắc chắn muốn xóa chứng từ này? Hành động này không thể hoàn tác.',
+      async () => {
+        try {
+          await ocrApi.deleteDocument(id);
+          await Promise.all([loadStats(), loadDocs()]);
+          showToast('Đã xóa chứng từ.', 'success');
+        } catch (e: unknown) { showToast((e as Error).message); }
+      },
+      'Xóa', 'bg-red-600 hover:bg-red-700 text-white',
+    );
+  };
+
+  const openDetailPanel = async (id: string) => {
+    setDetailOpen(true);
+    setDetailLoading(true);
+    setDetailDoc(null);
     try {
-      await ocrApi.deleteDocument(id);
-      await Promise.all([loadStats(), loadDocs()]);
-    } catch (e: unknown) { alert((e as Error).message); }
+      setDetailDoc(await ocrApi.getDocument(id));
+    } catch (e: unknown) {
+      showToast((e as Error).message);
+      setDetailOpen(false);
+    } finally {
+      setDetailLoading(false);
+    }
   };
 
   const openEditModal = (doc: DocListItem) => {
     setEditDoc(doc);
-    setEditStatus(doc.status);
+    setEditStatus(doc.status === 'CONFIRMED' ? 'CONFIRMED' : doc.status === 'TRANSFERRED' ? 'TRANSFERRED' : 'PROCESSED');
   };
 
   const handleSaveEdit = async () => {
     if (!editDoc) return;
     setEditSaving(true);
     try {
-      if (editStatus === 'CONFIRMED' && editDoc.status !== 'CONFIRMED') {
+      if (editStatus === 'CONFIRMED' && editDoc.status === 'PROCESSED') {
         await ocrApi.confirmDocument(editDoc.id);
       }
       setEditDoc(null);
       await Promise.all([loadStats(), loadDocs()]);
     } catch (e: unknown) {
-      alert((e as Error).message);
+      showToast((e as Error).message);
     } finally {
       setEditSaving(false);
     }
@@ -203,24 +284,37 @@ export default function ChungTuPage() {
             <Download className="w-4 h-4" />
             Xuất Excel
           </button>
-          <button
-            onClick={() => openTransferModal(selectedIds.size > 0 ? [...selectedIds] : (docs?.items.map(d => d.id) ?? []))}
-            className="flex items-center gap-2 bg-[#0d4f4f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#0a3d3d] transition-colors"
-          >
-            <Database className="w-4 h-4" />
-            Chuyển vào kho tri thức
-          </button>
+          {(() => {
+            const confirmedCount = selectedIds.size > 0
+              ? [...selectedIds].filter(id => docs?.items.find(d => d.id === id)?.status === 'CONFIRMED').length
+              : (stats?.confirmed ?? 0);
+            const isDisabled = loadingTransfer || confirmedCount === 0;
+            return (
+              <button
+                onClick={() => selectedIds.size > 0 ? openTransferModal([...selectedIds]) : openTransferAllConfirmed()}
+                disabled={isDisabled}
+                title={confirmedCount === 0 ? 'Không có chứng từ "Đã xác nhận" nào để chuyển' : undefined}
+                className="flex items-center gap-2 bg-[#0d4f4f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#0a3d3d] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <Database className="w-4 h-4" />
+                {loadingTransfer ? 'Đang tải...' : (
+                  <>Chuyển vào kho tri thức{confirmedCount > 0 && <span className="ml-1.5 bg-white/20 px-1.5 py-0.5 rounded text-xs">{confirmedCount}</span>}</>
+                )}
+              </button>
+            );
+          })()}
         </div>
       </div>
 
       <div className="p-6 space-y-4">
         {/* Stat cards */}
         {stats && (
-          <div className="grid grid-cols-4 gap-4">
-            <StatCard label="Tổng chứng từ"  value={stats.total}     colorClass="text-gray-800" />
-            <StatCard label="Nháp"           value={stats.draft}     colorClass="text-orange-500" />
-            <StatCard label="Đã xác nhận"    value={stats.confirmed} colorClass="text-green-600" />
-            <StatCard label="Đã chuyển kho"  value={stats.processed} colorClass="text-purple-600" />
+          <div className="grid grid-cols-5 gap-4">
+            <StatCard label="Tổng chứng từ"  value={stats.total}       colorClass="text-gray-800"   />
+            <StatCard label="Chờ xác nhận"   value={stats.processed}   colorClass="text-orange-500" />
+            <StatCard label="Đã xác nhận"    value={stats.confirmed}   colorClass="text-green-600"  />
+            <StatCard label="Đã chuyển kho"  value={stats.transferred} colorClass="text-purple-600" />
+            <StatCard label="Lỗi OCR"        value={stats.error}       colorClass="text-red-500"    />
           </div>
         )}
 
@@ -244,9 +338,10 @@ export default function ChungTuPage() {
             className="h-9 px-3 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
           >
             <option value="">Tất cả trạng thái</option>
-            <option value="DRAFT">Nháp</option>
-            <option value="PROCESSED">Đã chuyển kho</option>
+            <option value="DRAFT">Đang xử lý</option>
+            <option value="PROCESSED">Nháp</option>
             <option value="CONFIRMED">Đã xác nhận</option>
+            <option value="TRANSFERRED">Đã chuyển kho</option>
             <option value="ERROR">Lỗi</option>
           </select>
           <select
@@ -362,10 +457,13 @@ export default function ChungTuPage() {
                     {doc.invoiceNumber ?? doc.id.slice(0, 10) + '...'}
                   </td>
                   <td className="px-4 py-3 text-gray-700 max-w-[200px]">
-                    <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => openDetailPanel(doc.id)}
+                      className="flex items-center gap-2 hover:text-blue-600 transition-colors text-left w-full"
+                    >
                       <FileText className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                       <span className="truncate">{doc.fileName ?? doc.schema.name}</span>
-                    </div>
+                    </button>
                   </td>
                   <td className="px-4 py-3">
                     <TypeBadge type={doc.schema.type} />
@@ -379,6 +477,13 @@ export default function ChungTuPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-center gap-1">
+                      <button
+                        onClick={() => openDetailPanel(doc.id)}
+                        className="p-1.5 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors"
+                        title="Xem chi tiết"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
                       <button
                         onClick={() => openEditModal(doc)}
                         className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
@@ -476,11 +581,23 @@ export default function ChungTuPage() {
                 <select
                   value={editStatus}
                   onChange={e => setEditStatus(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  disabled={editDoc.status === 'CONFIRMED' || editDoc.status === 'TRANSFERRED'}
+                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    editDoc.status === 'CONFIRMED' || editDoc.status === 'TRANSFERRED'
+                      ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : 'bg-white'
+                  }`}
                 >
-                  <option value="DRAFT">Nháp</option>
+                  <option value="PROCESSED">Nháp</option>
                   <option value="CONFIRMED">Đã xác nhận</option>
+                  {editDoc.status === 'TRANSFERRED' && <option value="TRANSFERRED">Đã chuyển kho</option>}
                 </select>
+                {(editDoc.status === 'CONFIRMED' || editDoc.status === 'TRANSFERRED') && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    {editDoc.status === 'TRANSFERRED'
+                      ? 'Chứng từ đã chuyển kho không thể thay đổi trạng thái.'
+                      : 'Xác nhận rồi → không thể chỉnh sửa trạng thái.'}
+                  </p>
+                )}
               </div>
             </div>
             <div className="px-6 py-4 border-t flex justify-end gap-3">
@@ -502,22 +619,244 @@ export default function ChungTuPage() {
         </div>
       )}
 
+      {/* Detail drawer */}
+      {detailOpen && (
+        <div className="fixed inset-0 z-50 flex">
+          <div className="flex-1 bg-black/40" onClick={() => setDetailOpen(false)} />
+          <div className="w-full max-w-2xl bg-white shadow-2xl flex flex-col overflow-hidden">
+            {/* Drawer header */}
+            <div className="px-6 py-4 border-b flex items-start justify-between shrink-0 bg-white">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-base font-semibold text-gray-900 truncate">
+                    {detailDoc?.fileName ?? 'Chi tiết chứng từ'}
+                  </h2>
+                  {detailDoc && <StatusBadge status={detailDoc.status} />}
+                </div>
+                {detailDoc && (
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <span className="text-xs text-gray-500">{detailDoc.schema.name}</span>
+                    <TypeBadge type={detailDoc.schema.type} />
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => setDetailOpen(false)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 shrink-0 ml-3"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Drawer body */}
+            <div className="flex-1 overflow-y-auto bg-gray-50">
+              {detailLoading ? (
+                <div className="flex items-center justify-center h-48">
+                  <div className="w-7 h-7 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : detailDoc ? (
+                <div className="p-6 space-y-5">
+
+                  {/* Meta info grid */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      { label: 'Mã chứng từ',    value: detailDoc.invoiceNumber },
+                      { label: 'Ngày phát hành', value: fmtDate(detailDoc.issueDate) },
+                      { label: 'Người bán',      value: detailDoc.sellerName },
+                      { label: 'MST người bán',  value: detailDoc.sellerTaxCode },
+                      { label: 'Ngày OCR',       value: fmtDate(detailDoc.createdAt) },
+                    ] as { label: string; value: string | null | undefined }[])
+                      .filter(f => f.value && f.value !== '—')
+                      .map(({ label, value }) => (
+                        <div key={label} className="bg-white rounded-lg border px-3 py-2.5">
+                          <p className="text-xs text-gray-400">{label}</p>
+                          <p className="text-sm font-medium text-gray-800 mt-0.5 truncate">{value}</p>
+                        </div>
+                      ))}
+                  </div>
+
+                  {/* Amounts */}
+                  {(detailDoc.totalAmount != null || detailDoc.grandTotal != null) && (
+                    <div className="bg-blue-50 border border-blue-100 rounded-xl px-5 py-4 flex items-center gap-6 flex-wrap">
+                      <TrendingUp className="w-4 h-4 text-blue-400 shrink-0" />
+                      {detailDoc.totalAmount != null && (
+                        <div>
+                          <p className="text-xs text-blue-500">Chưa thuế</p>
+                          <p className="font-mono font-semibold text-gray-800 text-sm">{fmtNum(detailDoc.totalAmount)}</p>
+                        </div>
+                      )}
+                      {detailDoc.vatAmount != null && (
+                        <div>
+                          <p className="text-xs text-blue-500">VAT</p>
+                          <p className="font-mono font-semibold text-gray-800 text-sm">{fmtNum(detailDoc.vatAmount)}</p>
+                        </div>
+                      )}
+                      {detailDoc.grandTotal != null && (
+                        <div className="ml-auto">
+                          <p className="text-xs text-blue-600 font-medium">Tổng thanh toán</p>
+                          <p className="font-mono font-bold text-blue-700 text-base">{fmtNum(detailDoc.grandTotal)}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* OCR confidence */}
+                  {detailDoc.ocrConfidence != null && (
+                    <div className="bg-white border rounded-xl px-4 py-3 flex items-center gap-3">
+                      <span className="text-xs text-gray-500 shrink-0">Độ tin cậy OCR</span>
+                      <div className="flex-1 bg-gray-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full transition-all ${detailDoc.ocrConfidence > 0.85 ? 'bg-green-500' : detailDoc.ocrConfidence > 0.6 ? 'bg-amber-400' : 'bg-red-400'}`}
+                          style={{ width: `${Math.round(detailDoc.ocrConfidence * 100)}%` }}
+                        />
+                      </div>
+                      <span className={`text-sm font-bold shrink-0 ${detailDoc.ocrConfidence > 0.85 ? 'text-green-600' : detailDoc.ocrConfidence > 0.6 ? 'text-amber-600' : 'text-red-600'}`}>
+                        {Math.round(detailDoc.ocrConfidence * 100)}%
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Error */}
+                  {detailDoc.status === 'ERROR' && detailDoc.ocrError && (
+                    <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>{detailDoc.ocrError}</span>
+                    </div>
+                  )}
+
+                  {/* Field values */}
+                  {detailDoc.values.filter(v => v.stringValue).length > 0 && (
+                    <div className="bg-white border rounded-xl overflow-hidden">
+                      <div className="px-4 py-3 border-b bg-blue-50 flex items-center gap-2">
+                        <ClipboardList className="w-4 h-4 text-blue-500" />
+                        <h3 className="text-sm font-semibold text-blue-800">Trường dữ liệu</h3>
+                        <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+                          {detailDoc.values.filter(v => v.stringValue).length} trường
+                        </span>
+                      </div>
+                      <div className="divide-y divide-gray-50">
+                        {detailDoc.values.filter(v => v.stringValue).map(v => (
+                          <div key={v.fieldId} className="flex items-center px-4 py-2.5 gap-3">
+                            <span className="text-xs text-gray-500 w-36 shrink-0">{v.field.label}</span>
+                            <span className="text-sm text-gray-800 flex-1 truncate">{v.stringValue}</span>
+                            {v.confidence != null && (
+                              <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${v.confidence > 0.85 ? 'text-green-600 bg-green-50' : v.confidence > 0.6 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50'}`}>
+                                {Math.round(v.confidence * 100)}%
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Line items */}
+                  {detailDoc.lineItems.length > 0 && (
+                    <div className="bg-white border rounded-xl overflow-hidden">
+                      <div className="px-4 py-3 border-b bg-orange-50 flex items-center gap-2">
+                        <h3 className="text-sm font-semibold text-orange-800">Hàng hóa / Dịch vụ</h3>
+                        <span className="text-xs text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">
+                          {detailDoc.lineItems.length} dòng
+                        </span>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-gray-50 border-b text-xs text-gray-500 uppercase tracking-wide">
+                              <th className="px-3 py-2.5 text-center w-10">STT</th>
+                              <th className="px-3 py-2.5 text-left">Tên hàng hóa</th>
+                              <th className="px-3 py-2.5 text-center">ĐVT</th>
+                              <th className="px-3 py-2.5 text-right">SL</th>
+                              <th className="px-3 py-2.5 text-right">Đơn giá</th>
+                              <th className="px-3 py-2.5 text-right">Thành tiền</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {detailDoc.lineItems.map((li, i) => (
+                              <tr key={li.stt} className={`border-b last:border-0 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
+                                <td className="px-3 py-2.5 text-center text-gray-500 text-xs">{li.stt}</td>
+                                <td className="px-3 py-2.5 text-gray-800">{li.name ?? '—'}</td>
+                                <td className="px-3 py-2.5 text-center text-gray-600 text-xs">{li.unit ?? '—'}</td>
+                                <td className="px-3 py-2.5 text-right text-gray-700">{li.quantity ?? '—'}</td>
+                                <td className="px-3 py-2.5 text-right font-mono text-gray-700 text-xs">{fmtNum(li.unitPrice)}</td>
+                                <td className="px-3 py-2.5 text-right font-mono font-semibold text-gray-800">{fmtNum(li.amount)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Audit log */}
+                  {detailDoc.auditLogs.length > 0 && (
+                    <div className="bg-white border rounded-xl overflow-hidden">
+                      <div className="px-4 py-3 border-b flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-gray-400" />
+                        <h3 className="text-sm font-semibold text-gray-700">Lịch sử thay đổi</h3>
+                      </div>
+                      <div className="divide-y divide-gray-50">
+                        {detailDoc.auditLogs.slice(0, 15).map((log, i) => (
+                          <div key={i} className="px-4 py-3 flex items-start gap-3">
+                            <span className="text-xs text-gray-400 shrink-0 whitespace-nowrap mt-0.5 w-20">
+                              {fmtDate(log.changedAt)}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs font-medium text-gray-600">{log.changedBy}</span>
+                                {log.oldStatus && log.newStatus && (
+                                  <div className="flex items-center gap-1">
+                                    <StatusBadge status={log.oldStatus} />
+                                    <span className="text-gray-400 text-xs">→</span>
+                                    <StatusBadge status={log.newStatus} />
+                                  </div>
+                                )}
+                              </div>
+                              {log.note && (
+                                <p className="text-xs text-gray-400 mt-0.5 italic truncate">{log.note}</p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Transfer to knowledge warehouse modal */}
       {transferOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm">
             <div className="p-6 text-center">
-              <div className="w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center mx-auto mb-4">
-                <Database className="w-6 h-6 text-teal-600" />
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                transferIds.length > 0 ? 'bg-teal-50' : 'bg-orange-50'
+              }`}>
+                <Database className={`w-6 h-6 ${transferIds.length > 0 ? 'text-teal-600' : 'text-orange-400'}`} />
               </div>
               <h2 className="text-base font-semibold text-gray-900 mb-2">
                 Chuyển vào kho tri thức
               </h2>
-              <p className="text-sm text-gray-500">
-                Bạn có chắc chắn muốn chuyển{' '}
-                <span className="font-semibold text-gray-700">{transferIds.length}</span>{' '}
-                chứng từ vào kho tri thức không?
-              </p>
+              {transferIds.length > 0 ? (
+                <p className="text-sm text-gray-500">
+                  Chuyển{' '}
+                  <span className="font-semibold text-gray-800">{transferIds.length}</span>{' '}
+                  chứng từ <span className="text-green-600 font-medium">đã xác nhận</span> vào kho tri thức?
+                </p>
+              ) : (
+                <p className="text-sm text-gray-500">
+                  Không có chứng từ nào ở trạng thái{' '}
+                  <span className="font-medium text-green-600">"Đã xác nhận"</span>{' '}
+                  trong lựa chọn hiện tại.
+                  <br />
+                  <span className="text-xs text-gray-400 mt-1 block">Vui lòng xác nhận chứng từ trước khi chuyển kho.</span>
+                </p>
+              )}
             </div>
             <div className="px-6 py-4 border-t flex justify-center gap-3">
               <button
@@ -525,17 +864,60 @@ export default function ChungTuPage() {
                 disabled={transferring}
                 className="px-6 py-2 text-sm text-gray-600 hover:text-gray-800 border rounded-lg hover:bg-gray-50 disabled:opacity-50"
               >
+                {transferIds.length > 0 ? 'Hủy' : 'Đóng'}
+              </button>
+              {transferIds.length > 0 && (
+                <button
+                  onClick={handleTransfer}
+                  disabled={transferring}
+                  className="px-6 py-2 text-sm font-medium bg-[#0d4f4f] text-white rounded-lg hover:bg-[#0a3d3d] disabled:opacity-50"
+                >
+                  {transferring ? 'Đang chuyển...' : 'Chuyển'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm dialog */}
+      {confirmDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm">
+            <div className="px-6 pt-6 pb-4">
+              <h3 className="text-base font-semibold text-gray-900 mb-2">{confirmDialog.title}</h3>
+              <p className="text-sm text-gray-500 leading-relaxed">{confirmDialog.message}</p>
+            </div>
+            <div className="px-6 py-4 border-t flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmDialog(null)}
+                className="px-4 py-2 text-sm text-gray-600 border rounded-lg hover:bg-gray-50 transition-colors"
+              >
                 Hủy
               </button>
               <button
-                onClick={handleTransfer}
-                disabled={transferring}
-                className="px-6 py-2 text-sm font-medium bg-[#0d4f4f] text-white rounded-lg hover:bg-[#0a3d3d] disabled:opacity-50"
+                onClick={() => { const fn = confirmDialog.onConfirm; setConfirmDialog(null); fn(); }}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${confirmDialog.confirmCls}`}
               >
-                {transferring ? 'Đang chuyển...' : 'Chuyển'}
+                {confirmDialog.confirmLabel}
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Toast notification */}
+      {toast && (
+        <div className={`fixed bottom-6 right-6 z-[70] flex items-center gap-3 px-4 py-3 rounded-xl shadow-xl max-w-sm text-sm font-medium ${
+          toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-green-600 text-white'
+        }`}>
+          {toast.type === 'error'
+            ? <AlertCircle className="w-4 h-4 shrink-0" />
+            : <Check className="w-4 h-4 shrink-0" />}
+          <span className="flex-1 leading-snug">{toast.message}</span>
+          <button onClick={() => setToast(null)} className="ml-1 opacity-70 hover:opacity-100 shrink-0">
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
     </div>

@@ -7,7 +7,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   return json as T;
 }
 
-export type DocStatus = 'DRAFT' | 'PROCESSED' | 'CONFIRMED' | 'ERROR';
+export type DocStatus = 'DRAFT' | 'PROCESSED' | 'CONFIRMED' | 'TRANSFERRED' | 'ERROR';
 export type DocType = 'INVOICE' | 'RECEIPT' | 'CONTRACT' | 'STATEMENT' | 'MINUTES' | 'WAREHOUSE_RECEIPT' | 'OTHERS';
 export type DataType = 'TEXT' | 'DATE' | 'NUMBER' | 'CURRENCY' | 'BOOLEAN' | 'LIST';
 export type FieldPosition = 'HEADER' | 'FOOTER' | 'BODY';
@@ -17,6 +17,7 @@ export interface DocStats {
   draft: number;
   confirmed: number;
   processed: number;
+  transferred: number;
   error: number;
 }
 
@@ -194,6 +195,13 @@ export const ocrApi = {
 
   bulkConfirm: (documentIds: string[]) =>
     req<{ confirmed: number; skipped: string[] }>('/documents/bulk-confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ documentIds }),
+    }),
+
+  bulkTransfer: (documentIds: string[]) =>
+    req<{ transferred: number; skipped: string[] }>('/documents/bulk-transfer', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ documentIds }),

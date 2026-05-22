@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Upload, RefreshCw, X, AlertCircle, Check, Save, ScanLine,
-  FileText, Plus, Minus, ChevronRight, Download, CheckCircle,
+  FileText, Plus, Minus, ChevronRight, Download,
   Loader2, Table2, Grid3X3, Sparkles,
 } from 'lucide-react';
 import { ocrApi } from '@/lib/ocr-api';
@@ -156,14 +156,20 @@ export default function NhanDangOCRPage({ params }: { params: { schemaCode: stri
     finally { setSaving(false); }
   };
 
-  const handleConfirm = async () => {
+  const handleSaveAndExit = async () => {
     if (!doc) return;
-    if (dirty) await handleSave();
     setConfirming(true);
     try {
-      const updated = await ocrApi.confirmDocument(doc.id);
-      setDoc(updated);
-      setDirty(false);
+      if (dirty) {
+        const updated = await ocrApi.updateDocument(doc.id, {
+          values: Object.entries(fieldValues).map(([fieldId, stringValue]) => ({ fieldId, stringValue })),
+          lineItems: lineItems.map(({ stt, name, unit, quantity, unitPrice, amount }) =>
+            ({ stt, name, unit, quantity, unitPrice, amount })),
+        });
+        setDoc(updated);
+        setDirty(false);
+      }
+      router.push('/xu-ly/chung-tu');
     } catch (e: unknown) { setError((e as Error).message); }
     finally { setConfirming(false); }
   };
@@ -259,8 +265,8 @@ export default function NhanDangOCRPage({ params }: { params: { schemaCode: stri
               </button>
             )}
             {doc && !isConfirmed && (
-              <button onClick={handleConfirm} disabled={confirming || saving} className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors">
-                <CheckCircle className="w-4 h-4" />
+              <button onClick={handleSaveAndExit} disabled={confirming || saving} className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                <Save className="w-4 h-4" />
                 {confirming ? 'Đang lưu...' : 'Lưu chứng từ'}
               </button>
             )}

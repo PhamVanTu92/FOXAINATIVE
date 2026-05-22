@@ -60,6 +60,11 @@ export class DocumentController {
   @Delete(':id') @ApiOperation({ summary: 'Xóa chứng từ' })
   remove(@Param('id') id: string) { return this.documentService.remove(id); }
 
+  @Post(':id/transfer') @ApiOperation({ summary: 'Chuyển chứng từ vào kho tri thức' })
+  transfer(@Param('id') id: string) { return this.documentService.transfer(id); }
+
   @Post('bulk-confirm') bulkConfirm(@Body() dto: BulkActionDto) { return this.documentService.bulkConfirm(dto); }
+  @Post('bulk-transfer') @ApiOperation({ summary: 'Chuyển hàng loạt vào kho tri thức' })
+  bulkTransfer(@Body() dto: BulkActionDto) { return this.documentService.bulkTransfer(dto); }
   @Post('bulk-delete') bulkDelete(@Body() dto: BulkActionDto) { return this.documentService.bulkDelete(dto); }
 }

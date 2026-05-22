@@ -44,14 +44,15 @@ export class DocumentService {
   }
 
   async getStats() {
-    const [total, draft, confirmed, processed, error] = await this.prisma.client.$transaction([
+    const [total, draft, confirmed, processed, transferred, error] = await this.prisma.client.$transaction([
       this.prisma.client.document.count(),
       this.prisma.client.document.count({ where: { status: DocumentStatus.DRAFT } }),
       this.prisma.client.document.count({ where: { status: DocumentStatus.CONFIRMED } }),
       this.prisma.client.document.count({ where: { status: DocumentStatus.PROCESSED } }),
+      this.prisma.client.document.count({ where: { status: DocumentStatus.TRANSFERRED } }),
       this.prisma.client.document.count({ where: { status: DocumentStatus.ERROR } }),
     ]);
-    return { total, draft, confirmed, processed, error };
+    return { total, draft, confirmed, processed, transferred, error };
   }
 
   async findMany(filter: FilterDocumentDto) {
@@ -146,6 +147,30 @@ export class DocumentService {
       throw new ConflictException('Chỉ có thể xóa chứng từ ở trạng thái Nháp hoặc Lỗi.');
     await this.prisma.client.document.delete({ where: { id } });
     return { deleted: true };
+  }
+
+  async transfer(id: string, transferredBy = 'system') {
+    const doc = await this.findOne(id);
+    if (doc.status !== DocumentStatus.CONFIRMED)
+      throw new ConflictException('Chỉ chứng từ "Đã xác nhận" mới có thể chuyển vào kho tri thức.');
+    await this.prisma.client.$transaction([
+      this.prisma.client.document.update({ where: { id }, data: { status: DocumentStatus.TRANSFERRED, processedAt: new Date(), processedBy: transferredBy } }),
+      this.prisma.client.documentAuditLog.create({ data: { documentId: id, action: 'STATUS_CHANGE', oldStatus: DocumentStatus.CONFIRMED, newStatus: DocumentStatus.TRANSFERRED, changedBy: transferredBy, note: 'Chuyển vào kho tri thức.' } }),
+    ]);
+    return this.findOne(id);
+  }
+
+  async bulkTransfer(dto: BulkActionDto, transferredBy = 'system') {
+    const docs = await this.prisma.client.document.findMany({ where: { id: { in: dto.documentIds } }, select: { id: true, status: true } });
+    const transferable = docs.filter((d) => d.status === DocumentStatus.CONFIRMED).map((d) => d.id);
+    const skipped = docs.filter((d) => d.status !== DocumentStatus.CONFIRMED).map((d) => d.id);
+    if (transferable.length > 0) {
+      await this.prisma.client.$transaction([
+        this.prisma.client.document.updateMany({ where: { id: { in: transferable } }, data: { status: DocumentStatus.TRANSFERRED, processedAt: new Date(), processedBy: transferredBy } }),
+        this.prisma.client.documentAuditLog.createMany({ data: transferable.map((id) => ({ documentId: id, action: 'STATUS_CHANGE', oldStatus: DocumentStatus.CONFIRMED, newStatus: DocumentStatus.TRANSFERRED, changedBy: transferredBy, note: 'Chuyển vào kho tri thức hàng loạt.' })) }),
+      ]);
+    }
+    return { transferred: transferable.length, skipped };
   }
 
   async bulkConfirm(dto: BulkActionDto, confirmedBy = 'system') {

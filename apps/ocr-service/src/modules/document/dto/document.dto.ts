@@ -1,7 +1,7 @@
 import {
   IsArray, IsEnum, IsOptional, IsString, MaxLength, ValidateNested, IsNumber,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { DocumentStatus, DocumentType } from '@foxai/ocr-db';
 import { PaginationDto } from '@foxai/shared-types';
 
@@ -39,7 +39,10 @@ export class ConfirmDocumentDto {
 
 export class FilterDocumentDto extends PaginationDto {
   @IsOptional() @IsString() search?: string;
-  @IsOptional() @IsArray() @IsEnum(DocumentStatus, { each: true }) status?: DocumentStatus[];
+  @IsOptional()
+  @Transform(({ value }) => (Array.isArray(value) ? value : value ? [value] : undefined))
+  @IsArray() @IsEnum(DocumentStatus, { each: true })
+  status?: DocumentStatus[];
   @IsOptional() @IsString() schemaCode?: string;
   @IsOptional() @IsEnum(DocumentType) type?: DocumentType;
   @IsOptional() @IsString() sellerTaxCode?: string;

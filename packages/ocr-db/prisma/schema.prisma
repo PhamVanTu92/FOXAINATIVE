@@ -48,6 +48,7 @@ enum DocumentStatus {
   DRAFT
   CONFIRMED
   PROCESSED
+  TRANSFERRED
   ERROR
 }
 
