@@ -7,7 +7,9 @@ using SystemService.Domain.Exceptions;
 
 namespace SystemService.Application.Features.Organizations.CreateNode;
 
-public sealed class CreateNodeCommandHandler(IOrganizationRepository organizations)
+public sealed class CreateNodeCommandHandler(
+    IOrganizationRepository organizations,
+    IUserRepository users)
     : IRequestHandler<CreateNodeCommand, OrganizationNodeDto>
 {
     public async Task<OrganizationNodeDto> Handle(CreateNodeCommand request, CancellationToken cancellationToken)
@@ -25,12 +27,19 @@ public sealed class CreateNodeCommandHandler(IOrganizationRepository organizatio
                      ?? throw new NotFoundException("OrganizationNode", parentId);
         }
 
+        if (request.ManagerId is { } managerId &&
+            !await users.ExistsAsync(managerId, cancellationToken))
+        {
+            throw new NotFoundException("User", managerId);
+        }
+
         var node = new OrganizationNode
         {
             Id = Guid.NewGuid(),
             Code = code,
             Name = request.Name.Trim(),
             ParentId = parent?.Id,
+            ManagerId = request.ManagerId,
             Level = parent is null ? 0 : parent.Level + 1,
             Path = OrganizationNode.BuildPath(parent?.Path, code),
         };

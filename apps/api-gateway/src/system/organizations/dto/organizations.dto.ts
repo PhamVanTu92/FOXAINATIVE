@@ -21,10 +21,16 @@ export class CreateNodeDto {
   @IsString() @IsNotEmpty() @MaxLength(200) name!: string;
 
   @IsOptional() @IsUUID() parentId?: string;
+
+  @IsOptional() @IsUUID() managerId?: string;
 }
 
 export class UpdateNodeDto {
   @IsOptional() @IsString() @MaxLength(200) name?: string;
+
+  @IsOptional() @IsUUID() managerId?: string;
+
+  @IsOptional() @IsBoolean() clearManager?: boolean;
 }
 
 export class MoveNodeDto {
@@ -33,6 +39,12 @@ export class MoveNodeDto {
 
 export class GetTreeQueryDto {
   @IsOptional() @IsUUID() rootId?: string;
+}
+
+export class ListNodesQueryDto {
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) pageSize?: number;
+  @IsOptional() @IsString() @MaxLength(200) search?: string;
 }
 
 export class ListUsersByOrgQueryDto {

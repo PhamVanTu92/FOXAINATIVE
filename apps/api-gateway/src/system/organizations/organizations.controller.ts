@@ -17,6 +17,7 @@ import { buildForwardMetadata } from '../../common/grpc/grpc-metadata.helper';
 import {
   CreateNodeDto,
   GetTreeQueryDto,
+  ListNodesQueryDto,
   ListUsersByOrgQueryDto,
   MoveNodeDto,
   UpdateNodeDto,
@@ -34,6 +35,18 @@ export class OrganizationsController {
     @CurrentUser() user: AuthenticatedRequestUser,
   ) {
     return this.orgs.create(dto, buildForwardMetadata(token, user));
+  }
+
+  @Get()
+  list(
+    @Query() q: ListNodesQueryDto,
+    @AccessToken() token: string,
+    @CurrentUser() user: AuthenticatedRequestUser,
+  ) {
+    return this.orgs.list(
+      { pagination: { page: q.page, pageSize: q.pageSize, search: q.search } },
+      buildForwardMetadata(token, user),
+    );
   }
 
   @Get('tree')
@@ -61,7 +74,10 @@ export class OrganizationsController {
     @AccessToken() token: string,
     @CurrentUser() user: AuthenticatedRequestUser,
   ) {
-    return this.orgs.update({ id, ...dto }, buildForwardMetadata(token, user));
+    return this.orgs.update(
+      { id, name: dto.name, managerId: dto.managerId, clearManager: dto.clearManager },
+      buildForwardMetadata(token, user),
+    );
   }
 
   @Post(':id/move')

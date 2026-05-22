@@ -25,6 +25,9 @@ public sealed class UserRepository(SystemDbContext db) : IUserRepository
     public Task<User?> FindByLoginWithGrantsAsync(string login, CancellationToken ct = default) =>
         BuildWithGrantsQuery().FirstOrDefaultAsync(u => u.Email == login || u.Username == login, ct);
 
+    public Task<bool> ExistsAsync(Guid id, CancellationToken ct = default) =>
+        db.Users.AnyAsync(u => u.Id == id, ct);
+
     public Task<bool> EmailExistsAsync(string email, CancellationToken ct = default) =>
         db.Users.AnyAsync(u => u.Email == email, ct);
 

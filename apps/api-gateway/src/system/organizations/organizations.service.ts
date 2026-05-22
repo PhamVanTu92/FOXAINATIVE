@@ -8,6 +8,8 @@ import {
   DeleteNodeRequest,
   GetNodeRequest,
   GetTreeRequest,
+  ListNodesRequest,
+  ListNodesResponse,
   ListUsersByOrgRequest,
   ListUsersResponse,
   MoveNodeRequest,
@@ -35,6 +37,9 @@ export class OrganizationsService implements OnModuleInit {
   }
   tree(req: GetTreeRequest, md?: Metadata): Promise<OrganizationTreeResponse> {
     return callGrpc(this.orgs.getTree(req, md));
+  }
+  list(req: ListNodesRequest, md?: Metadata): Promise<ListNodesResponse> {
+    return callGrpc(this.orgs.listNodes(req, md));
   }
   update(req: UpdateNodeRequest, md?: Metadata): Promise<OrganizationNodeDto> {
     return callGrpc(this.orgs.updateNode(req, md));

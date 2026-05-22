@@ -391,6 +391,9 @@ export interface OrganizationNodeDto {
   code: string;
   name: string;
   parentId?: string;
+  parentName?: string;
+  managerId?: string;
+  managerName?: string;
   level: number;
   path: string;
   children?: OrganizationNodeDto[];
@@ -402,6 +405,7 @@ export interface CreateNodeRequest {
   code: string;
   name: string;
   parentId?: string;
+  managerId?: string;
 }
 
 export interface GetNodeRequest { id: string; }
@@ -410,9 +414,17 @@ export interface DeleteNodeRequest { id: string; }
 export interface GetTreeRequest { rootId?: string; }
 export interface OrganizationTreeResponse { nodes: OrganizationNodeDto[]; }
 
+export interface ListNodesRequest { pagination?: PageRequest; }
+export interface ListNodesResponse {
+  items: OrganizationNodeDto[];
+  page: PageMetadata;
+}
+
 export interface UpdateNodeRequest {
   id: string;
   name?: string;
+  managerId?: string;
+  clearManager?: boolean;
 }
 
 export interface MoveNodeRequest {
@@ -430,6 +442,7 @@ export interface OrganizationsGrpcService {
   createNode(req: CreateNodeRequest, md?: Metadata): Observable<OrganizationNodeDto>;
   getNode(req: GetNodeRequest, md?: Metadata): Observable<OrganizationNodeDto>;
   getTree(req: GetTreeRequest, md?: Metadata): Observable<OrganizationTreeResponse>;
+  listNodes(req: ListNodesRequest, md?: Metadata): Observable<ListNodesResponse>;
   updateNode(req: UpdateNodeRequest, md?: Metadata): Observable<OrganizationNodeDto>;
   moveNode(req: MoveNodeRequest, md?: Metadata): Observable<OrganizationNodeDto>;
   deleteNode(req: DeleteNodeRequest, md?: Metadata): Observable<EmptyResponse>;
