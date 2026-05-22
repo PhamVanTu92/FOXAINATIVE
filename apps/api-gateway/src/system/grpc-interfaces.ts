@@ -171,7 +171,7 @@ export interface RoleDto {
 }
 
 export interface CreateRoleRequest {
-  code: string;
+  code?: string; // optional: server tự sinh từ name nếu bỏ trống
   name: string;
   description?: string;
 }

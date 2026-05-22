@@ -21,7 +21,7 @@ public sealed class RolesGrpcService(ISender sender) : RolesService.RolesService
     {
         var result = await sender.Send(
             new CreateRoleCommand(
-                Code: request.Code,
+                Code: request.HasCode ? request.Code : null,
                 Name: request.Name,
                 Description: request.HasDescription ? request.Description : null),
             context.CancellationToken);

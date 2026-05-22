@@ -16,7 +16,12 @@ import {
 } from 'class-validator';
 
 export class CreateRoleDto {
-  @IsString() @Matches(/^[A-Z][A-Z0-9_]*$/, { message: 'Code phải UPPER_SNAKE_CASE' }) @MaxLength(64) code!: string;
+  // Code optional: nếu không gửi, System Service sẽ tự sinh từ name (slugify -> UPPER_SNAKE_CASE).
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Z][A-Z0-9_]*$/, { message: 'Code phải UPPER_SNAKE_CASE' })
+  @MaxLength(64)
+  code?: string;
   @IsString() @IsNotEmpty() @MaxLength(100) name!: string;
   @IsOptional() @IsString() @MaxLength(500) description?: string;
 }

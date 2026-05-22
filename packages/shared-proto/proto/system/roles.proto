@@ -45,7 +45,8 @@ message RolePermissionPair {
 }
 
 message CreateRoleRequest {
-  string code = 1;
+  // Nếu bỏ trống, server sẽ tự sinh từ name (slugify -> UPPER_SNAKE_CASE, đảm bảo unique).
+  optional string code = 1;
   string name = 2;
   optional string description = 3;
 }
