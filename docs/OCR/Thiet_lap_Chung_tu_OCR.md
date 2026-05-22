@@ -1,9 +1,12 @@
 # TÀI LIỆU ĐẶC TẢ NGHIỆP VỤ: THIẾT LẬP CHỨNG TỪ OCR
 
 > **Mã tài liệu:** BA-OCR-01
-> **Phiên bản:** 1.0
+> **Phiên bản:** 2.0
 > **Phân hệ:** Thiết lập Chứng từ OCR (Document Schema Configuration)
 > **Vai trò trong hệ thống:** Module nền tảng (Foundation Layer) – Cấu hình bộ khung dữ liệu cho AI Engine
+> **Service xử lý:** OCR Service (`apps/ocr-service`) – NestJS + gRPC
+> **Database:** OCR_DB (`packages/ocr-db`) – kết nối qua `OCR_DATABASE_URL` (port `5433`)
+> **Giao tiếp:** Client → API Gateway (REST) → OCR Service (gRPC port `50052`)
 
 ---
 
@@ -148,8 +151,28 @@ Sau khi AI quét xong, hệ thống áp dụng các quy tắc ngầm sau đây t
 ### 5.3. Quy tắc bảo toàn schema
 - Khi schema đã được dùng để quét ít nhất 1 chứng từ thực tế, hệ thống chỉ cho phép **thêm trường mới** (Additive Change), **không cho phép xóa hoặc đổi kiểu** các trường cũ → đảm bảo backward compatibility với dữ liệu đã lưu trữ.
 
+### 5.4. Luồng dữ liệu trong kiến trúc Microservices
+
+Schema được quản lý hoàn toàn trong **OCR Service** và lưu trong `OCR_DB`. Các service khác không được truy cập trực tiếp vào `OCR_DB`:
+
+```
+Web Portal (Next.js)
+       │ REST
+       ▼
+API Gateway  ──── JWT Verification ──── Rate Limiting
+       │ gRPC (port 50052)
+       ▼
+OCR Service (apps/ocr-service)
+       │ Prisma ORM
+       ▼
+OCR_DB – packages/ocr-db (PostgreSQL 16, port 5433)
+   └── document_schemas / document_fields / document_tables / document_table_columns
+```
+
 ---
 
 > 📌 **Tài liệu liên quan:**
-> - [[Nhan_dang_Chung_tu_OCR]] – Màn hình vận hành OCR sử dụng schema này.
-> - [[Quan_ly_Chung_tu_OCR]] – Lưu trữ và phê duyệt chứng từ sau khi đã OCR.
+> - [[OCR/Nhan_dang_Chung_tu_OCR]] – Màn hình vận hành OCR sử dụng schema này.
+> - [[OCR/Quan_ly_Chung_tu_OCR]] – Lưu trữ và phê duyệt chứng từ sau khi đã OCR.
+> - [[OCR/Database_Design_OCR_System]] – Thiết kế database chi tiết cho OCR_DB.
+> - [[Tech_Stack_Architecture]] – Kiến trúc tổng thể hệ thống Monorepo.

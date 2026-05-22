@@ -1,12 +1,12 @@
 import {
-  IsArray, IsEnum, IsOptional, IsString, IsUUID, MaxLength, ValidateNested, IsNumber,
+  IsArray, IsEnum, IsOptional, IsString, MaxLength, ValidateNested, IsNumber,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { DocumentStatus, DocumentType } from '@foxai/ocr-db';
 import { PaginationDto } from '@foxai/shared-types';
 
 export class UploadDocumentDto {
-  @IsUUID() schemaId!: string;
+  @IsString() schemaId!: string;
   @IsOptional() @IsEnum(['vi', 'en', 'vi+en']) language?: 'vi' | 'en' | 'vi+en' = 'vi';
 }
 

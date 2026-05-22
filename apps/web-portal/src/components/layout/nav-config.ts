@@ -4,7 +4,7 @@ import {
   ScanText, FileText, Bot, MessageSquare,
   Brain, CheckCircle, Settings2,
   Upload, Link2, Wand2,
-  ScanLine, FileSpreadsheet, FilePen, PackagePlus, FolderOpen,
+  ScanLine, FolderOpen,
   Calculator, Headphones,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -86,11 +86,7 @@ export const navConfig: NavSection[] = [
       {
         label: 'Nhận dạng OCR',
         icon: ScanLine,
-        children: [
-          { label: 'Hóa đơn VAT đầu vào', href: '/xu-ly/hoa-don-vat', icon: FileSpreadsheet },
-          { label: 'Hợp đồng mua bán', href: '/xu-ly/hop-dong', icon: FilePen },
-          { label: 'Phiếu nhập kho', href: '/xu-ly/phieu-nhap-kho', icon: PackagePlus },
-        ],
+        children: [],
       },
       { label: 'Quản lý Chứng từ', href: '/xu-ly/chung-tu', icon: FolderOpen },
     ],

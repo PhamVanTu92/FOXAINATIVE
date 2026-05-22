@@ -46,16 +46,16 @@ export class DocumentController {
   getStats() { return this.documentService.getStats(); }
 
   @Get() @ApiOperation({ summary: 'Danh sách chứng từ (filter + pagination)' })
-  findMany(@Query() filter: FilterDocumentDto) { return this.documentService.findMany(filter); }
+  findMany(@Query() filter: FilterDocumentDto): Promise<unknown> { return this.documentService.findMany(filter); }
 
   @Get(':id') @ApiOperation({ summary: 'Chi tiết chứng từ' })
-  findOne(@Param('id') id: string) { return this.documentService.findOne(id); }
+  findOne(@Param('id') id: string): Promise<unknown> { return this.documentService.findOne(id); }
 
   @Patch(':id') @ApiOperation({ summary: 'Cập nhật giá trị trường / dòng hàng' })
-  update(@Param('id') id: string, @Body() dto: UpdateDocumentDto) { return this.documentService.update(id, dto); }
+  update(@Param('id') id: string, @Body() dto: UpdateDocumentDto): Promise<unknown> { return this.documentService.update(id, dto); }
 
   @Post(':id/confirm') @ApiOperation({ summary: 'Xác nhận chứng từ' })
-  confirm(@Param('id') id: string, @Body() dto: ConfirmDocumentDto) { return this.documentService.confirm(id, dto); }
+  confirm(@Param('id') id: string, @Body() dto: ConfirmDocumentDto): Promise<unknown> { return this.documentService.confirm(id, dto); }
 
   @Delete(':id') @ApiOperation({ summary: 'Xóa chứng từ' })
   remove(@Param('id') id: string) { return this.documentService.remove(id); }

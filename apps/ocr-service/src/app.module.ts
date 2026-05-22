@@ -12,6 +12,7 @@ import { OcrModule } from './modules/ocr/ocr.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: ['.env', '../../.env'],
       validate: configValidationSchema,
     }),
     BullModule.forRoot({

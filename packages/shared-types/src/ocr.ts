@@ -32,10 +32,18 @@ export interface OcrResult {
   error?: string;
 }
 
+export interface OcrSchemaField {
+  fieldKey: string;
+  label: string;
+  dataType: string;
+  description?: string | null;
+}
+
 export interface OcrRequest {
   documentId: string;
   schemaId: string;
   fileUrl: string;
   mimeType?: string;
   language: 'vi' | 'en' | 'vi+en';
+  schemaFields?: OcrSchemaField[];
 }

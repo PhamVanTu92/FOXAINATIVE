@@ -1,8 +1,11 @@
 # TÀI LIỆU THIẾT KẾ CƠ SỞ DỮ LIỆU: HỆ THỐNG AI OCR CHỨNG TỪ
 
 > **Mã tài liệu:** DB-OCR-01
-> **Phiên bản:** 1.0
-> **Công nghệ:** PostgreSQL 15+ với extension `pgvector` + Prisma ORM 5.x
+> **Phiên bản:** 2.0
+> **Công nghệ:** PostgreSQL 16 (Docker image: `pgvector/pgvector:pg16`) với extension `pgvector` + Prisma ORM 5.x
+> **Package Prisma:** `packages/ocr-db` (`@foxai/ocr-db`) – Port DB: `5433`
+> **Service sở hữu:** OCR Service (`apps/ocr-service`) – giao tiếp qua gRPC port `50052`
+> **Biến môi trường:** `OCR_DATABASE_URL` (xem `.env.example` tại root monorepo)
 > **Mục tiêu:** Lưu trữ cấu hình schema động (Dynamic Schema), quản lý vòng đời chứng từ và chuẩn bị hạ tầng dữ liệu cho Kho tri thức (Vector Search / Semantic Retrieval).
 
 ---
@@ -102,7 +105,7 @@ generator client {
 
 datasource db {
   provider   = "postgresql"
-  url        = env("DATABASE_URL")
+  url        = env("OCR_DATABASE_URL")
   extensions = [pgvector(map: "vector")]
 }
 
@@ -394,14 +397,21 @@ model DocumentAuditLog {
 ```
 
 > **📌 Lưu ý triển khai pgvector:**
-> Trước khi `prisma migrate dev`, cần bật extension trong PostgreSQL:
+> Docker image `pgvector/pgvector:pg16` đã bao gồm extension – không cần cài tay.
+> Tuy nhiên vẫn phải kích hoạt trong DB trước khi `prisma migrate dev`:
 > ```sql
 > CREATE EXTENSION IF NOT EXISTS vector;
 > ```
 > Sau khi migrate, tạo index HNSW cho cột `embedding` để tăng tốc tìm kiếm:
 > ```sql
 > CREATE INDEX documents_embedding_idx ON documents
-> USING hnsw (embedding vector_cosine_ops);
+> USING hnsw (embedding vector_cosine_ops)
+> WITH (m = 16, ef_construction = 64);
+> ```
+> Lệnh khởi tạo môi trường (từ root monorepo):
+> ```bash
+> pnpm --filter @foxai/ocr-db prisma:generate
+> pnpm --filter @foxai/ocr-db prisma:migrate:dev
 > ```
 
 ---
@@ -632,12 +642,14 @@ model DocumentAuditLog {
 > **🔐 Bảo mật & Audit:**
 > - Bảng `document_audit_logs` **không bao giờ** cho phép `UPDATE` / `DELETE` ở tầng app – chỉ INSERT.
 > - Triển khai row-level security (RLS) nếu hệ thống multi-tenant.
+> - `OCR_DB` là database riêng của OCR Service – các service khác **không được** truy cập trực tiếp qua Prisma. Mọi nhu cầu dữ liệu cross-service phải đi qua gRPC call hoặc Message Queue.
 
-> **📊 Tích hợp hệ thống:**
-> - Khi chứng từ chuyển sang `PROCESSED`, trigger job nền (background worker) để:
->   1. Đẩy file + metadata sang DMS.
->   2. Gọi API sinh embedding (OpenAI/Anthropic embedding model) và lưu vào cột `embedding`.
->   3. Đồng bộ master data sang ERP qua message queue.
+> **📊 Tích hợp hệ thống (Async Layer – BullMQ):**
+> - Khi chứng từ chuyển sang `PROCESSED`, OCR Service **dispatch job** vào hàng đợi thay vì xử lý đồng bộ:
+>   1. `ocr-queue` – xử lý pipeline OCR (tiền xử lý ảnh, OCR engine, NLP mapping).
+>   2. `file-analysis-queue` – phân tích file lớn (PDF nhiều trang, bulk upload).
+>   3. Đẩy metadata chứng từ sang Chatbot Service qua **gRPC call** để sinh embedding và lưu vào Knowledge Base.
+> - Không truy cập trực tiếp `chatbot_db` từ OCR Service – tuân thủ quy tắc cách ly dữ liệu của kiến trúc Microservices.
 
 ---
 

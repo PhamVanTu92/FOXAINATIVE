@@ -26,7 +26,13 @@ export class OcrProcessor extends WorkerHost {
       });
       await job.updateProgress(20);
 
-      const result = await this.ocr.scan({ documentId, schemaId, fileUrl, mimeType, language });
+      const result = await this.ocr.scan({
+        documentId, schemaId, fileUrl, mimeType, language,
+        schemaFields: schema.fields.map(f => ({
+          fieldKey: f.fieldKey, label: f.label, dataType: f.dataType,
+          description: (f as { description?: string | null }).description ?? null,
+        })),
+      });
       await job.updateProgress(70);
 
       const fieldKeyToId = new Map(schema.fields.map((f) => [f.fieldKey, f.id]));
