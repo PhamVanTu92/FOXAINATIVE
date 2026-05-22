@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Upload, RefreshCw, X, AlertCircle, Check, Save, ScanLine,
+  Upload, RefreshCw, X, AlertCircle, AlertTriangle, Check, Save, ScanLine,
   FileText, Plus, Minus, ChevronRight, Download,
   Loader2, Table2, Grid3X3, Sparkles,
 } from 'lucide-react';
@@ -34,10 +34,11 @@ function ConfBadge({ v }: { v: number | null | undefined }) {
 }
 
 const STATUS_CONFIG = {
-  DRAFT:     { label: 'Nháp',        cls: 'bg-gray-100  text-gray-700  border-gray-200' },
-  PROCESSED: { label: 'Đã xử lý',    cls: 'bg-blue-50   text-blue-700  border-blue-200' },
-  CONFIRMED: { label: 'Đã xác nhận', cls: 'bg-green-50  text-green-700 border-green-200' },
-  ERROR:     { label: 'Lỗi OCR',     cls: 'bg-red-50    text-red-700   border-red-200' },
+  DRAFT:       { label: 'Nháp',          cls: 'bg-gray-100  text-gray-700  border-gray-200' },
+  PROCESSED:   { label: 'Đã xử lý',      cls: 'bg-blue-50   text-blue-700  border-blue-200' },
+  CONFIRMED:   { label: 'Đã xác nhận',   cls: 'bg-green-50  text-green-700 border-green-200' },
+  TRANSFERRED: { label: 'Đã chuyển kho', cls: 'bg-purple-50 text-purple-700 border-purple-200' },
+  ERROR:       { label: 'Lỗi OCR',       cls: 'bg-red-50    text-red-700   border-red-200' },
 } as const;
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -201,6 +202,56 @@ export default function NhanDangOCRPage({ params }: { params: { schemaCode: stri
     setDirty(true);
   };
 
+  // ─── Arithmetic validation ────────────────────────────────────────────────
+
+  const arithmeticWarnings = useMemo(() => {
+    const w = { lineItems: new Set<number>(), fields: new Set<string>() };
+    if (!doc || !schema || processing || polling) return w;
+
+    // Per line item: amount ≈ qty × unitPrice (tolerance ≤ 1 VND)
+    for (const li of lineItems) {
+      if (li.quantity != null && li.unitPrice != null && li.amount != null) {
+        if (Math.abs(li.quantity * li.unitPrice - li.amount) > 1) w.lineItems.add(li.stt);
+      }
+    }
+
+    // Find IDs for standard currency fields by fieldKey
+    const fid = (key: string) => schema.fields.find(f => f.fieldKey === key)?.id;
+    const fTotal = fid('totalAmount');
+    const fVat   = fid('vatAmount');
+    const fGrand = fid('grandTotal');
+
+    const parseNum = (id: string | undefined) => {
+      if (!id) return null;
+      const raw = (fieldValues[id] ?? '').replace(/[^\d.-]/g, '');
+      const n = parseFloat(raw);
+      return isNaN(n) ? null : n;
+    };
+
+    const total = parseNum(fTotal);
+    const vat   = parseNum(fVat);
+    const grand = parseNum(fGrand);
+
+    // Check Σ(lineItems.amount) ≈ totalAmount
+    if (fTotal && total != null && lineItems.length > 0) {
+      const sum = lineItems.reduce((acc, li) => acc + (li.amount ?? 0), 0);
+      if (Math.abs(sum - total) > 1) w.fields.add(fTotal);
+    }
+
+    // Check totalAmount + vatAmount ≈ grandTotal
+    if (total != null && vat != null && grand != null) {
+      if (Math.abs(total + vat - grand) > 1) {
+        if (fTotal) w.fields.add(fTotal);
+        if (fVat)   w.fields.add(fVat);
+        if (fGrand) w.fields.add(fGrand);
+      }
+    }
+
+    return w;
+  }, [doc, schema, lineItems, fieldValues, processing, polling]);
+
+  const hasArithmeticWarnings = arithmeticWarnings.lineItems.size > 0 || arithmeticWarnings.fields.size > 0;
+
   // ─── Loading screens ──────────────────────────────────────────────────────
 
   if (schemaLoading) return (
@@ -231,7 +282,7 @@ export default function NhanDangOCRPage({ params }: { params: { schemaCode: stri
     <div className="flex flex-col h-full overflow-hidden bg-slate-100">
 
       {/* ── Page header ── */}
-      <div className="bg-white border-b px-6 py-3 shrink-0">
+      <div className="bg-white border-b px-6 py-3 shrink-0 shadow-sm">
         <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-1.5">
           <ScanLine className="w-3.5 h-3.5" />
           <span>Nhận dạng OCR</span>
@@ -284,6 +335,23 @@ export default function NhanDangOCRPage({ params }: { params: { schemaCode: stri
         <div className="mx-4 mt-3 shrink-0 flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2.5 text-sm">
           <AlertCircle className="w-4 h-4 shrink-0" /> {error}
           <button onClick={() => setError(null)} className="ml-auto"><X className="w-3.5 h-3.5" /></button>
+        </div>
+      )}
+
+      {/* ── Arithmetic warning banner ── */}
+      {hasArithmeticWarnings && !isProcessing && doc && (
+        <div className="mx-4 mt-2 shrink-0 flex items-start gap-2.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-3 text-sm shadow-sm">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" />
+          <div className="flex-1 min-w-0">
+            <span className="font-semibold">Cảnh báo số học — </span>
+            {arithmeticWarnings.lineItems.size > 0 && (
+              <span>{arithmeticWarnings.lineItems.size} dòng có Thành tiền ≠ SL × Đơn giá. </span>
+            )}
+            {arithmeticWarnings.fields.size > 0 && (
+              <span>Tổng tiền hàng + Thuế VAT ≠ Tổng thanh toán. </span>
+            )}
+            <span className="text-amber-600 text-xs">Kiểm tra các ô được tô vàng trước khi xác nhận.</span>
+          </div>
         </div>
       )}
 
@@ -452,10 +520,12 @@ export default function NhanDangOCRPage({ params }: { params: { schemaCode: stri
                             value={fieldValues[f.id] ?? ''}
                             onChange={e => { setFieldValues(prev => ({ ...prev, [f.id]: e.target.value })); setDirty(true); }}
                             placeholder={`Nhập ${f.label.toLowerCase()}...`}
-                            className={`w-full px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors ${
-                              hasValue
-                                ? 'border-green-300 bg-green-50 text-gray-900'
-                                : 'border-gray-300 bg-gray-50 text-gray-600 placeholder:text-gray-400'
+                            className={`w-full px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 transition-colors ${
+                              arithmeticWarnings.fields.has(f.id)
+                                ? 'border-amber-400 bg-amber-50 text-gray-900 focus:ring-amber-300'
+                                : hasValue
+                                  ? 'border-green-300 bg-green-50 text-gray-900 focus:ring-blue-400'
+                                  : 'border-gray-300 bg-gray-50 text-gray-600 placeholder:text-gray-400 focus:ring-blue-400'
                             }`}
                           />
                           {docValue?.isManuallyEdited && (
@@ -555,7 +625,12 @@ export default function NhanDangOCRPage({ params }: { params: { schemaCode: stri
                             <input type="number" value={li.unitPrice ?? ''} onChange={e => updateLi(li.stt, 'unitPrice', e.target.value ? Number(e.target.value) : null)} disabled={isConfirmed}
                               className="w-full bg-transparent text-right focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-300 rounded px-1.5 py-1 disabled:text-gray-700 text-gray-900 text-sm" />
                           </td>
-                          <td className="px-4 py-3 text-right font-mono text-gray-800 font-semibold text-sm">{fmt(li.amount)}</td>
+                          <td className={`px-4 py-3 text-right font-mono font-semibold text-sm ${arithmeticWarnings.lineItems.has(li.stt) ? 'text-amber-600 bg-amber-50' : 'text-gray-800'}`}>
+                            {fmt(li.amount)}
+                            {arithmeticWarnings.lineItems.has(li.stt) && (
+                              <span className="ml-1 text-amber-400" title={`Kỳ vọng: ${li.quantity != null && li.unitPrice != null ? fmt(Math.round(li.quantity * li.unitPrice)) : '?'}`}>⚠</span>
+                            )}
+                          </td>
                           {!isConfirmed && (
                             <td className="px-2 py-3">
                               <button onClick={() => removeLineItem(li.stt)} className="p-1 text-gray-300 hover:text-red-400 rounded transition-colors">

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { ocrApi } from '@/lib/ocr-api';
 import type { DocListItem, DocStats, DocDetail } from '@/lib/ocr-api';
+import * as XLSX from 'xlsx';
 
 const STATUS_CONFIG = {
   DRAFT:       { label: 'Đang xử lý',   cls: 'bg-gray-50    text-gray-500   border-gray-200'  },
@@ -59,12 +60,16 @@ function fmtNum(n: number | string | null | undefined) {
 }
 
 function StatCard({
-  label, value, colorClass,
-}: { label: string; value: number; colorClass: string }) {
+  label, value, colorClass, accentCls = 'border-gray-200',
+  onClick,
+}: { label: string; value: number; colorClass: string; accentCls?: string; onClick?: () => void }) {
   return (
-    <div className="bg-white rounded-xl border px-5 py-4">
-      <p className="text-sm text-gray-500">{label}</p>
-      <p className={`text-3xl font-bold mt-1 ${colorClass}`}>{value.toLocaleString('vi-VN')}</p>
+    <div
+      onClick={onClick}
+      className={`bg-white rounded-xl border-l-4 border border-gray-100 px-5 py-4 transition-shadow hover:shadow-md ${accentCls} ${onClick ? 'cursor-pointer' : ''}`}
+    >
+      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
+      <p className={`text-3xl font-bold mt-1.5 tabular-nums ${colorClass}`}>{value.toLocaleString('vi-VN')}</p>
     </div>
   );
 }
@@ -79,6 +84,10 @@ export default function ChungTuPage() {
   const [search, setSearch]           = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter]   = useState('');
+  const [dateFrom, setDateFrom]       = useState('');
+  const [dateTo, setDateTo]           = useState('');
+  const [sellerTaxCode, setSellerTaxCode] = useState('');
+  const [exporting, setExporting]     = useState(false);
   const [page, setPage]               = useState(1);
 
   // Edit modal
@@ -128,16 +137,19 @@ export default function ChungTuPage() {
     setPageError(null);
     try {
       const params: Record<string, string | string[]> = { page: String(page), pageSize: '25' };
-      if (search)       params.search = search;
-      if (statusFilter) params.status = statusFilter;
-      if (typeFilter)   params.type   = typeFilter;
+      if (search)        params.search       = search;
+      if (statusFilter)  params.status       = statusFilter;
+      if (typeFilter)    params.type         = typeFilter;
+      if (dateFrom)      params.dateFrom     = dateFrom;
+      if (dateTo)        params.dateTo       = dateTo;
+      if (sellerTaxCode) params.sellerTaxCode = sellerTaxCode;
       setDocs(await ocrApi.getDocuments(params));
     } catch (e: unknown) {
       setPageError((e as Error).message);
     } finally {
       setLoading(false);
     }
-  }, [page, search, statusFilter, typeFilter]);
+  }, [page, search, statusFilter, typeFilter, dateFrom, dateTo, sellerTaxCode]);
 
   useEffect(() => { loadStats(); }, [loadStats]);
   useEffect(() => { loadDocs(); }, [loadDocs]);
@@ -158,6 +170,25 @@ export default function ChungTuPage() {
       await Promise.all([loadStats(), loadDocs()]);
       showToast('Đã xác nhận thành công.', 'success');
     } catch (e: unknown) { showToast((e as Error).message); }
+  };
+
+  const handleBulkDelete = () => {
+    showConfirm(
+      'Xóa hàng loạt',
+      `Xóa ${selectedIds.size} chứng từ đã chọn? Chỉ chứng từ ở trạng thái "Nháp" mới bị xóa, phần còn lại bị bỏ qua.`,
+      async () => {
+        try {
+          const res = await ocrApi.bulkDelete([...selectedIds]);
+          setSelectedIds(new Set());
+          await Promise.all([loadStats(), loadDocs()]);
+          showToast(
+            `Đã xóa ${res.deleted} chứng từ${res.skipped.length > 0 ? `, bỏ qua ${res.skipped.length}` : ''}.`,
+            'success',
+          );
+        } catch (e: unknown) { showToast((e as Error).message); }
+      },
+      'Xóa', 'bg-red-600 hover:bg-red-700 text-white',
+    );
   };
 
   const openTransferModal = (ids: string[]) => {
@@ -251,27 +282,71 @@ export default function ChungTuPage() {
     }
   };
 
-  const handleExportExcel = () => {
-    if (!docs?.items.length) return;
-    const rows = docs.items.map((d, i) => ({
-      STT: (page - 1) * 25 + i + 1,
-      'Mã chứng từ': d.invoiceNumber ?? d.id.slice(0, 12),
-      'Tên chứng từ': d.fileName ?? d.schema.name,
-      Loại: TYPE_CONFIG[d.schema.type]?.label ?? d.schema.type,
-      'Ngày OCR': fmtDate(d.createdAt),
-      'Trạng thái': STATUS_CONFIG[d.status as keyof typeof STATUS_CONFIG]?.label ?? d.status,
-    }));
-    const blob = new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'chung-tu.json'; a.click();
-    URL.revokeObjectURL(url);
+  const handleExportExcel = async () => {
+    const idsToExport = selectedIds.size > 0
+      ? [...selectedIds]
+      : docs?.items.map(d => d.id) ?? [];
+    if (!idsToExport.length) return;
+
+    setExporting(true);
+    try {
+      const details = await Promise.all(idsToExport.map(id => ocrApi.getDocument(id)));
+
+      const masterRows = details.map(d => ({
+        'Mã chứng từ':       d.invoiceNumber ?? d.id.slice(0, 12),
+        'Loại chứng từ':     TYPE_CONFIG[d.schema.type]?.label ?? d.schema.type,
+        'Số hóa đơn':        d.invoiceNumber ?? '',
+        'Ngày phát hành':    d.issueDate ? fmtDate(d.issueDate) : '',
+        'MST người bán':     d.sellerTaxCode ?? '',
+        'Tên người bán':     d.sellerName ?? '',
+        'Tổng tiền hàng':    d.totalAmount ?? '',
+        'Tiền thuế VAT':     d.vatAmount ?? '',
+        'Tổng thanh toán':   d.grandTotal ?? '',
+        'Trạng thái':        STATUS_CONFIG[d.status as keyof typeof STATUS_CONFIG]?.label ?? d.status,
+        'Người tạo':         '',
+        'Ngày tạo':          fmtDate(d.createdAt),
+      }));
+
+      const lineRows: Record<string, unknown>[] = [];
+      for (const d of details) {
+        for (const li of d.lineItems) {
+          lineRows.push({
+            'Mã chứng từ':           d.invoiceNumber ?? d.id.slice(0, 12),
+            'STT':                   li.stt,
+            'Tên hàng hóa/dịch vụ': li.name ?? '',
+            'ĐVT':                   li.unit ?? '',
+            'Số lượng':              li.quantity ?? '',
+            'Đơn giá':               li.unitPrice ?? '',
+            'Thành tiền':            li.amount ?? '',
+          });
+        }
+      }
+
+      const wb = XLSX.utils.book_new();
+      const wsMaster = XLSX.utils.json_to_sheet(masterRows);
+      const wsLines  = XLSX.utils.json_to_sheet(
+        lineRows.length ? lineRows
+          : [{ 'Mã chứng từ': '', STT: '', 'Tên hàng hóa/dịch vụ': '', ĐVT: '', 'Số lượng': '', 'Đơn giá': '', 'Thành tiền': '' }],
+      );
+
+      wsMaster['!cols'] = [15, 20, 15, 14, 15, 30, 16, 14, 16, 14, 18, 14].map(wch => ({ wch }));
+      wsLines['!cols']  = [15, 6, 30, 10, 10, 16, 16].map(wch => ({ wch }));
+
+      XLSX.utils.book_append_sheet(wb, wsMaster, 'Master_Data');
+      XLSX.utils.book_append_sheet(wb, wsLines, 'Line_Items');
+      XLSX.writeFile(wb, `chung-tu-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      showToast('Xuất Excel thành công.', 'success');
+    } catch (e: unknown) {
+      showToast((e as Error).message);
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-full bg-gray-50">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white border-b px-6 py-4 flex items-center justify-between">
+      <div className="sticky top-0 z-10 bg-white border-b px-6 py-4 flex items-center justify-between shadow-sm">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">Quản lý Chứng từ</h1>
           <p className="text-sm text-gray-500 mt-0.5">Danh sách tất cả chứng từ đã xử lý OCR</p>
@@ -279,10 +354,11 @@ export default function ChungTuPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={handleExportExcel}
-            className="flex items-center gap-2 border border-gray-200 bg-white text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+            disabled={exporting}
+            className="flex items-center gap-2 border border-gray-200 bg-white text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
           >
             <Download className="w-4 h-4" />
-            Xuất Excel
+            {exporting ? 'Đang xuất...' : (selectedIds.size > 0 ? `Xuất Excel (${selectedIds.size})` : 'Xuất Excel')}
           </button>
           {(() => {
             const confirmedCount = selectedIds.size > 0
@@ -310,28 +386,29 @@ export default function ChungTuPage() {
         {/* Stat cards */}
         {stats && (
           <div className="grid grid-cols-5 gap-4">
-            <StatCard label="Tổng chứng từ"  value={stats.total}       colorClass="text-gray-800"   />
-            <StatCard label="Chờ xác nhận"   value={stats.processed}   colorClass="text-orange-500" />
-            <StatCard label="Đã xác nhận"    value={stats.confirmed}   colorClass="text-green-600"  />
-            <StatCard label="Đã chuyển kho"  value={stats.transferred} colorClass="text-purple-600" />
-            <StatCard label="Lỗi OCR"        value={stats.error}       colorClass="text-red-500"    />
+            <StatCard label="Tổng chứng từ"  value={stats.total}       colorClass="text-gray-800"   accentCls="border-l-gray-300"   onClick={() => { setStatusFilter(''); setPage(1); }} />
+            <StatCard label="Chờ xác nhận"   value={stats.processed}   colorClass="text-orange-500" accentCls="border-l-orange-400" onClick={() => { setStatusFilter('PROCESSED'); setPage(1); }} />
+            <StatCard label="Đã xác nhận"    value={stats.confirmed}   colorClass="text-green-600"  accentCls="border-l-green-400"  onClick={() => { setStatusFilter('CONFIRMED'); setPage(1); }} />
+            <StatCard label="Đã chuyển kho"  value={stats.transferred} colorClass="text-purple-600" accentCls="border-l-purple-400" onClick={() => { setStatusFilter('TRANSFERRED'); setPage(1); }} />
+            <StatCard label="Lỗi OCR"        value={stats.error}       colorClass="text-red-500"    accentCls="border-l-red-400"    onClick={() => { setStatusFilter('ERROR'); setPage(1); }} />
           </div>
         )}
 
         {/* Filter bar */}
-        <div className="bg-white rounded-xl border p-4 flex flex-wrap gap-3 items-center">
-          <div className="flex-1 min-w-[220px]">
+        <div className="bg-white rounded-xl border px-4 py-3 flex flex-wrap gap-2.5 items-center">
+          <div className="flex-1 min-w-[200px]">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
                 value={search}
                 onChange={e => { setSearch(e.target.value); setPage(1); }}
-                placeholder="Tìm kiếm chứng từ..."
-                className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Tìm theo số HĐ, tên file, người bán..."
+                className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 focus:bg-white transition-colors"
               />
             </div>
           </div>
+          <div className="w-px h-6 bg-gray-200 shrink-0" />
           <select
             value={statusFilter}
             onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
@@ -354,13 +431,33 @@ export default function ChungTuPage() {
               <option key={k} value={k}>{v.label}</option>
             ))}
           </select>
-          {(search || statusFilter || typeFilter) && (
-            <button
-              onClick={() => { setSearch(''); setStatusFilter(''); setTypeFilter(''); setPage(1); }}
-              className="h-9 px-3 text-sm text-gray-600 hover:text-gray-800 border rounded-lg hover:bg-gray-50"
-            >
-              Xóa bộ lọc
-            </button>
+          {/* Date range widget */}
+          <div className="flex items-center h-9 border rounded-lg overflow-hidden bg-white shrink-0 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-400">
+            <span className="pl-2.5 pr-1.5 text-[11px] font-medium text-gray-400 whitespace-nowrap select-none">Từ ngày</span>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={e => { setDateFrom(e.target.value); setPage(1); }}
+              className="h-full text-sm bg-transparent border-0 focus:outline-none w-[128px]"
+            />
+            <span className="px-1.5 text-gray-300 select-none text-sm">–</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={e => { setDateTo(e.target.value); setPage(1); }}
+              className="h-full text-sm bg-transparent border-0 focus:outline-none w-[128px] pr-2"
+            />
+          </div>
+          {(search || statusFilter || typeFilter || dateFrom || dateTo) && (
+            <>
+              <div className="w-px h-6 bg-gray-200 shrink-0" />
+              <button
+                onClick={() => { setSearch(''); setStatusFilter(''); setTypeFilter(''); setDateFrom(''); setDateTo(''); setPage(1); }}
+                className="h-9 px-3 text-sm text-gray-500 hover:text-red-600 border rounded-lg hover:bg-red-50 hover:border-red-200 transition-colors flex items-center gap-1.5"
+              >
+                <X className="w-3.5 h-3.5" /> Xóa bộ lọc
+              </button>
+            </>
           )}
         </div>
 
@@ -383,6 +480,12 @@ export default function ChungTuPage() {
               <Database className="w-4 h-4" /> Chuyển vào kho tri thức
             </button>
             <button
+              onClick={handleBulkDelete}
+              className="flex items-center gap-1.5 text-sm text-red-600 hover:text-red-700 font-medium"
+            >
+              <Trash2 className="w-4 h-4" /> Xóa hàng loạt
+            </button>
+            <button
               onClick={() => setSelectedIds(new Set())}
               className="ml-auto flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
             >
@@ -400,9 +503,10 @@ export default function ChungTuPage() {
 
         {/* Table */}
         <div className="bg-white rounded-xl border overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[820px]">
             <thead>
-              <tr className="border-b bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              <tr className="border-b bg-gray-50/80 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                 <th className="w-10 px-4 py-3">
                   <input
                     type="checkbox"
@@ -504,33 +608,36 @@ export default function ChungTuPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </div>{/* overflow-x-auto */}
+        </div>{/* table card */}
 
         {/* Pagination */}
-        {docs && docs.totalPages > 1 && (
+        {docs && docs.total > 0 && (
           <div className="flex items-center justify-between px-1">
-            <span className="text-sm text-gray-500">
-              {(docs.page - 1) * 25 + 1}–{Math.min(docs.page * 25, docs.total)} / {docs.total} chứng từ
+            <span className="text-sm text-gray-400">
+              Hiển thị <span className="font-medium text-gray-700">{(docs.page - 1) * 25 + 1}–{Math.min(docs.page * 25, docs.total)}</span> trong tổng số <span className="font-medium text-gray-700">{docs.total.toLocaleString('vi-VN')}</span> chứng từ
             </span>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={docs.page === 1}
-                className="p-2 rounded-lg disabled:opacity-30 hover:bg-gray-100"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <span className="px-3 py-1 text-sm font-medium text-gray-700">
-                {docs.page} / {docs.totalPages}
-              </span>
-              <button
-                onClick={() => setPage(p => Math.min(docs.totalPages, p + 1))}
-                disabled={docs.page === docs.totalPages}
-                className="p-2 rounded-lg disabled:opacity-30 hover:bg-gray-100"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+            {docs.totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={docs.page === 1}
+                  className="p-1.5 rounded-lg border border-gray-200 disabled:opacity-30 hover:bg-gray-100 transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4 text-gray-600" />
+                </button>
+                <span className="px-3 py-1 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg min-w-[72px] text-center">
+                  {docs.page} / {docs.totalPages}
+                </span>
+                <button
+                  onClick={() => setPage(p => Math.min(docs.totalPages, p + 1))}
+                  disabled={docs.page === docs.totalPages}
+                  className="p-1.5 rounded-lg border border-gray-200 disabled:opacity-30 hover:bg-gray-100 transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4 text-gray-600" />
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -908,15 +1015,19 @@ export default function ChungTuPage() {
 
       {/* Toast notification */}
       {toast && (
-        <div className={`fixed bottom-6 right-6 z-[70] flex items-center gap-3 px-4 py-3 rounded-xl shadow-xl max-w-sm text-sm font-medium ${
-          toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-green-600 text-white'
+        <div className={`fixed bottom-6 right-6 z-[70] flex items-center gap-3 px-4 py-3.5 rounded-xl shadow-2xl border max-w-sm text-sm font-medium animate-in slide-in-from-bottom-2 duration-200 ${
+          toast.type === 'error'
+            ? 'bg-white text-red-700 border-red-200 shadow-red-100'
+            : 'bg-white text-green-700 border-green-200 shadow-green-100'
         }`}>
-          {toast.type === 'error'
-            ? <AlertCircle className="w-4 h-4 shrink-0" />
-            : <Check className="w-4 h-4 shrink-0" />}
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${toast.type === 'error' ? 'bg-red-50' : 'bg-green-50'}`}>
+            {toast.type === 'error'
+              ? <AlertCircle className="w-4 h-4 text-red-500" />
+              : <Check className="w-4 h-4 text-green-500" />}
+          </div>
           <span className="flex-1 leading-snug">{toast.message}</span>
-          <button onClick={() => setToast(null)} className="ml-1 opacity-70 hover:opacity-100 shrink-0">
-            <X className="w-4 h-4" />
+          <button onClick={() => setToast(null)} className="ml-1 text-gray-300 hover:text-gray-500 shrink-0 transition-colors">
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
