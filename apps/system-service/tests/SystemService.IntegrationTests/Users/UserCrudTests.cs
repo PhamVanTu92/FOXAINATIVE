@@ -34,8 +34,10 @@ public sealed class UserCrudTests(PostgresContainerFixture postgres) : IAsyncLif
     public async Task CreateUser_then_GetUser_returns_same_data()
     {
         var email = $"user-{Guid.NewGuid():N}@foxai.local";
+        var username = $"user_{Guid.NewGuid():N}".ToLowerInvariant();
         var created = await _users.CreateUserAsync(new CreateUserRequest
         {
+            Username = username,
             Email = email,
             Password = "Test@12345",
             FullName = "Test User",
@@ -58,6 +60,7 @@ public sealed class UserCrudTests(PostgresContainerFixture postgres) : IAsyncLif
         var email = $"dup-{Guid.NewGuid():N}@foxai.local";
         await _users.CreateUserAsync(new CreateUserRequest
         {
+            Username = $"dup_{Guid.NewGuid():N}".ToLowerInvariant(),
             Email = email,
             Password = "Test@12345",
             FullName = "First",
@@ -65,6 +68,7 @@ public sealed class UserCrudTests(PostgresContainerFixture postgres) : IAsyncLif
 
         Func<Task> act = async () => await _users.CreateUserAsync(new CreateUserRequest
         {
+            Username = $"dup_{Guid.NewGuid():N}".ToLowerInvariant(),
             Email = email,
             Password = "Test@12345",
             FullName = "Second",
@@ -79,6 +83,7 @@ public sealed class UserCrudTests(PostgresContainerFixture postgres) : IAsyncLif
     {
         Func<Task> act = async () => await _users.CreateUserAsync(new CreateUserRequest
         {
+            Username = $"weak_{Guid.NewGuid():N}".ToLowerInvariant(),
             Email = $"weak-{Guid.NewGuid():N}@foxai.local",
             Password = "abc",
             FullName = "Weak Pass",
@@ -93,6 +98,7 @@ public sealed class UserCrudTests(PostgresContainerFixture postgres) : IAsyncLif
     {
         var created = await _users.CreateUserAsync(new CreateUserRequest
         {
+            Username = $"upd_{Guid.NewGuid():N}".ToLowerInvariant(),
             Email = $"upd-{Guid.NewGuid():N}@foxai.local",
             Password = "Test@12345",
             FullName = "Old Name",
@@ -129,6 +135,7 @@ public sealed class UserCrudTests(PostgresContainerFixture postgres) : IAsyncLif
         var email = $"del-{Guid.NewGuid():N}@foxai.local";
         var created = await _users.CreateUserAsync(new CreateUserRequest
         {
+            Username = $"del_{Guid.NewGuid():N}".ToLowerInvariant(),
             Email = email,
             Password = "Test@12345",
             FullName = "To Be Deleted",
@@ -141,7 +148,7 @@ public sealed class UserCrudTests(PostgresContainerFixture postgres) : IAsyncLif
 
         Func<Task> loginAct = async () => await _auth.LoginAsync(new LoginRequest
         {
-            Email = email,
+            Login = email,
             Password = "Test@12345",
         });
 
@@ -155,6 +162,7 @@ public sealed class UserCrudTests(PostgresContainerFixture postgres) : IAsyncLif
         var email = $"pwd-{Guid.NewGuid():N}@foxai.local";
         var created = await _users.CreateUserAsync(new CreateUserRequest
         {
+            Username = $"pwd_{Guid.NewGuid():N}".ToLowerInvariant(),
             Email = email,
             Password = "Old@12345",
             FullName = "Pwd Test",
@@ -167,12 +175,12 @@ public sealed class UserCrudTests(PostgresContainerFixture postgres) : IAsyncLif
             NewPassword = "New@67890",
         });
 
-        var login = await _auth.LoginAsync(new LoginRequest { Email = email, Password = "New@67890" });
+        var login = await _auth.LoginAsync(new LoginRequest { Login = email, Password = "New@67890" });
         login.AccessToken.Should().NotBeNullOrEmpty();
 
         Func<Task> loginOld = async () => await _auth.LoginAsync(new LoginRequest
         {
-            Email = email,
+            Login = email,
             Password = "Old@12345",
         });
         (await loginOld.Should().ThrowAsync<RpcException>()).Which.StatusCode.Should().Be(StatusCode.Unauthenticated);
@@ -183,6 +191,7 @@ public sealed class UserCrudTests(PostgresContainerFixture postgres) : IAsyncLif
     {
         var created = await _users.CreateUserAsync(new CreateUserRequest
         {
+            Username = $"role_{Guid.NewGuid():N}".ToLowerInvariant(),
             Email = $"role-{Guid.NewGuid():N}@foxai.local",
             Password = "Test@12345",
             FullName = "Role Test",
@@ -229,7 +238,7 @@ public sealed class UserCrudTests(PostgresContainerFixture postgres) : IAsyncLif
     {
         var login = await _auth.LoginAsync(new LoginRequest
         {
-            Email = DataSeeder.DefaultAdminEmail,
+            Login = DataSeeder.DefaultAdminEmail,
             Password = DataSeeder.DefaultAdminPassword,
         });
         return login.User.Id;
@@ -241,12 +250,13 @@ public sealed class UserCrudTests(PostgresContainerFixture postgres) : IAsyncLif
         var email = $"lock-{Guid.NewGuid():N}@foxai.local";
         var created = await _users.CreateUserAsync(new CreateUserRequest
         {
+            Username = $"lock_{Guid.NewGuid():N}".ToLowerInvariant(),
             Email = email,
             Password = "Test@12345",
             FullName = "Lock Test",
         });
 
-        var login = await _auth.LoginAsync(new LoginRequest { Email = email, Password = "Test@12345" });
+        var login = await _auth.LoginAsync(new LoginRequest { Login = email, Password = "Test@12345" });
 
         await _users.ChangeStatusAsync(new ChangeStatusRequest
         {

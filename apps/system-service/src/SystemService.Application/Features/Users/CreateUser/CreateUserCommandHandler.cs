@@ -18,7 +18,13 @@ public sealed class CreateUserCommandHandler(
 {
     public async Task<UserDto> Handle(CreateUserCommand request, CancellationToken cancellationToken)
     {
+        var username = request.Username.Trim().ToLowerInvariant();
         var email = Email.Create(request.Email).Value;
+
+        if (await users.UsernameExistsAsync(username, cancellationToken))
+        {
+            throw new UsernameAlreadyExistsException(username);
+        }
 
         if (await users.EmailExistsAsync(email, cancellationToken))
         {
@@ -48,6 +54,7 @@ public sealed class CreateUserCommandHandler(
         var user = new User
         {
             Id = Guid.NewGuid(),
+            Username = username,
             Email = email,
             PasswordHash = hasher.Hash(request.Password),
             FullName = request.FullName.Trim(),

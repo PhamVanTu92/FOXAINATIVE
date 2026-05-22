@@ -6,6 +6,12 @@ public sealed class CreateUserCommandValidator : AbstractValidator<CreateUserCom
 {
     public CreateUserCommandValidator()
     {
+        RuleFor(x => x.Username)
+            .NotEmpty()
+            .MaximumLength(64)
+            .Matches(@"^[a-z][a-z0-9._-]*$")
+            .WithMessage("Tên đăng nhập phải bắt đầu bằng chữ thường, chỉ chứa chữ thường/số/./_/-.");
+
         RuleFor(x => x.Email)
             .NotEmpty()
             .EmailAddress()

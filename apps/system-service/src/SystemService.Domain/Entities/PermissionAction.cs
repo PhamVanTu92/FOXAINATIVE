@@ -15,4 +15,5 @@ public class PermissionAction : BaseEntity, IAggregateRoot
     public bool IsActive { get; set; } = true;
 
     public ICollection<RolePermission> RolePermissions { get; set; } = new List<RolePermission>();
+    public ICollection<UserPermissionOverride> UserPermissionOverrides { get; set; } = new List<UserPermissionOverride>();
 }

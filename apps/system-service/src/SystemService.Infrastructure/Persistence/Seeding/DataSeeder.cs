@@ -10,6 +10,7 @@ namespace SystemService.Infrastructure.Persistence.Seeding;
 public static class DataSeeder
 {
     public const string DefaultAdminEmail = "admin@foxai.local";
+    public const string DefaultAdminUsername = "admin";
     public const string DefaultAdminPassword = "Admin@12345";
 
     public static async Task SeedAsync(IServiceProvider services, CancellationToken ct = default)
@@ -179,6 +180,7 @@ public static class DataSeeder
         var admin = new User
         {
             Id = Guid.NewGuid(),
+            Username = DefaultAdminUsername,
             Email = DefaultAdminEmail,
             PasswordHash = hasher.Hash(DefaultAdminPassword),
             FullName = "System Administrator",

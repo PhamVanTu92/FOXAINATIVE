@@ -17,4 +17,5 @@ public class Module : BaseEntity, IAggregateRoot
 
     public ModuleGroup Group { get; set; } = default!;
     public ICollection<RolePermission> RolePermissions { get; set; } = new List<RolePermission>();
+    public ICollection<UserPermissionOverride> UserPermissionOverrides { get; set; } = new List<UserPermissionOverride>();
 }

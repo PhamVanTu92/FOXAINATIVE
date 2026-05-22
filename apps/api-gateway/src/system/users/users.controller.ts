@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
 } from '@nestjs/common';
 import { AccessToken, CurrentUser } from '../../common/auth/current-user.decorator';
@@ -21,6 +22,7 @@ import {
   ChangeStatusDto,
   CreateUserDto,
   ListUsersQueryDto,
+  SetUserPermissionsDto,
   UpdateUserDto,
 } from './dto/users.dto';
 
@@ -139,6 +141,28 @@ export class UsersController {
   ) {
     await this.users.unassignRole(
       { userId: id, roleCode },
+      buildForwardMetadata(token, user),
+    );
+  }
+
+  @Get(':id/permissions')
+  getPermissions(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @AccessToken() token: string,
+    @CurrentUser() user: AuthenticatedRequestUser,
+  ) {
+    return this.users.getPermissions({ userId: id }, buildForwardMetadata(token, user));
+  }
+
+  @Put(':id/permissions')
+  setPermissions(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: SetUserPermissionsDto,
+    @AccessToken() token: string,
+    @CurrentUser() user: AuthenticatedRequestUser,
+  ) {
+    return this.users.setPermissions(
+      { userId: id, effectiveGrants: dto.effectiveGrants },
       buildForwardMetadata(token, user),
     );
   }

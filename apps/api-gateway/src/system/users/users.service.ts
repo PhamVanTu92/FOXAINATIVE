@@ -9,12 +9,15 @@ import {
   ChangeStatusRequest,
   CreateUserRequest,
   DeleteUserRequest,
+  GetUserPermissionsRequest,
   GetUserRequest,
   ListUsersRequest,
   ListUsersResponse,
+  SetUserPermissionsRequest,
   UnassignRoleRequest,
   UpdateUserRequest,
   UserDto,
+  UserPermissionsResponse,
   UsersGrpcService,
 } from '../grpc-interfaces';
 
@@ -54,5 +57,11 @@ export class UsersService implements OnModuleInit {
   }
   unassignRole(req: UnassignRoleRequest, md?: Metadata): Promise<void> {
     return callGrpc(this.users.unassignRole(req, md)).then(() => undefined);
+  }
+  getPermissions(req: GetUserPermissionsRequest, md?: Metadata): Promise<UserPermissionsResponse> {
+    return callGrpc(this.users.getUserPermissions(req, md));
+  }
+  setPermissions(req: SetUserPermissionsRequest, md?: Metadata): Promise<UserPermissionsResponse> {
+    return callGrpc(this.users.setUserPermissions(req, md));
   }
 }

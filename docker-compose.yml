@@ -9,8 +9,9 @@ services:
       POSTGRES_USER: ${SYSTEM_DB_USER:-postgres}
       POSTGRES_PASSWORD: ${SYSTEM_DB_PASSWORD:-postgres}
       POSTGRES_DB: ${SYSTEM_DB_NAME:-system_db}
+    # Host 5432 thường bị PostgreSQL native chiếm trên Windows -> map ra 5433.
     ports:
-      - '5432:5432'
+      - '5433:5432'
     volumes:
       - system_db_data:/var/lib/postgresql/data
     healthcheck:

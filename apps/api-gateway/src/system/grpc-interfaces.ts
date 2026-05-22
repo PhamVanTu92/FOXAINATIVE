@@ -30,7 +30,8 @@ export interface UserProfile {
 }
 
 export interface LoginRequest {
-  email: string;
+  // Username (lowercase) hoặc email — server tự detect.
+  login: string;
   password: string;
 }
 
@@ -69,6 +70,7 @@ export interface AuthGrpcService {
 // ─── Users ──────────────────────────────────────────────────────────────────
 export interface UserDto {
   id: string;
+  username: string;
   email: string;
   fullName: string;
   phone?: string;
@@ -82,6 +84,7 @@ export interface UserDto {
 }
 
 export interface CreateUserRequest {
+  username: string;
   email: string;
   password: string;
   fullName: string;
@@ -132,6 +135,45 @@ export interface UnassignRoleRequest {
   roleCode: string;
 }
 
+// ─── User permission overrides (grid "Phân quyền: <user>") ──────────────────
+export interface UserPermissionPair {
+  moduleId: string;
+  actionId: string;
+}
+
+export interface GetUserPermissionsRequest {
+  userId: string;
+}
+
+export interface SetUserPermissionsRequest {
+  userId: string;
+  effectiveGrants: UserPermissionPair[];
+}
+
+export interface UserPermissionCell {
+  moduleId: string;
+  moduleCode: string;
+  moduleName: string;
+  actionId: string;
+  actionCode: string;
+  actionName: string;
+}
+
+export interface UserPermissionOverrideCell {
+  moduleId: string;
+  moduleCode: string;
+  actionId: string;
+  actionCode: string;
+  effect: 'GRANT' | 'DENY';
+}
+
+export interface UserPermissionsResponse {
+  userId: string;
+  roleGrants: UserPermissionCell[];
+  overrides: UserPermissionOverrideCell[];
+  effective: UserPermissionCell[];
+}
+
 export interface UsersGrpcService {
   createUser(req: CreateUserRequest, md?: Metadata): Observable<UserDto>;
   getUser(req: GetUserRequest, md?: Metadata): Observable<UserDto>;
@@ -142,6 +184,8 @@ export interface UsersGrpcService {
   changeStatus(req: ChangeStatusRequest, md?: Metadata): Observable<UserDto>;
   assignRole(req: AssignRoleRequest, md?: Metadata): Observable<EmptyResponse>;
   unassignRole(req: UnassignRoleRequest, md?: Metadata): Observable<EmptyResponse>;
+  getUserPermissions(req: GetUserPermissionsRequest, md?: Metadata): Observable<UserPermissionsResponse>;
+  setUserPermissions(req: SetUserPermissionsRequest, md?: Metadata): Observable<UserPermissionsResponse>;
 }
 
 // ─── Roles ──────────────────────────────────────────────────────────────────

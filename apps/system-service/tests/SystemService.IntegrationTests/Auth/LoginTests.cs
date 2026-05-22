@@ -32,7 +32,7 @@ public sealed class LoginTests(PostgresContainerFixture postgres) : IAsyncLifeti
     {
         var response = await _client.LoginAsync(new LoginRequest
         {
-            Email = DataSeeder.DefaultAdminEmail,
+            Login = DataSeeder.DefaultAdminEmail,
             Password = DataSeeder.DefaultAdminPassword,
         });
 
@@ -50,7 +50,7 @@ public sealed class LoginTests(PostgresContainerFixture postgres) : IAsyncLifeti
     {
         Func<Task> act = async () => await _client.LoginAsync(new LoginRequest
         {
-            Email = DataSeeder.DefaultAdminEmail,
+            Login = DataSeeder.DefaultAdminEmail,
             Password = "wrong-password",
         });
 
@@ -63,7 +63,7 @@ public sealed class LoginTests(PostgresContainerFixture postgres) : IAsyncLifeti
     {
         Func<Task> act = async () => await _client.LoginAsync(new LoginRequest
         {
-            Email = string.Empty,
+            Login = string.Empty,
             Password = "anything",
         });
 
