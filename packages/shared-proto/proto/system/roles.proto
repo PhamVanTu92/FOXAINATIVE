@@ -12,6 +12,7 @@ service RolesService {
   rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
   rpc UpdateRole(UpdateRoleRequest) returns (RoleDto);
   rpc DeleteRole(DeleteRoleRequest) returns (foxai.common.EmptyResponse);
+  // Cấp / thu hồi quyền theo pair (module_id, action_id) - tương ứng cell trong UI grid.
   rpc AssignPermissions(AssignPermissionsRequest) returns (RoleDto);
   rpc RevokePermissions(RevokePermissionsRequest) returns (RoleDto);
 }
@@ -22,27 +23,40 @@ message RoleDto {
   string name = 3;
   optional string description = 4;
   bool is_system = 5;
-  repeated string permissions = 6;
+  repeated RoleGrantDto grants = 6;
   string created_at = 7;
   string updated_at = 8;
+}
+
+// 1 ô đánh dấu trong UI grid: Role được cấp Action trên Module.
+message RoleGrantDto {
+  string module_id = 1;
+  string module_code = 2;
+  string module_name = 3;
+  string action_id = 4;
+  string action_code = 5;
+  string action_name = 6;
+}
+
+// Pair gửi từ client khi assign/revoke.
+message RolePermissionPair {
+  string module_id = 1;
+  string action_id = 2;
 }
 
 message CreateRoleRequest {
   string code = 1;
   string name = 2;
   optional string description = 3;
-  repeated string permission_codes = 4;
 }
 
-message GetRoleRequest {
-  string id = 1;
-}
+message GetRoleRequest { string id = 1; }
+message DeleteRoleRequest { string id = 1; }
 
 message ListRolesRequest {
   foxai.common.PageRequest pagination = 1;
-  bool include_permissions = 2;
+  bool include_grants = 2;
 }
-
 message ListRolesResponse {
   repeated RoleDto items = 1;
   foxai.common.PageMetadata page = 2;
@@ -54,16 +68,11 @@ message UpdateRoleRequest {
   optional string description = 3;
 }
 
-message DeleteRoleRequest {
-  string id = 1;
-}
-
 message AssignPermissionsRequest {
   string role_id = 1;
-  repeated string permission_codes = 2;
+  repeated RolePermissionPair grants = 2;
 }
-
 message RevokePermissionsRequest {
   string role_id = 1;
-  repeated string permission_codes = 2;
+  repeated RolePermissionPair grants = 2;
 }

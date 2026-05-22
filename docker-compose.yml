@@ -5,15 +5,16 @@ services:
     container_name: foxai-system-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: YdESBSZ@1%a22
-      POSTGRES_DB: system_db
+      # Đọc credentials từ root .env (single source of truth) - default postgres/postgres
+      POSTGRES_USER: ${SYSTEM_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${SYSTEM_DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${SYSTEM_DB_NAME:-system_db}
     ports:
       - '5432:5432'
     volumes:
       - system_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d system_db']
+      test: ['CMD-SHELL', 'pg_isready -U ${SYSTEM_DB_USER:-postgres} -d ${SYSTEM_DB_NAME:-system_db}']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -67,7 +68,9 @@ services:
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: ${SYSTEM_SERVICE_ENV:-Production}
-      SYSTEM_DATABASE_URL: postgresql://myuser:mypassword@system-db:5432/system_db
+      # Container-to-container: host = `system-db` (compose DNS). Đọc URL từ
+      # SYSTEM_DATABASE_URL_DOCKER ở root .env (riêng với native URL dùng localhost).
+      SYSTEM_DATABASE_URL: ${SYSTEM_DATABASE_URL_DOCKER:-postgresql://myuser:mypassword@system-db:5432/system_db}
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production-use-a-long-random-string-32+}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       Jwt__Secret: ${JWT_SECRET:-change-me-in-production-use-a-long-random-string-32+}

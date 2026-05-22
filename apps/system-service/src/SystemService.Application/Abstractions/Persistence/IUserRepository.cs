@@ -9,9 +9,10 @@ public interface IUserRepository
 
     Task<User?> FindByEmailAsync(string email, CancellationToken ct = default);
 
-    Task<User?> FindByIdWithRolesAndPermissionsAsync(Guid id, CancellationToken ct = default);
+    /// <summary>Load User kèm Roles → RolePermissions → Module + Action (cho JWT claims).</summary>
+    Task<User?> FindByIdWithGrantsAsync(Guid id, CancellationToken ct = default);
 
-    Task<User?> FindByEmailWithRolesAndPermissionsAsync(string email, CancellationToken ct = default);
+    Task<User?> FindByEmailWithGrantsAsync(string email, CancellationToken ct = default);
 
     Task<bool> EmailExistsAsync(string email, CancellationToken ct = default);
 

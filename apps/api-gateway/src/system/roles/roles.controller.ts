@@ -16,8 +16,8 @@ import { AuthenticatedRequestUser } from '../../common/auth/jwt-auth.guard';
 import { buildForwardMetadata } from '../../common/grpc/grpc-metadata.helper';
 import {
   CreateRoleDto,
+  GrantsDto,
   ListRolesQueryDto,
-  PermissionCodesDto,
   UpdateRoleDto,
 } from './dto/roles.dto';
 import { RolesService } from './roles.service';
@@ -50,7 +50,7 @@ export class RolesController {
           sortBy: q.sortBy,
           sortOrder: q.sortOrder,
         },
-        includePermissions: q.includePermissions,
+        includeGrants: q.includeGrants,
       },
       buildForwardMetadata(token, user),
     );
@@ -88,12 +88,12 @@ export class RolesController {
   @Post(':id/permissions')
   assignPermissions(
     @Param('id', new ParseUUIDPipe()) id: string,
-    @Body() dto: PermissionCodesDto,
+    @Body() dto: GrantsDto,
     @AccessToken() token: string,
     @CurrentUser() user: AuthenticatedRequestUser,
   ) {
     return this.roles.assignPermissions(
-      { roleId: id, permissionCodes: dto.permissionCodes },
+      { roleId: id, grants: dto.grants },
       buildForwardMetadata(token, user),
     );
   }
@@ -101,12 +101,12 @@ export class RolesController {
   @Delete(':id/permissions')
   revokePermissions(
     @Param('id', new ParseUUIDPipe()) id: string,
-    @Body() dto: PermissionCodesDto,
+    @Body() dto: GrantsDto,
     @AccessToken() token: string,
     @CurrentUser() user: AuthenticatedRequestUser,
   ) {
     return this.roles.revokePermissions(
-      { roleId: id, permissionCodes: dto.permissionCodes },
+      { roleId: id, grants: dto.grants },
       buildForwardMetadata(token, user),
     );
   }

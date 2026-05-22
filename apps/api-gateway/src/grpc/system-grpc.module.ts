@@ -23,7 +23,9 @@ const PROTO_ROOT = join(__dirname, '..', '..', '..', '..', 'packages', 'shared-p
               join(PROTO_ROOT, 'system', 'auth.proto'),
               join(PROTO_ROOT, 'system', 'users.proto'),
               join(PROTO_ROOT, 'system', 'roles.proto'),
-              join(PROTO_ROOT, 'system', 'permissions.proto'),
+              join(PROTO_ROOT, 'system', 'module-groups.proto'),
+              join(PROTO_ROOT, 'system', 'modules.proto'),
+              join(PROTO_ROOT, 'system', 'permission-actions.proto'),
               join(PROTO_ROOT, 'system', 'organizations.proto'),
             ],
             loader: {

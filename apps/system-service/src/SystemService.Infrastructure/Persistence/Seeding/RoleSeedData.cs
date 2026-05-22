@@ -9,37 +9,60 @@ internal static class RoleSeedData
     public static readonly RoleSeed[] All =
     {
         new(SuperAdminCode, "Super Admin", "Toàn quyền hệ thống, không thể xóa.", IsSystem: true),
-        new(AdminCode, "Administrator", "Quản trị nghiệp vụ, không có quyền SYSTEM_ADMIN.", IsSystem: true),
+        new(AdminCode, "Administrator", "Quản trị nghiệp vụ.", IsSystem: true),
         new(UserCode, "End User", "Người dùng cơ bản, chỉ truy cập đọc.", IsSystem: true),
     };
 
-    public static readonly Dictionary<string, string[]> RolePermissions = new()
+    /// <summary>
+    /// Default grants per role: code role → spec (cell trong UI grid).
+    /// - SUPER_ADMIN: GrantAll = mọi (module × action).
+    /// - ADMIN: cấp cụ thể, không Xóa cấu hình hệ thống.
+    /// - USER: chỉ Xem.
+    /// </summary>
+    public static readonly Dictionary<string, RoleGrantSpec> Grants = new()
     {
-        [SuperAdminCode] = new[]
-        {
-            "USER_CREATE", "USER_READ", "USER_UPDATE", "USER_DELETE", "USER_CHANGE_STATUS", "USER_ASSIGN_ROLE",
-            "ROLE_CREATE", "ROLE_READ", "ROLE_UPDATE", "ROLE_DELETE", "ROLE_ASSIGN_PERMISSION",
-            "PERMISSION_READ",
-            "ORG_CREATE", "ORG_READ", "ORG_UPDATE", "ORG_DELETE", "ORG_MOVE",
-            "OCR_SCHEMA_MANAGE", "OCR_DOCUMENT_READ", "OCR_DOCUMENT_APPROVE",
-            "CHATBOT_KB_MANAGE", "CHATBOT_KB_APPROVE", "CHATBOT_CHAT",
-            "SYSTEM_ADMIN",
-        },
-        [AdminCode] = new[]
-        {
-            "USER_CREATE", "USER_READ", "USER_UPDATE", "USER_CHANGE_STATUS", "USER_ASSIGN_ROLE",
-            "ROLE_READ", "ROLE_UPDATE", "ROLE_ASSIGN_PERMISSION",
-            "PERMISSION_READ",
-            "ORG_CREATE", "ORG_READ", "ORG_UPDATE", "ORG_MOVE",
-            "OCR_SCHEMA_MANAGE", "OCR_DOCUMENT_READ", "OCR_DOCUMENT_APPROVE",
-            "CHATBOT_KB_MANAGE", "CHATBOT_KB_APPROVE", "CHATBOT_CHAT",
-        },
-        [UserCode] = new[]
-        {
-            "USER_READ", "ROLE_READ", "PERMISSION_READ", "ORG_READ",
-            "OCR_DOCUMENT_READ", "CHATBOT_CHAT",
-        },
+        [SuperAdminCode] = new RoleGrantSpec(GrantAll: true, Specific: new Dictionary<string, string[]>()),
+        [AdminCode] = new RoleGrantSpec(
+            GrantAll: false,
+            Specific: new Dictionary<string, string[]>
+            {
+                ["DASHBOARD"]            = new[] { "READ" },
+                ["REPORTS"]              = new[] { "READ", "EXPORT" },
+                ["NOTIFICATIONS"]        = new[] { "READ" },
+                ["ROLE_CONFIG"]          = new[] { "READ" },
+                ["USER_CONFIG"]          = new[] { "READ", "CREATE", "UPDATE" },
+                ["ORG_STRUCTURE"]        = new[] { "READ", "CREATE", "UPDATE" },
+                ["OCR_CONFIG"]           = new[] { "READ", "CREATE", "UPDATE" },
+                ["CHATBOT_CONFIG"]       = new[] { "READ", "CREATE", "UPDATE" },
+                ["KNOWLEDGE_MGMT"]       = new[] { "READ", "CREATE", "UPDATE", "DELETE" },
+                ["KNOWLEDGE_REVIEW"]     = new[] { "READ", "UPDATE" },
+                ["KNOWLEDGE_UPLOAD"]     = new[] { "READ", "CREATE" },
+                ["DATA_AUTO_SYNC"]       = new[] { "READ", "CREATE", "UPDATE" },
+                ["OCR_NORMALIZE"]        = new[] { "READ", "UPDATE" },
+                ["OCR_RECOGNIZE"]        = new[] { "READ", "CREATE" },
+                ["DOC_MGMT"]             = new[] { "READ", "UPDATE", "EXPORT" },
+                ["CHATBOT_ACCOUNTING"]   = new[] { "READ" },
+                ["CHATBOT_CSKH"]         = new[] { "READ" },
+            }),
+        [UserCode] = new RoleGrantSpec(
+            GrantAll: false,
+            Specific: new Dictionary<string, string[]>
+            {
+                ["DASHBOARD"]          = new[] { "READ" },
+                ["REPORTS"]            = new[] { "READ" },
+                ["NOTIFICATIONS"]      = new[] { "READ" },
+                ["KNOWLEDGE_MGMT"]     = new[] { "READ" },
+                ["DOC_MGMT"]           = new[] { "READ" },
+                ["CHATBOT_ACCOUNTING"] = new[] { "READ" },
+                ["CHATBOT_CSKH"]       = new[] { "READ" },
+            }),
     };
 
     public sealed record RoleSeed(string Code, string Name, string Description, bool IsSystem);
+
+    /// <summary>
+    /// GrantAll = true → cấp tất cả (module × action) hiện có trong DB.
+    /// GrantAll = false → chỉ cấp các cell trong Specific dictionary (module_code → action_codes[]).
+    /// </summary>
+    public sealed record RoleGrantSpec(bool GrantAll, Dictionary<string, string[]> Specific);
 }

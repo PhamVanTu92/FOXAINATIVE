@@ -145,13 +145,27 @@ export interface UsersGrpcService {
 }
 
 // ─── Roles ──────────────────────────────────────────────────────────────────
+export interface RoleGrantDto {
+  moduleId: string;
+  moduleCode: string;
+  moduleName: string;
+  actionId: string;
+  actionCode: string;
+  actionName: string;
+}
+
+export interface RolePermissionPair {
+  moduleId: string;
+  actionId: string;
+}
+
 export interface RoleDto {
   id: string;
   code: string;
   name: string;
   description?: string;
   isSystem: boolean;
-  permissions: string[];
+  grants: RoleGrantDto[];
   createdAt: string;
   updatedAt: string;
 }
@@ -160,7 +174,6 @@ export interface CreateRoleRequest {
   code: string;
   name: string;
   description?: string;
-  permissionCodes?: string[];
 }
 
 export interface GetRoleRequest { id: string; }
@@ -168,7 +181,7 @@ export interface DeleteRoleRequest { id: string; }
 
 export interface ListRolesRequest {
   pagination?: PageRequest;
-  includePermissions?: boolean;
+  includeGrants?: boolean;
 }
 export interface ListRolesResponse {
   items: RoleDto[];
@@ -183,11 +196,11 @@ export interface UpdateRoleRequest {
 
 export interface AssignPermissionsRequest {
   roleId: string;
-  permissionCodes: string[];
+  grants: RolePermissionPair[];
 }
 export interface RevokePermissionsRequest {
   roleId: string;
-  permissionCodes: string[];
+  grants: RolePermissionPair[];
 }
 
 export interface RolesGrpcService {
@@ -200,23 +213,132 @@ export interface RolesGrpcService {
   revokePermissions(req: RevokePermissionsRequest, md?: Metadata): Observable<RoleDto>;
 }
 
-// ─── Permissions ────────────────────────────────────────────────────────────
-export interface PermissionDto {
+// ─── Module Groups ──────────────────────────────────────────────────────────
+export interface ModuleSummaryDto {
   id: string;
   code: string;
   name: string;
-  module: string;
-  action: string;
-  resource: string;
+  sortOrder: number;
+  isActive: boolean;
 }
 
-export interface ListPermissionsRequest { module?: string; }
-export interface ListPermissionsResponse { items: PermissionDto[]; }
-export interface GetPermissionRequest { id: string; }
+export interface ModuleGroupDto {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  sortOrder: number;
+  isActive: boolean;
+  modules: ModuleSummaryDto[];
+  createdAt: string;
+  updatedAt: string;
+}
 
-export interface PermissionsGrpcService {
-  listPermissions(req: ListPermissionsRequest, md?: Metadata): Observable<ListPermissionsResponse>;
-  getPermission(req: GetPermissionRequest, md?: Metadata): Observable<PermissionDto>;
+export interface ListModuleGroupsRequest { activeOnly?: boolean; }
+export interface ListModuleGroupsResponse { items: ModuleGroupDto[]; }
+export interface GetModuleGroupRequest { id: string; }
+export interface DeleteModuleGroupRequest { id: string; }
+export interface CreateModuleGroupRequest {
+  code: string;
+  name: string;
+  description?: string;
+  sortOrder: number;
+}
+export interface UpdateModuleGroupRequest {
+  id: string;
+  name?: string;
+  description?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+export interface ModuleGroupsGrpcService {
+  listModuleGroups(req: ListModuleGroupsRequest, md?: Metadata): Observable<ListModuleGroupsResponse>;
+  getModuleGroup(req: GetModuleGroupRequest, md?: Metadata): Observable<ModuleGroupDto>;
+  createModuleGroup(req: CreateModuleGroupRequest, md?: Metadata): Observable<ModuleGroupDto>;
+  updateModuleGroup(req: UpdateModuleGroupRequest, md?: Metadata): Observable<ModuleGroupDto>;
+  deleteModuleGroup(req: DeleteModuleGroupRequest, md?: Metadata): Observable<EmptyResponse>;
+}
+
+// ─── Modules ────────────────────────────────────────────────────────────────
+export interface ModuleDto {
+  id: string;
+  groupId: string;
+  groupCode: string;
+  groupName: string;
+  code: string;
+  name: string;
+  description?: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ListModulesRequest { groupId?: string; activeOnly?: boolean; }
+export interface ListModulesResponse { items: ModuleDto[]; }
+export interface GetModuleRequest { id: string; }
+export interface DeleteModuleRequest { id: string; }
+export interface CreateModuleRequest {
+  groupId: string;
+  code: string;
+  name: string;
+  description?: string;
+  sortOrder: number;
+}
+export interface UpdateModuleRequest {
+  id: string;
+  groupId?: string;
+  name?: string;
+  description?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+export interface ModulesGrpcService {
+  listModules(req: ListModulesRequest, md?: Metadata): Observable<ListModulesResponse>;
+  getModule(req: GetModuleRequest, md?: Metadata): Observable<ModuleDto>;
+  createModule(req: CreateModuleRequest, md?: Metadata): Observable<ModuleDto>;
+  updateModule(req: UpdateModuleRequest, md?: Metadata): Observable<ModuleDto>;
+  deleteModule(req: DeleteModuleRequest, md?: Metadata): Observable<EmptyResponse>;
+}
+
+// ─── Permission Actions ─────────────────────────────────────────────────────
+export interface PermissionActionDto {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ListPermissionActionsRequest { activeOnly?: boolean; }
+export interface ListPermissionActionsResponse { items: PermissionActionDto[]; }
+export interface GetPermissionActionRequest { id: string; }
+export interface DeletePermissionActionRequest { id: string; }
+export interface CreatePermissionActionRequest {
+  code: string;
+  name: string;
+  description?: string;
+  sortOrder: number;
+}
+export interface UpdatePermissionActionRequest {
+  id: string;
+  name?: string;
+  description?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+export interface PermissionActionsGrpcService {
+  listPermissionActions(req: ListPermissionActionsRequest, md?: Metadata): Observable<ListPermissionActionsResponse>;
+  getPermissionAction(req: GetPermissionActionRequest, md?: Metadata): Observable<PermissionActionDto>;
+  createPermissionAction(req: CreatePermissionActionRequest, md?: Metadata): Observable<PermissionActionDto>;
+  updatePermissionAction(req: UpdatePermissionActionRequest, md?: Metadata): Observable<PermissionActionDto>;
+  deletePermissionAction(req: DeletePermissionActionRequest, md?: Metadata): Observable<EmptyResponse>;
 }
 
 // ─── Organizations ──────────────────────────────────────────────────────────

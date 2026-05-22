@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package foxai.system;
+
+import "common/pagination.proto";
+
+option csharp_namespace = "Foxai.System.V1";
+
+service ModulesService {
+  rpc ListModules(ListModulesRequest) returns (ListModulesResponse);
+  rpc GetModule(GetModuleRequest) returns (ModuleDto);
+  rpc CreateModule(CreateModuleRequest) returns (ModuleDto);
+  rpc UpdateModule(UpdateModuleRequest) returns (ModuleDto);
+  rpc DeleteModule(DeleteModuleRequest) returns (foxai.common.EmptyResponse);
+}
+
+message ModuleDto {
+  string id = 1;
+  string group_id = 2;
+  string group_code = 3;
+  string group_name = 4;
+  string code = 5;
+  string name = 6;
+  optional string description = 7;
+  int32 sort_order = 8;
+  bool is_active = 9;
+  string created_at = 10;
+  string updated_at = 11;
+}
+
+message ListModulesRequest {
+  optional string group_id = 1;
+  bool active_only = 2;
+}
+message ListModulesResponse { repeated ModuleDto items = 1; }
+
+message GetModuleRequest { string id = 1; }
+message DeleteModuleRequest { string id = 1; }
+
+message CreateModuleRequest {
+  string group_id = 1;
+  string code = 2;
+  string name = 3;
+  optional string description = 4;
+  int32 sort_order = 5;
+}
+
+message UpdateModuleRequest {
+  string id = 1;
+  optional string group_id = 2;
+  optional string name = 3;
+  optional string description = 4;
+  optional int32 sort_order = 5;
+  optional bool is_active = 6;
+}

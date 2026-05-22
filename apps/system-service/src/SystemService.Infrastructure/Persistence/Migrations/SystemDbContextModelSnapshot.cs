@@ -22,6 +22,124 @@ namespace SystemService.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("SystemService.Domain.Entities.Module", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("group_id");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("SortOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("sort_order");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_modules");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_modules_code");
+
+                    b.HasIndex("GroupId", "SortOrder")
+                        .HasDatabaseName("ix_modules_group_id_sort_order");
+
+                    b.ToTable("modules", (string)null);
+                });
+
+            modelBuilder.Entity("SystemService.Domain.Entities.ModuleGroup", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("SortOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("sort_order");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_module_groups");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_module_groups_code");
+
+                    b.HasIndex("SortOrder")
+                        .HasDatabaseName("ix_module_groups_sort_order");
+
+                    b.ToTable("module_groups", (string)null);
+                });
+
             modelBuilder.Entity("SystemService.Domain.Entities.OrganizationNode", b =>
                 {
                     b.Property<Guid>("Id")
@@ -79,62 +197,61 @@ namespace SystemService.Infrastructure.Persistence.Migrations
                     b.ToTable("organization_nodes", (string)null);
                 });
 
-            modelBuilder.Entity("SystemService.Domain.Entities.Permission", b =>
+            modelBuilder.Entity("SystemService.Domain.Entities.PermissionAction", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("action");
-
                     b.Property<string>("Code")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
                         .HasColumnName("code");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<string>("Module")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("module");
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("name");
-
-                    b.Property<string>("Resource")
-                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
-                        .HasColumnName("resource");
+                        .HasColumnName("name");
+
+                    b.Property<int>("SortOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("sort_order");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.HasKey("Id")
-                        .HasName("pk_permissions");
+                        .HasName("pk_permission_actions");
 
                     b.HasIndex("Code")
                         .IsUnique()
-                        .HasDatabaseName("ix_permissions_code");
+                        .HasDatabaseName("ix_permission_actions_code");
 
-                    b.HasIndex("Module")
-                        .HasDatabaseName("ix_permissions_module");
+                    b.HasIndex("SortOrder")
+                        .HasDatabaseName("ix_permission_actions_sort_order");
 
-                    b.ToTable("permissions", (string)null);
+                    b.ToTable("permission_actions", (string)null);
                 });
 
             modelBuilder.Entity("SystemService.Domain.Entities.RefreshToken", b =>
@@ -242,15 +359,30 @@ namespace SystemService.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("role_id");
 
-                    b.Property<Guid>("PermissionId")
+                    b.Property<Guid>("ModuleId")
                         .HasColumnType("uuid")
-                        .HasColumnName("permission_id");
+                        .HasColumnName("module_id");
 
-                    b.HasKey("RoleId", "PermissionId")
+                    b.Property<Guid>("ActionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("action_id");
+
+                    b.Property<DateTime>("GrantedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("granted_at");
+
+                    b.Property<Guid?>("GrantedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("granted_by");
+
+                    b.HasKey("RoleId", "ModuleId", "ActionId")
                         .HasName("pk_role_permissions");
 
-                    b.HasIndex("PermissionId")
-                        .HasDatabaseName("ix_role_permissions_permission_id");
+                    b.HasIndex("ActionId")
+                        .HasDatabaseName("ix_role_permissions_action_id");
+
+                    b.HasIndex("ModuleId")
+                        .HasDatabaseName("ix_role_permissions_module_id");
 
                     b.ToTable("role_permissions", (string)null);
                 });
@@ -355,6 +487,18 @@ namespace SystemService.Infrastructure.Persistence.Migrations
                     b.ToTable("user_roles", (string)null);
                 });
 
+            modelBuilder.Entity("SystemService.Domain.Entities.Module", b =>
+                {
+                    b.HasOne("SystemService.Domain.Entities.ModuleGroup", "Group")
+                        .WithMany("Modules")
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_modules_module_groups_group_id");
+
+                    b.Navigation("Group");
+                });
+
             modelBuilder.Entity("SystemService.Domain.Entities.OrganizationNode", b =>
                 {
                     b.HasOne("SystemService.Domain.Entities.OrganizationNode", "Parent")
@@ -380,12 +524,19 @@ namespace SystemService.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("SystemService.Domain.Entities.RolePermission", b =>
                 {
-                    b.HasOne("SystemService.Domain.Entities.Permission", "Permission")
+                    b.HasOne("SystemService.Domain.Entities.PermissionAction", "Action")
                         .WithMany("RolePermissions")
-                        .HasForeignKey("PermissionId")
+                        .HasForeignKey("ActionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("fk_role_permissions_permissions_permission_id");
+                        .HasConstraintName("fk_role_permissions_permission_actions_action_id");
+
+                    b.HasOne("SystemService.Domain.Entities.Module", "Module")
+                        .WithMany("RolePermissions")
+                        .HasForeignKey("ModuleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_role_permissions_modules_module_id");
 
                     b.HasOne("SystemService.Domain.Entities.Role", "Role")
                         .WithMany("RolePermissions")
@@ -394,7 +545,9 @@ namespace SystemService.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_role_permissions_roles_role_id");
 
-                    b.Navigation("Permission");
+                    b.Navigation("Action");
+
+                    b.Navigation("Module");
 
                     b.Navigation("Role");
                 });
@@ -431,6 +584,16 @@ namespace SystemService.Infrastructure.Persistence.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("SystemService.Domain.Entities.Module", b =>
+                {
+                    b.Navigation("RolePermissions");
+                });
+
+            modelBuilder.Entity("SystemService.Domain.Entities.ModuleGroup", b =>
+                {
+                    b.Navigation("Modules");
+                });
+
             modelBuilder.Entity("SystemService.Domain.Entities.OrganizationNode", b =>
                 {
                     b.Navigation("Children");
@@ -438,7 +601,7 @@ namespace SystemService.Infrastructure.Persistence.Migrations
                     b.Navigation("Users");
                 });
 
-            modelBuilder.Entity("SystemService.Domain.Entities.Permission", b =>
+            modelBuilder.Entity("SystemService.Domain.Entities.PermissionAction", b =>
                 {
                     b.Navigation("RolePermissions");
                 });

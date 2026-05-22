@@ -20,7 +20,7 @@ public sealed class LoginCommandHandler(
     public async Task<LoginResponse> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
-        var user = await users.FindByEmailWithRolesAndPermissionsAsync(normalizedEmail, cancellationToken)
+        var user = await users.FindByEmailWithGrantsAsync(normalizedEmail, cancellationToken)
                    ?? throw new UnauthorizedException("Email hoặc mật khẩu không đúng.");
 
         if (user.Status != UserStatus.Active)
@@ -64,12 +64,18 @@ public sealed class LoginCommandHandler(
                 user.OrganizationId));
     }
 
+    /// <summary>
+    /// Extract claims để embed vào JWT.
+    /// - Roles: list role code.
+    /// - Permissions: list "MODULE_CODE.ACTION_CODE" để API Gateway authorize endpoint nhanh.
+    /// </summary>
     internal static (IReadOnlyCollection<string> Roles, IReadOnlyCollection<string> Permissions) ExtractRolesAndPermissions(User user)
     {
         var roles = user.UserRoles.Select(ur => ur.Role.Code).Distinct().ToArray();
         var permissions = user.UserRoles
             .SelectMany(ur => ur.Role.RolePermissions)
-            .Select(rp => rp.Permission.Code)
+            .Where(rp => rp.Module is not null && rp.Action is not null)
+            .Select(rp => $"{rp.Module.Code}.{rp.Action.Code}")
             .Distinct()
             .ToArray();
         return (roles, permissions);

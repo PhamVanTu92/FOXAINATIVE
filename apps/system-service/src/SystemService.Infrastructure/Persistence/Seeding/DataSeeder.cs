@@ -20,7 +20,8 @@ public static class DataSeeder
         var hasher = sp.GetRequiredService<IPasswordHasher>();
         var logger = sp.GetRequiredService<ILogger<SystemDbContext>>();
 
-        await SeedPermissionsAsync(db, ct);
+        await SeedPermissionActionsAsync(db, ct);
+        await SeedModuleGroupsAndModulesAsync(db, ct);
         await SeedRolesAsync(db, ct);
         await SeedAdminUserAsync(db, hasher, ct);
 
@@ -31,25 +32,65 @@ public static class DataSeeder
         }
     }
 
-    private static async Task SeedPermissionsAsync(SystemDbContext db, CancellationToken ct)
+    private static async Task SeedPermissionActionsAsync(SystemDbContext db, CancellationToken ct)
     {
-        var existingCodes = await db.Permissions
-            .Select(p => p.Code)
-            .ToListAsync(ct);
-        var existing = existingCodes.ToHashSet(StringComparer.Ordinal);
+        var existing = (await db.PermissionActions.Select(a => a.Code).ToListAsync(ct))
+            .ToHashSet(StringComparer.Ordinal);
 
-        foreach (var seed in PermissionSeedData.All)
+        foreach (var seed in PermissionActionSeedData.All)
         {
-            if (!existing.Contains(seed.Code))
+            if (existing.Contains(seed.Code)) continue;
+
+            db.PermissionActions.Add(new PermissionAction
             {
-                db.Permissions.Add(new Permission
+                Id = Guid.NewGuid(),
+                Code = seed.Code,
+                Name = seed.Name,
+                Description = seed.Description,
+                SortOrder = seed.SortOrder,
+                IsActive = true,
+            });
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static async Task SeedModuleGroupsAndModulesAsync(SystemDbContext db, CancellationToken ct)
+    {
+        var existingGroups = await db.ModuleGroups.ToDictionaryAsync(g => g.Code, ct);
+        var existingModules = await db.Modules.ToDictionaryAsync(m => m.Code, ct);
+
+        foreach (var groupSeed in ModuleSeedData.Groups)
+        {
+            if (!existingGroups.TryGetValue(groupSeed.Code, out var group))
+            {
+                group = new ModuleGroup
                 {
                     Id = Guid.NewGuid(),
-                    Code = seed.Code,
-                    Name = seed.Name,
-                    Module = seed.Module,
-                    Action = seed.Action,
-                    Resource = seed.Resource,
+                    Code = groupSeed.Code,
+                    Name = groupSeed.Name,
+                    Description = groupSeed.Description,
+                    SortOrder = groupSeed.SortOrder,
+                    IsActive = true,
+                };
+                db.ModuleGroups.Add(group);
+                existingGroups[group.Code] = group;
+            }
+
+            foreach (var moduleSeed in groupSeed.Modules)
+            {
+                if (existingModules.ContainsKey(moduleSeed.Code)) continue;
+
+                db.Modules.Add(new Module
+                {
+                    Id = Guid.NewGuid(),
+                    GroupId = group.Id,
+                    Group = group,
+                    Code = moduleSeed.Code,
+                    Name = moduleSeed.Name,
+                    Description = moduleSeed.Description,
+                    SortOrder = moduleSeed.SortOrder,
+                    IsActive = true,
                 });
             }
         }
@@ -59,7 +100,8 @@ public static class DataSeeder
 
     private static async Task SeedRolesAsync(SystemDbContext db, CancellationToken ct)
     {
-        var allPermissions = await db.Permissions.ToDictionaryAsync(p => p.Code, ct);
+        var allActions = await db.PermissionActions.ToDictionaryAsync(a => a.Code, ct);
+        var allModules = await db.Modules.ToDictionaryAsync(m => m.Code, ct);
 
         foreach (var seed in RoleSeedData.All)
         {
@@ -80,18 +122,45 @@ public static class DataSeeder
                 db.Roles.Add(role);
             }
 
-            var desired = RoleSeedData.RolePermissions.GetValueOrDefault(seed.Code, Array.Empty<string>());
-            var current = role.RolePermissions.Select(rp => rp.PermissionId).ToHashSet();
+            if (!RoleSeedData.Grants.TryGetValue(seed.Code, out var spec)) continue;
 
-            foreach (var code in desired)
+            var existingPairs = role.RolePermissions
+                .Select(rp => (rp.ModuleId, rp.ActionId))
+                .ToHashSet();
+
+            var targetPairs = new HashSet<(Guid ModuleId, Guid ActionId)>();
+            if (spec.GrantAll)
             {
-                if (!allPermissions.TryGetValue(code, out var permission)) continue;
-                if (current.Contains(permission.Id)) continue;
+                foreach (var module in allModules.Values)
+                foreach (var action in allActions.Values)
+                {
+                    targetPairs.Add((module.Id, action.Id));
+                }
+            }
+            else
+            {
+                foreach (var (moduleCode, actionCodes) in spec.Specific)
+                {
+                    if (!allModules.TryGetValue(moduleCode, out var module)) continue;
+                    foreach (var actionCode in actionCodes)
+                    {
+                        if (!allActions.TryGetValue(actionCode, out var action)) continue;
+                        targetPairs.Add((module.Id, action.Id));
+                    }
+                }
+            }
+
+            foreach (var pair in targetPairs)
+            {
+                if (existingPairs.Contains(pair)) continue;
 
                 role.RolePermissions.Add(new RolePermission
                 {
                     Role = role,
-                    Permission = permission,
+                    RoleId = role.Id,
+                    ModuleId = pair.ModuleId,
+                    ActionId = pair.ActionId,
+                    GrantedAt = DateTime.UtcNow,
                 });
             }
         }
@@ -102,16 +171,10 @@ public static class DataSeeder
     private static async Task SeedAdminUserAsync(SystemDbContext db, IPasswordHasher hasher, CancellationToken ct)
     {
         var existing = await db.Users.FirstOrDefaultAsync(u => u.Email == DefaultAdminEmail, ct);
-        if (existing is not null)
-        {
-            return;
-        }
+        if (existing is not null) return;
 
         var superAdmin = await db.Roles.FirstOrDefaultAsync(r => r.Code == RoleSeedData.SuperAdminCode, ct);
-        if (superAdmin is null)
-        {
-            return;
-        }
+        if (superAdmin is null) return;
 
         var admin = new User
         {

@@ -148,6 +148,17 @@ src/
 
 ⚠️ **Pitfall thường gặp:** Nếu JWT verify trả `401 Invalid or expired token` mà System Service ValidateToken xác nhận token OK → **JWT_SECRET hai bên không khớp**. Check ngay env var của cả 2 process (đặc biệt khi 1 chạy native + 1 chạy Docker).
 
+### Single source of truth: `.env` root
+
+Cả Gateway (NestJS) + System Service (.NET 9 qua `DotNetEnv`) đều đọc `.env` ở **repo root**. Edit 1 chỗ → cả 2 sync.
+
+**Thứ tự load của Gateway (file đầu thắng):**
+1. `apps/api-gateway/.env` (per-service override, gitignored)
+2. `<repo-root>/.env` (shared, gitignored)
+3. `<repo-root>/.env.local` (dev override, gitignored)
+
+Tham khảo template tại [/.env.example](../../.env.example).
+
 ---
 
 ## Khởi động

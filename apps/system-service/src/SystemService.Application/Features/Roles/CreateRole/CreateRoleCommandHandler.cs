@@ -7,9 +7,8 @@ using SystemService.Domain.Exceptions;
 
 namespace SystemService.Application.Features.Roles.CreateRole;
 
-public sealed class CreateRoleCommandHandler(
-    IRoleRepository roles,
-    IPermissionRepository permissions) : IRequestHandler<CreateRoleCommand, RoleDto>
+public sealed class CreateRoleCommandHandler(IRoleRepository roles)
+    : IRequestHandler<CreateRoleCommand, RoleDto>
 {
     public async Task<RoleDto> Handle(CreateRoleCommand request, CancellationToken cancellationToken)
     {
@@ -28,29 +27,9 @@ public sealed class CreateRoleCommandHandler(
             IsSystem = false,
         };
 
-        var requestedCodes = request.PermissionCodes?.Where(c => !string.IsNullOrWhiteSpace(c)).Distinct().ToList()
-                             ?? new List<string>();
-        if (requestedCodes.Count > 0)
-        {
-            var perms = await permissions.FindByCodesAsync(requestedCodes, cancellationToken);
-            var missing = requestedCodes.Except(perms.Select(p => p.Code)).ToList();
-            if (missing.Count > 0)
-            {
-                throw new NotFoundException("Permission", string.Join(", ", missing));
-            }
-
-            foreach (var perm in perms)
-            {
-                role.RolePermissions.Add(new RolePermission
-                {
-                    Role = role,
-                    Permission = perm,
-                });
-            }
-        }
-
         roles.Add(role);
 
+        // Trả về DTO với Grants rỗng (sau khi tạo, FE gọi AssignPermissions để cấp grant).
         return role.ToDto();
     }
 }

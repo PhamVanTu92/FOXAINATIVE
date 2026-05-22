@@ -112,11 +112,19 @@ foxainative/
 pnpm install
 ```
 
-### 2. Tạo file `.env`
+### 2. Tạo file `.env` — single source of truth cho toàn monorepo
 
 ```bash
 cp .env.example .env
 ```
+
+> **Quan trọng:** `.env` ở root được dùng chung bởi tất cả services:
+> - **API Gateway (NestJS):** đọc qua `ConfigModule.forRoot({ envFilePath })` trỏ tới root `.env`.
+> - **System Service (.NET 9):** đọc qua package `DotNetEnv` — `Env.TraversePath().Load()` tự tìm `.env` ngược lên repo root khi Program.cs + DbContext factory chạy.
+> - **docker-compose:** tự đọc `.env` cùng directory để substitute `${JWT_SECRET}` etc.
+>
+> Đặt `JWT_SECRET` **một chỗ duy nhất** ở `.env` root → cả 2 service sign/verify cùng key.
+> Đổi secret chỉ cần edit 1 file rồi restart processes.
 
 ### 3. Bật hạ tầng (3× PostgreSQL + Redis)
 

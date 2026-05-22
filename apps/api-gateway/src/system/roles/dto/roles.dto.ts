@@ -7,17 +7,18 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   Matches,
   Max,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
 
 export class CreateRoleDto {
   @IsString() @Matches(/^[A-Z][A-Z0-9_]*$/, { message: 'Code phải UPPER_SNAKE_CASE' }) @MaxLength(64) code!: string;
   @IsString() @IsNotEmpty() @MaxLength(100) name!: string;
   @IsOptional() @IsString() @MaxLength(500) description?: string;
-  @IsOptional() @IsArray() @IsString({ each: true }) permissionCodes?: string[];
 }
 
 export class UpdateRoleDto {
@@ -34,9 +35,18 @@ export class ListRolesQueryDto {
   @IsOptional()
   @Type(() => Boolean)
   @IsBoolean()
-  includePermissions?: boolean;
+  includeGrants?: boolean;
 }
 
-export class PermissionCodesDto {
-  @IsArray() @ArrayNotEmpty() @IsString({ each: true }) permissionCodes!: string[];
+export class RolePermissionPairDto {
+  @IsUUID() moduleId!: string;
+  @IsUUID() actionId!: string;
+}
+
+export class GrantsDto {
+  @IsArray()
+  @ArrayNotEmpty()
+  @ValidateNested({ each: true })
+  @Type(() => RolePermissionPairDto)
+  grants!: RolePermissionPairDto[];
 }

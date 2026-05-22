@@ -19,7 +19,7 @@ public sealed class ValidateTokenQueryHandler(
             return new ValidateTokenResult(false, null, "Token không hợp lệ hoặc đã hết hạn.");
         }
 
-        var user = await users.FindByIdWithRolesAndPermissionsAsync(validated.UserId, cancellationToken);
+        var user = await users.FindByIdWithGrantsAsync(validated.UserId, cancellationToken);
         if (user is null || user.Status != UserStatus.Active)
         {
             return new ValidateTokenResult(false, null, "Tài khoản không khả dụng.");

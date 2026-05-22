@@ -78,9 +78,11 @@ Refresh token: 30 ngày, lưu SHA256 hash trong bảng `refresh_tokens`, rotate 
 
 ## Biến môi trường
 
+> **Tất cả env vars dưới đây đọc từ `.env` ở root monorepo** (qua `DotNetEnv.Env.TraversePath().Load()` trong Program.cs + SystemDbContextFactory). Không còn bake vào `launchSettings.json` hay `appsettings.Development.json` để tránh drift với API Gateway. Edit `.env` root → restart service → cả 2 sync.
+
 | Biến | Default | Mô tả |
 |---|---|---|
-| `SYSTEM_DATABASE_URL` | `postgresql://system_user:system_pass@localhost:5432/system_db` | Prisma-style URL, tự convert sang Npgsql |
+| `SYSTEM_DATABASE_URL` | `postgresql://myuser:mypassword@localhost:5432/system_db` | Prisma-style URL, tự convert sang Npgsql |
 | `JWT_SECRET` | (required, ≥ 32 chars) | HS256 signing key — share với API Gateway |
 | `JWT_EXPIRES_IN` | `7d` | TTL access token (`s`/`m`/`h`/`d`) |
 | `Jwt:Issuer` | `foxai-system-service` | JWT `iss` claim |
