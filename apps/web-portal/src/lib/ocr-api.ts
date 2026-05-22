@@ -117,6 +117,8 @@ export interface AuditLog {
 }
 
 export interface DocDetail extends DocListItem {
+  mimeType: string | null;
+  fileUrl: string | null;
   schema: SchemaDetail;
   values: DocValue[];
   lineItems: LineItem[];
@@ -153,6 +155,8 @@ function buildQs(params: Record<string, string | string[]>): string {
 
 export const ocrApi = {
   // Documents
+  getDocumentFileUrl: (id: string) => `${BASE}/documents/${id}/file`,
+
   getStats: () => req<DocStats>('/documents/stats'),
 
   getDocuments: (params: Record<string, string | string[]> = {}) =>

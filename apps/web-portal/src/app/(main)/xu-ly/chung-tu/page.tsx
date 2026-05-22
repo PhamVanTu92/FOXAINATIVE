@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search, ChevronLeft, ChevronRight, FileText, AlertCircle,
   Pencil, Trash2, Download, X, Database, Check, Eye,
-  ClipboardList, Clock, TrendingUp,
+  ClipboardList, Clock, TrendingUp, Loader2, ZoomIn,
 } from 'lucide-react';
 import { ocrApi } from '@/lib/ocr-api';
 import type { DocListItem, DocStats, DocDetail } from '@/lib/ocr-api';
@@ -729,8 +729,68 @@ export default function ChungTuPage() {
       {/* Detail drawer */}
       {detailOpen && (
         <div className="fixed inset-0 z-50 flex">
-          <div className="flex-1 bg-black/40" onClick={() => setDetailOpen(false)} />
-          <div className="w-full max-w-2xl bg-white shadow-2xl flex flex-col overflow-hidden">
+          {/* Left: document viewer */}
+          <div className="flex-1 bg-gray-900 flex flex-col overflow-hidden">
+            {/* Viewer toolbar */}
+            <div className="flex items-center justify-between px-4 py-2.5 bg-gray-800 shrink-0">
+              <span className="text-xs text-gray-300 truncate max-w-xs">
+                {detailDoc?.fileName ?? 'Chứng từ gốc'}
+              </span>
+              {detailDoc?.mimeType && (
+                <a
+                  href={ocrApi.getDocumentFileUrl(detailDoc.id)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-xs text-gray-300 hover:text-white bg-gray-700 hover:bg-gray-600 px-2.5 py-1 rounded-md transition-colors shrink-0 ml-3"
+                >
+                  <ZoomIn className="w-3.5 h-3.5" />
+                  Mở rộng
+                </a>
+              )}
+            </div>
+            {/* Viewer content */}
+            <div className="flex-1 overflow-hidden relative">
+              {detailLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <Loader2 className="w-8 h-8 text-gray-500 animate-spin" />
+                </div>
+              ) : detailDoc?.mimeType?.startsWith('image/') ? (
+                <div className="h-full overflow-auto flex items-start justify-center p-4">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={ocrApi.getDocumentFileUrl(detailDoc.id)}
+                    alt={detailDoc.fileName ?? 'document'}
+                    className="max-w-full object-contain rounded shadow-lg"
+                  />
+                </div>
+              ) : detailDoc?.mimeType === 'application/pdf' ? (
+                <iframe
+                  src={ocrApi.getDocumentFileUrl(detailDoc.id)}
+                  className="w-full h-full border-0"
+                  title={detailDoc.fileName ?? 'document'}
+                />
+              ) : detailDoc ? (
+                <div className="flex flex-col items-center justify-center h-full gap-3 text-gray-500">
+                  <FileText className="w-12 h-12 text-gray-600" />
+                  <p className="text-sm">Không thể xem trước định dạng này</p>
+                  <a
+                    href={ocrApi.getDocumentFileUrl(detailDoc.id)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-blue-400 hover:text-blue-300 underline"
+                  >
+                    Tải file xuống
+                  </a>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-sm text-gray-500">Chọn chứng từ để xem</p>
+                </div>
+              )}
+            </div>
+          </div>
+          {/* Right: detail panel */}
+          <div className="w-[480px] shrink-0 bg-white shadow-2xl flex flex-col overflow-hidden">
             {/* Drawer header */}
             <div className="px-6 py-4 border-b flex items-start justify-between shrink-0 bg-white">
               <div className="min-w-0 flex-1">

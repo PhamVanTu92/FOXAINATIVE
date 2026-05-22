@@ -2,8 +2,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import {
   BadRequestException, Body, Controller, Delete, Get, HttpCode, HttpStatus,
-  Param, Patch, Post, Query, UploadedFile, UseInterceptors,
+  NotFoundException, Param, Patch, Post, Query, Res, StreamableFile,
+  UploadedFile, UseInterceptors,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -47,6 +49,19 @@ export class DocumentController {
 
   @Get() @ApiOperation({ summary: 'Danh sách chứng từ (filter + pagination)' })
   findMany(@Query() filter: FilterDocumentDto): Promise<unknown> { return this.documentService.findMany(filter); }
+
+  @Get(':id/file') @ApiOperation({ summary: 'Xem file gốc của chứng từ' })
+  async serveFile(@Param('id') id: string, @Res({ passthrough: true }) res: Response): Promise<StreamableFile> {
+    const doc = await this.documentService.findOne(id);
+    const filePath = (doc.fileUrl ?? '').replace(/^file:\/\//, '');
+    if (!filePath || !fs.existsSync(filePath))
+      throw new NotFoundException('File gốc không tìm thấy trên máy chủ.');
+    res.set({
+      'Content-Type': doc.mimeType ?? 'application/octet-stream',
+      'Content-Disposition': `inline; filename*=UTF-8''${encodeURIComponent(doc.fileName ?? 'document')}`,
+    });
+    return new StreamableFile(fs.createReadStream(filePath));
+  }
 
   @Get(':id') @ApiOperation({ summary: 'Chi tiết chứng từ' })
   findOne(@Param('id') id: string): Promise<unknown> { return this.documentService.findOne(id); }
