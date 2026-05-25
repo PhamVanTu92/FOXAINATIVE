@@ -1,8 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, type Part } from '@google/generative-ai';
 import { Injectable, Logger } from '@nestjs/common';
 import type { OcrRequest, OcrResult, OcrExtractedField, OcrExtractedLineItem } from '@foxai/shared-types';
+import { FileParserFactory } from '../file-parsers/file-parser.factory';
 import type { IOcrProvider } from './ocr.provider';
 
 @Injectable()
@@ -22,30 +23,23 @@ export class GeminiOcrProvider implements IOcrProvider {
     this.genAI = new GoogleGenerativeAI(apiKey);
     const model = process.env['GEMINI_MODEL'] ?? 'gemini-2.5-flash';
 
+    // --- 1. Đọc file từ disk ---
     const filePath = resolveFilePath(request.fileUrl);
     if (!filePath || !fs.existsSync(filePath)) {
       throw new Error(`Không tìm thấy file: ${request.fileUrl}`);
     }
-
     const buffer = fs.readFileSync(filePath);
-    const mimeType = request.mimeType ?? detectMimeType(filePath);
-    const base64 = buffer.toString('base64');
 
-    const fieldsPrompt = request.schemaFields?.length
-      ? request.schemaFields
-          .map(f => `  - ${f.fieldKey}: "${f.label}" (${f.dataType})${f.description ? ` — ${f.description}` : ''}`)
-          .join('\n')
-      : [
-          '  - invoiceNumber: "Số hóa đơn"',
-          '  - issueDate: "Ngày phát hành"',
-          '  - sellerName: "Tên người bán"',
-          '  - sellerTaxCode: "Mã số thuế người bán"',
-          '  - totalAmount: "Tổng tiền trước thuế"',
-          '  - vatAmount: "Tiền thuế VAT"',
-          '  - grandTotal: "Tổng thanh toán"',
-        ].join('\n');
+    // --- 2. Parse file bằng FileParserFactory (Strategy Pattern) ---
+    const parser = FileParserFactory.getParser(filePath);
+    const parsedFile = await parser.parse(buffer, filePath);
+    this.logger.log(`🔮 Gemini OCR → document ${request.documentId} | parser: ${path.extname(filePath)} → type="${parsedFile.type}" | model: ${model}`);
 
-    const prompt = `Bạn là chuyên gia nhận dạng chứng từ kế toán Việt Nam. Hãy trích xuất thông tin từ tài liệu trên.
+    // --- 3. Xây dựng prompt ---
+    const fieldsPrompt = buildFieldsPrompt(request);
+    const tablesHint = buildTablesHint(request);
+
+    const extractionInstructions = `Bạn là chuyên gia nhận dạng chứng từ kế toán Việt Nam. Hãy trích xuất thông tin từ tài liệu.
 
 Các trường cần trích xuất:
 ${fieldsPrompt}
@@ -56,37 +50,46 @@ Trả về JSON thuần (không markdown, không giải thích, chỉ JSON):
     { "fieldKey": "tên_trường", "value": "giá_trị_trích_xuất", "confidence": 0.95 }
   ],
   "lineItems": [
-    { "stt": 1, "name": "tên hàng hóa/dịch vụ", "unit": "đvt", "quantity": 1, "unitPrice": 1000000, "amount": 1000000 }
+    { "tableKey": "tên_bảng", "stt": 1, "name": "tên hàng hóa/dịch vụ", "unit": "đvt", "quantity": 1, "unitPrice": 1000000, "amount": 1000000 }
   ]
 }
 
 Quy tắc quan trọng:
-- Trường không tìm thấy trong tài liệu → value = ""
-- confidence từ 0.0 đến 1.0 (mức độ chắc chắn khi trích xuất)
-- Số tiền: chỉ chữ số nguyên, KHÔNG có dấu chấm/phẩy phân cách (vd: 87000000)
+- Trường không tìm thấy → value = ""
+- confidence từ 0.0 đến 1.0
+- Số tiền: chỉ chữ số nguyên, KHÔNG có dấu chấm/phẩy (vd: 87000000)
 - Ngày tháng: định dạng DD/MM/YYYY
-- lineItems: danh sách hàng hóa/dịch vụ trong bảng (mảng rỗng [] nếu không có bảng)`;
+- lineItems: mảng rỗng [] nếu không có bảng hàng hóa
+- ${tablesHint}`;
 
+    // --- 4. Tạo nội dung request phù hợp với từng loại file ---
+    let contentParts: Part[];
+
+    if (parsedFile.type === 'image') {
+      // PDF hoặc ảnh → gửi kèm inlineData
+      contentParts = [
+        { inlineData: { data: parsedFile.content, mimeType: parsedFile.mimeType! } },
+        { text: extractionInstructions },
+      ];
+    } else {
+      // Excel/Word → nhúng toàn bộ text vào prompt, không cần vision
+      const fullPrompt = `Dưới đây là toàn bộ nội dung tài liệu (đã được chuyển đổi sang văn bản/bảng):\n\n${parsedFile.content}\n\n---\n\n${extractionInstructions}`;
+      contentParts = [{ text: fullPrompt }];
+    }
+
+    // --- 5. Gọi Gemini API ---
     const geminiModel = this.genAI.getGenerativeModel({ model });
-
-    this.logger.log(`🔮 Gemini OCR → document ${request.documentId} (model: ${model})`);
-    const geminiResult = await geminiModel.generateContent([
-      { inlineData: { data: base64, mimeType } },
-      prompt,
-    ]);
-
+    const geminiResult = await geminiModel.generateContent(contentParts);
     const rawText = geminiResult.response.text();
-    this.logger.debug(`Gemini phản hồi:\n${rawText.slice(0, 400)}`);
+    this.logger.debug(`Gemini raw response:\n${rawText.slice(0, 400)}`);
 
+    // --- 6. Parse JSON kết quả ---
     const jsonStr = extractJson(rawText);
     if (!jsonStr) throw new Error('Gemini không trả về JSON hợp lệ.');
 
     const parsed = JSON.parse(jsonStr) as {
       fields?: Array<{ fieldKey: string; value: string; confidence?: number }>;
-      lineItems?: Array<{
-        stt?: number; name?: string; unit?: string;
-        quantity?: number; unitPrice?: number; amount?: number;
-      }>;
+      lineItems?: Array<{ tableKey?: string; stt?: number; name?: string; unit?: string; quantity?: number; unitPrice?: number; amount?: number }>;
     };
 
     const fields: OcrExtractedField[] = (parsed.fields ?? []).map(f => ({
@@ -97,6 +100,7 @@ Quy tắc quan trọng:
 
     const lineItems: OcrExtractedLineItem[] = (parsed.lineItems ?? []).map((li, i) => ({
       stt: li.stt ?? i + 1,
+      tableKey: li.tableKey || undefined,
       name: li.name ?? undefined,
       unit: li.unit ?? undefined,
       quantity: typeof li.quantity === 'number' ? li.quantity : undefined,
@@ -114,15 +118,11 @@ Quy tắc quan trọng:
       `${lineItems.length} dòng hàng, độ tin cậy ${(avgConfidence * 100).toFixed(0)}%`,
     );
 
-    return {
-      confidence: avgConfidence,
-      language: request.language,
-      engineVersion: this.version,
-      fields,
-      lineItems,
-    };
+    return { confidence: avgConfidence, language: request.language, engineVersion: this.version, fields, lineItems };
   }
 }
+
+// ────────────────────────────── Helpers ──────────────────────────────
 
 function resolveFilePath(fileUrl: string): string | null {
   if (fileUrl.startsWith('file:///')) return decodeURIComponent(fileUrl.slice(8));
@@ -131,14 +131,32 @@ function resolveFilePath(fileUrl: string): string | null {
   return null;
 }
 
-function detectMimeType(filePath: string): string {
-  const map: Record<string, string> = {
-    '.pdf': 'application/pdf', '.png': 'image/png',
-    '.jpg': 'image/jpeg',      '.jpeg': 'image/jpeg',
-    '.gif': 'image/gif',       '.webp': 'image/webp',
-    '.tiff': 'image/tiff',     '.tif': 'image/tiff',
-  };
-  return map[path.extname(filePath).toLowerCase()] ?? 'application/pdf';
+function buildFieldsPrompt(request: OcrRequest): string {
+  if (request.schemaFields?.length) {
+    return request.schemaFields
+      .map(f => `  - ${f.fieldKey}: "${f.label}" (${f.dataType})${f.description ? ` — ${f.description}` : ''}`)
+      .join('\n');
+  }
+  return [
+    '  - invoiceNumber: "Số hóa đơn"',
+    '  - issueDate: "Ngày phát hành"',
+    '  - sellerName: "Tên người bán"',
+    '  - sellerTaxCode: "Mã số thuế người bán"',
+    '  - totalAmount: "Tổng tiền trước thuế"',
+    '  - vatAmount: "Tiền thuế VAT"',
+    '  - grandTotal: "Tổng thanh toán"',
+  ].join('\n');
+}
+
+function buildTablesHint(request: OcrRequest): string {
+  const tableKeys = [...new Set(
+    (request.schemaFields ?? [])
+      .map(f => (f as { tableKey?: string }).tableKey)
+      .filter((k): k is string => !!k),
+  )];
+  return tableKeys.length
+    ? `Tài liệu có các bảng: ${tableKeys.join(', ')}. Điền "tableKey" theo đúng tên bảng tương ứng.`
+    : 'Nếu tài liệu có nhiều bảng, điền "tableKey" là tên bảng chứa dòng đó. Nếu chỉ có 1 bảng, bỏ qua hoặc để "".';
 }
 
 function extractJson(text: string): string | null {

@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.97.1",
+    "mammoth": "^1.8.0",
+    "xlsx": "^0.18.5",
     "@foxai/ocr-db": "workspace:*",
     "@foxai/shared-types": "workspace:*",
     "@google/generative-ai": "^0.24.1",

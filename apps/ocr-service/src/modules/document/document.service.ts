@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Observable } from 'rxjs';
 import { DocumentStatus, Prisma } from '@foxai/ocr-db';
 import { BulkActionDto, ConfirmDocumentDto, FilterDocumentDto, UpdateDocumentDto } from './dto/document.dto';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -192,5 +193,75 @@ export class DocumentService {
     const skipped = docs.filter((d) => d.status !== DocumentStatus.DRAFT && d.status !== DocumentStatus.ERROR).map((d) => d.id);
     if (deletable.length > 0) await this.prisma.client.document.deleteMany({ where: { id: { in: deletable } } });
     return { deleted: deletable.length, skipped };
+  }
+
+  getJobStatus(documentId: string) {
+    return this.ocrProducer.getJobStatus(documentId);
+  }
+
+  streamJobEvents(documentId: string): Observable<{ data: object }> {
+    return new Observable<{ data: object }>(subscriber => {
+      let done = false;
+
+      const finish = async (succeeded: boolean, failedReason?: string) => {
+        done = true;
+        clearInterval(timer);
+        clearTimeout(timeoutId);
+        if (succeeded) {
+          try {
+            const doc = await this.findOne(documentId);
+            subscriber.next({ data: { type: 'done', document: doc } });
+          } catch {
+            subscriber.next({ data: { type: 'done', state: 'ERROR' } });
+          }
+        } else {
+          subscriber.next({ data: { type: 'failed', error: failedReason ?? 'OCR thất bại.' } });
+        }
+        subscriber.complete();
+      };
+
+      const timer = setInterval(async () => {
+        if (done) return;
+        try {
+          const status = await this.ocrProducer.getJobStatus(documentId);
+          if (status.state === 'completed') {
+            await finish(true);
+          } else if (status.state === 'failed') {
+            await finish(false, status.failedReason);
+          } else if (status.state === 'not_found') {
+            // Job expired from Redis or already processed – fetch document directly
+            await finish(true);
+          } else {
+            subscriber.next({
+              data: {
+                type: 'progress',
+                state: status.state,
+                progress: typeof status.progress === 'number' ? status.progress : 0,
+              },
+            });
+          }
+        } catch (err) {
+          done = true;
+          clearInterval(timer);
+          clearTimeout(timeoutId);
+          subscriber.error(err);
+        }
+      }, 600);
+
+      // Auto-close after 10 minutes
+      const timeoutId = setTimeout(() => {
+        if (!done) {
+          done = true;
+          clearInterval(timer);
+          subscriber.complete();
+        }
+      }, 10 * 60 * 1000);
+
+      return () => {
+        done = true;
+        clearInterval(timer);
+        clearTimeout(timeoutId);
+      };
+    });
   }
 }

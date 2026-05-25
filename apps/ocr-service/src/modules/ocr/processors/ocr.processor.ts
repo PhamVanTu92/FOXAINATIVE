@@ -55,7 +55,7 @@ export class OcrProcessor extends WorkerHost {
 
         for (const li of result.lineItems) {
           await tx.documentLineItem.create({
-            data: { documentId, stt: li.stt, name: li.name, unit: li.unit, quantity: li.quantity, unitPrice: li.unitPrice, amount: li.amount, extraData: li.extraData as object | undefined, isManuallyAdded: false },
+            data: { documentId, stt: li.stt, tableKey: li.tableKey ?? null, name: li.name, unit: li.unit, quantity: li.quantity, unitPrice: li.unitPrice, amount: li.amount, extraData: li.extraData as object | undefined, isManuallyAdded: false },
           });
         }
 

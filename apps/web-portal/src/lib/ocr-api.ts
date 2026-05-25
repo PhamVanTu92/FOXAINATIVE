@@ -98,6 +98,7 @@ export interface DocValue {
 export interface LineItem {
   id: string;
   stt: number;
+  tableKey?: string | null;
   name: string | null;
   unit: string | null;
   quantity: number | null;
@@ -105,6 +106,19 @@ export interface LineItem {
   amount: number | null;
   isManuallyAdded: boolean;
 }
+
+export type OcrJobState = 'waiting' | 'active' | 'delayed' | 'completed' | 'failed' | 'not_found';
+
+export interface JobStatus {
+  state: OcrJobState;
+  progress?: number;
+  failedReason?: string;
+}
+
+export type SseEvent =
+  | { type: 'progress'; state: OcrJobState; progress: number }
+  | { type: 'done'; document: DocDetail }
+  | { type: 'failed'; error: string };
 
 export interface AuditLog {
   id: string;
@@ -156,6 +170,8 @@ function buildQs(params: Record<string, string | string[]>): string {
 export const ocrApi = {
   // Documents
   getDocumentFileUrl: (id: string) => `${BASE}/documents/${id}/file`,
+  getDocumentSseUrl:  (id: string) => `${BASE}/documents/${id}/sse`,
+  getJobStatus: (id: string) => req<JobStatus>(`/documents/${id}/job-status`),
 
   getStats: () => req<DocStats>('/documents/stats'),
 

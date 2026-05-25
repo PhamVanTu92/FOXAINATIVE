@@ -1,9 +1,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { Observable } from 'rxjs';
 import {
   BadRequestException, Body, Controller, Delete, Get, HttpCode, HttpStatus,
-  NotFoundException, Param, Patch, Post, Query, Res, StreamableFile,
-  UploadedFile, UseInterceptors,
+  MessageEvent, NotFoundException, Param, Patch, Post, Query, Res, Sse,
+  StreamableFile, UploadedFile, UseInterceptors,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -14,7 +15,19 @@ import type { Express } from 'express';
 import { DocumentService } from './document.service';
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
-const ALLOWED_MIMES = ['application/pdf', 'image/png', 'image/jpeg', 'image/tiff', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+const ALLOWED_MIMES = [
+  // PDF
+  'application/pdf',
+  // Ảnh
+  'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/tiff',
+  // Word (chỉ DOCX – mammoth không hỗ trợ .doc cũ)
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  // Excel
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+  'application/vnd.ms-excel',                                           // .xls
+  // CSV (browser có thể gửi nhiều MIME type khác nhau cho CSV)
+  'text/csv', 'text/plain', 'application/csv',
+];
 const UPLOAD_DIR = process.env['UPLOAD_DIR'] ? path.resolve(process.env['UPLOAD_DIR']) : path.resolve(__dirname, '../../../../../uploads');
 
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -49,6 +62,14 @@ export class DocumentController {
 
   @Get() @ApiOperation({ summary: 'Danh sách chứng từ (filter + pagination)' })
   findMany(@Query() filter: FilterDocumentDto): Promise<unknown> { return this.documentService.findMany(filter); }
+
+  @Get(':id/job-status') @ApiOperation({ summary: 'Kiểm tra trạng thái job OCR trên hàng đợi' })
+  getJobStatus(@Param('id') id: string) { return this.documentService.getJobStatus(id); }
+
+  @Sse(':id/sse') @ApiOperation({ summary: 'SSE stream theo dõi tiến trình OCR real-time' })
+  streamJobEvents(@Param('id') id: string): Observable<MessageEvent> {
+    return this.documentService.streamJobEvents(id);
+  }
 
   @Get(':id/file') @ApiOperation({ summary: 'Xem file gốc của chứng từ' })
   async serveFile(@Param('id') id: string, @Res({ passthrough: true }) res: Response): Promise<StreamableFile> {

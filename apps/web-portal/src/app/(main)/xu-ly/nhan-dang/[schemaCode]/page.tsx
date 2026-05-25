@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import {
   Upload, RefreshCw, X, AlertCircle, AlertTriangle, Check, Save, ScanLine,
   FileText, Plus, Minus, ChevronRight, Download,
-  Loader2, Table2, Grid3X3, Sparkles,
+  Loader2, Table2, Grid3X3, Sparkles, Image as ImageIcon,
 } from 'lucide-react';
 import { ocrApi } from '@/lib/ocr-api';
-import type { SchemaDetail, DocDetail, DataType, LineItem } from '@/lib/ocr-api';
+import type { SchemaDetail, DocDetail, DataType, LineItem, SseEvent } from '@/lib/ocr-api';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -41,6 +41,16 @@ const STATUS_CONFIG = {
   ERROR:       { label: 'Lỗi OCR',       cls: 'bg-red-50    text-red-700   border-red-200' },
 } as const;
 
+function getFileIcon(fileName: string): { Icon: React.ComponentType<{ className?: string }>; color: string; label: string } {
+  const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
+  if (['xlsx', 'xls'].includes(ext)) return { Icon: Table2,     color: 'text-green-500',  label: 'Excel' };
+  if (ext === 'csv')                  return { Icon: Table2,     color: 'text-teal-500',   label: 'CSV' };
+  if (ext === 'docx')                 return { Icon: FileText,   color: 'text-blue-500',   label: 'Word' };
+  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'tiff', 'tif'].includes(ext))
+                                      return { Icon: ImageIcon,  color: 'text-purple-500', label: 'Ảnh' };
+  return                                     { Icon: FileText,   color: 'text-red-400',    label: 'PDF' };
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function NhanDangOCRPage({ params }: { params: { schemaCode: string } }) {
@@ -56,8 +66,8 @@ export default function NhanDangOCRPage({ params }: { params: { schemaCode: stri
   const [polling, setPolling]   = useState(false);
   const [error, setError]       = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const pollingRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+  const fileInputRef   = useRef<HTMLInputElement>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
 
   const [doc, setDoc]               = useState<DocDetail | null>(null);
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
@@ -73,33 +83,44 @@ export default function NhanDangOCRPage({ params }: { params: { schemaCode: stri
       .finally(() => setSchemaLoading(false));
   }, [schemaCode]);
 
-  useEffect(() => () => { if (pollingRef.current) clearInterval(pollingRef.current); }, []);
+  useEffect(() => () => { if (eventSourceRef.current) eventSourceRef.current.close(); }, []);
 
-  // ── Polling ────────────────────────────────────────────────────────────────
+  // ── SSE: theo dõi tiến trình OCR real-time ─────────────────────────────────
 
-  const startPolling = useCallback((docId: string) => {
+  const startSSE = useCallback((docId: string) => {
     setPolling(true);
-    pollingRef.current = setInterval(async () => {
-      try {
-        const result = await ocrApi.getDocument(docId);
-        if (result.status !== 'DRAFT') {
-          clearInterval(pollingRef.current!);
-          pollingRef.current = null;
-          setDoc(result);
-          const vals: Record<string, string> = {};
-          for (const v of result.values) vals[v.fieldId] = v.stringValue ?? '';
-          setFieldValues(vals);
-          setLineItems([...result.lineItems]);
-          setPolling(false);
-          setDirty(false);
-        }
-      } catch {
-        clearInterval(pollingRef.current!);
-        pollingRef.current = null;
+    const es = new EventSource(ocrApi.getDocumentSseUrl(docId));
+    eventSourceRef.current = es;
+
+    es.onmessage = (event: MessageEvent<string>) => {
+      let data: SseEvent;
+      try { data = JSON.parse(event.data) as SseEvent; } catch { return; }
+
+      if (data.type === 'done') {
+        es.close();
+        eventSourceRef.current = null;
+        setDoc(data.document);
+        const vals: Record<string, string> = {};
+        for (const v of data.document.values) vals[v.fieldId] = v.stringValue ?? '';
+        setFieldValues(vals);
+        setLineItems([...data.document.lineItems]);
         setPolling(false);
-        setError('Lỗi khi theo dõi tiến trình OCR.');
+        setDirty(false);
+      } else if (data.type === 'failed') {
+        es.close();
+        eventSourceRef.current = null;
+        setPolling(false);
+        setError(data.error);
       }
-    }, 2000);
+      // type === 'progress': chờ tiếp, không cần làm gì
+    };
+
+    es.onerror = () => {
+      es.close();
+      eventSourceRef.current = null;
+      setPolling(false);
+      setError('Mất kết nối khi theo dõi tiến trình OCR.');
+    };
   }, []);
 
   // ── Auto-OCR on file select ────────────────────────────────────────────────
@@ -113,12 +134,12 @@ export default function NhanDangOCRPage({ params }: { params: { schemaCode: stri
     try {
       const res = await ocrApi.uploadDocument(f, s.id, 'vi+en');
       setProcessing(false);
-      startPolling(res.documentId);
+      startSSE(res.documentId);
     } catch (e: unknown) {
       setError((e as Error).message);
       setProcessing(false);
     }
-  }, [startPolling]);
+  }, [startSSE]);
 
   const acceptFile = useCallback((f: File) => {
     setFile(f);
@@ -186,7 +207,7 @@ export default function NhanDangOCRPage({ params }: { params: { schemaCode: stri
 
   const handleReset = () => {
     setFile(null); setDoc(null); setFieldValues({}); setLineItems([]); setDirty(false); setError(null);
-    if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; setPolling(false); }
+    if (eventSourceRef.current) { eventSourceRef.current.close(); eventSourceRef.current = null; setPolling(false); }
   };
 
   const addLineItem = () => {
@@ -375,7 +396,7 @@ export default function NhanDangOCRPage({ params }: { params: { schemaCode: stri
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,.png,.jpg,.jpeg,.tiff,.docx"
+              accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.tiff,.docx,.xlsx,.xls,.csv"
               className="hidden"
               onChange={e => { const f = e.target.files?.[0]; if (f) acceptFile(f); e.target.value = ''; }}
             />
@@ -390,12 +411,14 @@ export default function NhanDangOCRPage({ params }: { params: { schemaCode: stri
                   <p className="text-sm text-gray-400 mt-0.5">{file?.name}</p>
                 </div>
               </div>
-            ) : file ? (
+            ) : file ? (() => {
+              const { Icon: FIcon, color: fColor, label: fLabel } = getFileIcon(file.name);
+              return (
               <div className="flex items-center justify-center gap-3 py-5">
-                <FileText className="w-7 h-7 text-blue-500 shrink-0" />
+                <FIcon className={`w-7 h-7 ${fColor} shrink-0`} />
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-gray-800 truncate max-w-sm">{file.name}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{(file.size / 1024).toFixed(0)} KB · Kéo thả tệp mới để quét lại</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{fLabel} · {(file.size / 1024).toFixed(0)} KB · Kéo thả tệp mới để quét lại</p>
                 </div>
                 <button
                   onClick={e => { e.stopPropagation(); handleReset(); }}
@@ -404,11 +427,20 @@ export default function NhanDangOCRPage({ params }: { params: { schemaCode: stri
                   <X className="w-4 h-4" />
                 </button>
               </div>
-            ) : (
+              );
+            })() : (
               <div className="flex flex-col items-center justify-center py-8 gap-1.5">
                 <Upload className="w-9 h-9 text-blue-300 mb-1" />
                 <p className="text-base font-semibold text-gray-700">Kéo thả hoặc click để chọn tệp</p>
-                <p className="text-sm text-gray-400">PDF · PNG · JPG · TIFF</p>
+                <div className="flex items-center gap-2 text-xs text-gray-400 flex-wrap justify-center">
+                  <span className="flex items-center gap-1"><FileText className="w-3.5 h-3.5 text-red-400" /> PDF</span>
+                  <span className="text-gray-200">·</span>
+                  <span className="flex items-center gap-1"><ImageIcon className="w-3.5 h-3.5 text-purple-400" /> PNG · JPG · TIFF</span>
+                  <span className="text-gray-200">·</span>
+                  <span className="flex items-center gap-1"><Table2 className="w-3.5 h-3.5 text-green-500" /> Excel · CSV</span>
+                  <span className="text-gray-200">·</span>
+                  <span className="flex items-center gap-1"><FileText className="w-3.5 h-3.5 text-blue-500" /> Word</span>
+                </div>
                 <p className="text-sm text-blue-500 mt-2 flex items-center gap-1.5 font-medium">
                   <Sparkles className="w-4 h-4" />
                   Chọn tệp để AI tự động nhận dạng ngay

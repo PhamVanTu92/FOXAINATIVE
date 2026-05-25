@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search, ChevronLeft, ChevronRight, FileText, AlertCircle,
   Pencil, Trash2, Download, X, Database, Check, Eye,
-  ClipboardList, Clock, TrendingUp, Loader2, ZoomIn,
+  ClipboardList, Clock, TrendingUp, Loader2, ZoomIn, Table2, Image as ImageIcon,
 } from 'lucide-react';
 import { ocrApi } from '@/lib/ocr-api';
 import type { DocListItem, DocStats, DocDetail } from '@/lib/ocr-api';
@@ -771,15 +771,26 @@ export default function ChungTuPage() {
                 />
               ) : detailDoc ? (
                 <div className="flex flex-col items-center justify-center h-full gap-3 text-gray-500">
-                  <FileText className="w-12 h-12 text-gray-600" />
-                  <p className="text-sm">Không thể xem trước định dạng này</p>
+                  {(detailDoc.mimeType?.includes('spreadsheetml') || detailDoc.mimeType?.includes('ms-excel') || detailDoc.mimeType === 'text/csv')
+                    ? <Table2 className="w-12 h-12 text-green-400" />
+                    : detailDoc.mimeType?.includes('wordprocessingml')
+                    ? <FileText className="w-12 h-12 text-blue-400" />
+                    : <ImageIcon className="w-12 h-12 text-gray-600" />
+                  }
+                  <p className="text-sm text-center px-6">
+                    {(detailDoc.mimeType?.includes('spreadsheetml') || detailDoc.mimeType?.includes('ms-excel') || detailDoc.mimeType === 'text/csv')
+                      ? 'File Excel/CSV — AI đã đọc nội dung bảng tính'
+                      : detailDoc.mimeType?.includes('wordprocessingml')
+                      ? 'File Word — AI đã đọc nội dung văn bản'
+                      : 'Không thể xem trước định dạng này'}
+                  </p>
                   <a
                     href={ocrApi.getDocumentFileUrl(detailDoc.id)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-blue-400 hover:text-blue-300 underline"
+                    className="text-xs text-blue-400 hover:text-blue-300 underline flex items-center gap-1"
                   >
-                    Tải file xuống
+                    <Download className="w-3.5 h-3.5" /> Tải file gốc xuống
                   </a>
                 </div>
               ) : (

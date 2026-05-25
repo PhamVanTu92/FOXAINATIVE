@@ -15,6 +15,7 @@ export interface OcrExtractedField {
 
 export interface OcrExtractedLineItem {
   stt: number;
+  tableKey?: string;
   name?: string;
   unit?: string;
   quantity?: number;

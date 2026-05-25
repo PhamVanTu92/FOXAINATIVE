@@ -227,6 +227,7 @@ model DocumentLineItem {
   documentId String
   stt        Int
 
+  tableKey  String?
   name      String?
   unit      String?
   quantity  Decimal? @db.Decimal(18, 4)

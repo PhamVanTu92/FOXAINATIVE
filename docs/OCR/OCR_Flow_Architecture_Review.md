@@ -222,13 +222,13 @@ DRAFT ──(OCR xong)──► PROCESSED ──(Confirm)──► CONFIRMED ─
 
 | # | Vấn đề | Mức độ | Chi tiết |
 |---|---|---|---|
-| 1 | **Frontend polling thủ công** | Trung bình | Dùng `setInterval` 3s để poll `GET /documents/:id`. Tốt hơn nên dùng WebSocket hoặc Server-Sent Events để push event từ worker về client khi job xong. |
+| 1 | ~~**Frontend polling thủ công**~~ ✅ | ~~Trung bình~~ | Đã thay bằng SSE (`EventSource` → `GET /documents/:id/sse`). Server push event `progress / done / failed`, frontend không cần `setInterval`. |
 | 2 | **File lưu local disk** | Cao | `fileUrl = file:///path/on/server`. Khi scale sang nhiều pod/node sẽ không chia sẻ được file. Cần chuyển sang object storage (MinIO, S3). |
 | 3 | **Worker chạy chung process** | Trung bình | `OcrProcessor` chạy trong cùng NestJS app với HTTP server. Job OCR nặng có thể ảnh hưởng event loop. Nên tách ra worker process riêng. |
 | 4 | **Không có auth/guard** | Cao | `main.ts` không có JWT guard, CORS `origin: true` mở hoàn toàn. Hiện đang dùng được vì dev môi trường, nhưng cần có guard trước khi production. |
 | 5 | **`transfer` chưa tích hợp Chatbot Service** | Cao | `POST /documents/:id/transfer` chỉ đổi status → TRANSFERRED trong OCR_DB, chưa gọi sang Chatbot Service để thực sự đưa dữ liệu vào Knowledge Base. |
-| 6 | **Polling job progress không có endpoint riêng** | Nhỏ | `OcrProducerService.getJobStatus()` đã implement nhưng không có controller endpoint nào expose. Frontend phải poll document thay vì poll job progress. |
-| 7 | **`lineItems` trong bảng nhưng lưu flat** | Nhỏ | `DocumentTable` / `DocumentTableColumn` định nghĩa cấu trúc bảng nhưng `DocumentLineItem` lưu flat (không có tableId). Nếu schema có nhiều bảng khác nhau thì không phân biệt được dòng nào thuộc bảng nào. |
+| 6 | ~~**Polling job progress không có endpoint riêng**~~ ✅ | ~~Nhỏ~~ | Đã thêm `GET /documents/:id/job-status` (expose trạng thái BullMQ) và SSE endpoint `GET /documents/:id/sse` phục vụ push real-time. |
+| 7 | ~~**`lineItems` trong bảng nhưng lưu flat**~~ ✅ | ~~Nhỏ~~ | Đã thêm cột `tableKey` (nullable) vào `DocumentLineItem`. Migration `20260522120000`. Provider Claude/Gemini được hướng dẫn điền `tableKey` theo tên bảng trong schema. |
 
 ---
 
