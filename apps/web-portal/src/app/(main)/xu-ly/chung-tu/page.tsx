@@ -314,8 +314,9 @@ export default function ChungTuPage() {
     setExporting(true);
     try {
       const details = await Promise.all(idsToExport.map(id => ocrApi.getDocument(id)));
+      const STANDARD_KEYS = new Set(['name', 'unit', 'quantity', 'unitPrice', 'amount']);
 
-      // Master: one row per document — base info + all extracted field values
+      // Sheet 1 "Dữ liệu": one row per document — base info + all extracted field values
       const masterRows = details.map(d => {
         const row: Record<string, unknown> = {
           'Tên file':   d.fileName ?? '',
@@ -330,39 +331,40 @@ export default function ChungTuPage() {
         return row;
       });
 
-      // Line items: per-table, schema-aware columns
-      const lineRows: Record<string, unknown>[] = [];
+      // One sheet per table: group line items across all documents by table name
+      const tableSheets = new Map<string, Record<string, unknown>[]>();
+
       for (const d of details) {
         if (d.lineItems.length === 0) continue;
         const docRef = d.fileName ?? d.id.slice(0, 12);
-        const STANDARD_KEYS = new Set(['name', 'unit', 'quantity', 'unitPrice', 'amount']);
-
-        const exportLineItem = (li: typeof d.lineItems[0], row: Record<string, unknown>, columns: Array<{ columnKey: string; label: string }>) => {
-          for (const col of columns) {
-            const raw = STANDARD_KEYS.has(col.columnKey)
-              ? li[col.columnKey as keyof typeof li]
-              : li.extraData?.[col.columnKey];
-            row[col.label] = raw != null ? raw : '';
-          }
-        };
-
-        // Build columns: schema-defined labels if available, otherwise field keys (no translation)
-        const resolveColumns = (schemaCols: typeof d.schema.tables[0]['columns']) =>
-          schemaCols.length > 0
-            ? schemaCols.map(c => ({ columnKey: c.columnKey, label: c.label }))
-            : STANDARD_COLUMNS.map(c => ({ columnKey: c.key, label: c.key }));
 
         if (d.schema.tables.length > 0) {
           for (const table of d.schema.tables) {
             const tableLineItems = d.lineItems.filter(li => !li.tableKey || li.tableKey === table.tableKey);
-            const columns = resolveColumns(table.columns);
+            if (tableLineItems.length === 0) continue;
+
+            const columns = table.columns.length > 0
+              ? table.columns.map(c => ({ columnKey: c.columnKey, label: c.label }))
+              : STANDARD_COLUMNS.map(c => ({ columnKey: c.key, label: c.key }));
+
+            const sheetName = table.name.replace(/[\\\/\?\*\[\]\:]/g, '_').slice(0, 31);
+            if (!tableSheets.has(sheetName)) tableSheets.set(sheetName, []);
+
             for (const li of tableLineItems) {
-              const row: Record<string, unknown> = { 'Tên file': docRef, 'Bảng': table.name, 'STT': li.stt };
-              exportLineItem(li, row, columns);
-              lineRows.push(row);
+              const row: Record<string, unknown> = { 'Tên file': docRef, 'STT': li.stt };
+              for (const col of columns) {
+                const raw = STANDARD_KEYS.has(col.columnKey)
+                  ? li[col.columnKey as keyof typeof li]
+                  : li.extraData?.[col.columnKey];
+                row[col.label] = raw != null ? raw : '';
+              }
+              tableSheets.get(sheetName)!.push(row);
             }
           }
         } else {
+          // No schema tables: fallback sheet
+          const sheetName = 'Hàng hóa';
+          if (!tableSheets.has(sheetName)) tableSheets.set(sheetName, []);
           for (const li of d.lineItems) {
             const row: Record<string, unknown> = { 'Tên file': docRef, 'STT': li.stt };
             const extraKeys = li.extraData ? Object.keys(li.extraData) : [];
@@ -371,17 +373,17 @@ export default function ChungTuPage() {
             } else {
               for (const c of STANDARD_COLUMNS) row[c.key] = li[c.key as keyof typeof li] ?? '';
             }
-            lineRows.push(row);
+            tableSheets.get(sheetName)!.push(row);
           }
         }
       }
 
       const wb = XLSX.utils.book_new();
-      const wsMaster = XLSX.utils.json_to_sheet(masterRows.length ? masterRows : [{}]);
-      const wsLines  = XLSX.utils.json_to_sheet(lineRows.length ? lineRows : [{}]);
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(masterRows.length ? masterRows : [{}]), 'Dữ liệu');
+      for (const [sheetName, rows] of tableSheets) {
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows.length ? rows : [{}]), sheetName);
+      }
 
-      XLSX.utils.book_append_sheet(wb, wsMaster, 'Master_Data');
-      XLSX.utils.book_append_sheet(wb, wsLines, 'Line_Items');
       XLSX.writeFile(wb, `chung-tu-${new Date().toISOString().slice(0, 10)}.xlsx`);
       showToast('Xuất Excel thành công.', 'success');
     } catch (e: unknown) {
