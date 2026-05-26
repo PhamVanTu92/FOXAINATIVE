@@ -385,11 +385,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\FOXAI NATIVE\\FOXAINATIVE\\apps\\knowledge-service\\src\\KnowledgeService.Application\\KnowledgeService.Application.csproj",
+      "projectUniqueName": "d:\\FOXAI NATIVE\\FOXAINATIVE\\apps\\knowledge-service\\src\\KnowledgeService.Application\\KnowledgeService.Application.csproj",
       "projectName": "KnowledgeService.Application",
-      "projectPath": "D:\\FOXAI NATIVE\\FOXAINATIVE\\apps\\knowledge-service\\src\\KnowledgeService.Application\\KnowledgeService.Application.csproj",
+      "projectPath": "d:\\FOXAI NATIVE\\FOXAINATIVE\\apps\\knowledge-service\\src\\KnowledgeService.Application\\KnowledgeService.Application.csproj",
       "packagesPath": "C:\\Users\\ADMIN\\.nuget\\packages\\",
-      "outputPath": "D:\\FOXAI NATIVE\\FOXAINATIVE\\apps\\knowledge-service\\src\\KnowledgeService.Application\\obj\\",
+      "outputPath": "d:\\FOXAI NATIVE\\FOXAINATIVE\\apps\\knowledge-service\\src\\KnowledgeService.Application\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -411,8 +411,8 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "projectReferences": {
-            "D:\\FOXAI NATIVE\\FOXAINATIVE\\apps\\knowledge-service\\src\\KnowledgeService.Domain\\KnowledgeService.Domain.csproj": {
-              "projectPath": "D:\\FOXAI NATIVE\\FOXAINATIVE\\apps\\knowledge-service\\src\\KnowledgeService.Domain\\KnowledgeService.Domain.csproj"
+            "d:\\FOXAI NATIVE\\FOXAINATIVE\\apps\\knowledge-service\\src\\KnowledgeService.Domain\\KnowledgeService.Domain.csproj": {
+              "projectPath": "d:\\FOXAI NATIVE\\FOXAINATIVE\\apps\\knowledge-service\\src\\KnowledgeService.Domain\\KnowledgeService.Domain.csproj"
             }
           }
         }
