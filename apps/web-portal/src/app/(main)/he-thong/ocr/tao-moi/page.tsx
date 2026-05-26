@@ -223,7 +223,7 @@ export default function TaoMoiOcrPage() {
 
     const fkSeen = new Set<string>();
     for (const f of validFields) {
-      if (fkSeen.has(f.fieldKey)) { setSaveError(`Trường "${f.fieldKey}" bị trùng lặp.`); return; }
+      if (fkSeen.has(f.fieldKey)) { setSaveError(`Field Key "${f.fieldKey}" bị trùng lặp — mỗi trường phải có Field Key duy nhất.`); return; }
       fkSeen.add(f.fieldKey);
     }
 
@@ -243,6 +243,7 @@ export default function TaoMoiOcrPage() {
           tableKey: t.tableKey, name: t.name,
           columns: t.columns.map(c => ({
             columnKey: c.columnKey, label: c.label, dataType: c.dataType, isRequired: c.isRequired,
+            description: c.description || undefined,
           })),
         })) : undefined,
       });
@@ -553,6 +554,7 @@ export default function TaoMoiOcrPage() {
                             <th className="px-3 py-2 text-left w-8">#</th>
                             <th className="px-3 py-2 text-left">Tên cột & Column Key</th>
                             <th className="px-3 py-2 text-left w-36">Kiểu dữ liệu</th>
+                            <th className="px-3 py-2 text-left">Mô tả cho AI</th>
                             <th className="px-3 py-2 text-center w-10"></th>
                           </tr>
                         </thead>
@@ -599,6 +601,14 @@ export default function TaoMoiOcrPage() {
                                   {DATA_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                                 </select>
                               </td>
+                              <td className="px-3 py-2 align-top pt-2">
+                                <input
+                                  value={c.description}
+                                  onChange={e => updateColumn(tIdx, cIdx, 'description', e.target.value)}
+                                  placeholder="VD: cột giá trị trước thuế..."
+                                  className="w-full px-2 py-1.5 border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-600"
+                                />
+                              </td>
                               <td className="px-3 py-2 text-center align-top pt-2">
                                 <button
                                   onClick={() => removeColumn(tIdx, cIdx)}
@@ -614,7 +624,7 @@ export default function TaoMoiOcrPage() {
                         </tbody>
                         <tfoot>
                           <tr>
-                            <td colSpan={5} className="px-3 py-2 border-t bg-gray-50/50">
+                            <td colSpan={6} className="px-3 py-2 border-t bg-gray-50/50">
                               <button
                                 onClick={() => addColumn(tIdx)}
                                 className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 rounded transition-colors"

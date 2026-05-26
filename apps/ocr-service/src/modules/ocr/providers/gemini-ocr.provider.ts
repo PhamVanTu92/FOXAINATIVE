@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { GoogleGenerativeAI, type Part } from '@google/generative-ai';
 import { Injectable, Logger } from '@nestjs/common';
-import type { OcrRequest, OcrResult, OcrExtractedField, OcrExtractedLineItem } from '@foxai/shared-types';
+import type { OcrRequest, OcrResult, OcrExtractedField, OcrExtractedLineItem, OcrSchemaTable, OcrSchemaTableColumn } from '@foxai/shared-types';
 import { FileParserFactory } from '../file-parsers/file-parser.factory';
 import type { IOcrProvider } from './ocr.provider';
 
@@ -37,7 +37,7 @@ export class GeminiOcrProvider implements IOcrProvider {
 
     // --- 3. Xây dựng prompt ---
     const fieldsPrompt = buildFieldsPrompt(request);
-    const tablesHint = buildTablesHint(request);
+    const tablesPrompt = buildTablesPrompt(request);
 
     const extractionInstructions = `Bạn là chuyên gia nhận dạng chứng từ kế toán Việt Nam. Hãy trích xuất thông tin từ tài liệu.
 
@@ -50,7 +50,10 @@ Trả về JSON thuần (không markdown, không giải thích, chỉ JSON):
     { "fieldKey": "tên_trường", "value": "giá_trị_trích_xuất", "confidence": 0.95 }
   ],
   "lineItems": [
-    { "tableKey": "tên_bảng", "stt": 1, "name": "tên hàng hóa/dịch vụ", "unit": "đvt", "quantity": 1, "unitPrice": 1000000, "amount": 1000000 }
+    // Bảng tiêu chuẩn (name/unit/qty/price/amount):
+    { "tableKey": "...", "stt": 1, "name": "...", "unit": "...", "quantity": 1, "unitPrice": 1000000, "amount": 1000000 },
+    // Bảng tùy chỉnh (cột được định nghĩa riêng → dùng extraData):
+    { "tableKey": "...", "stt": 1, "extraData": { "columnKey1": "giá_trị_1", "columnKey2": "giá_trị_2" } }
   ]
 }
 
@@ -58,9 +61,10 @@ Quy tắc quan trọng:
 - Trường không tìm thấy → value = ""
 - confidence từ 0.0 đến 1.0
 - Số tiền: chỉ chữ số nguyên, KHÔNG có dấu chấm/phẩy (vd: 87000000)
-- Ngày tháng: định dạng DD/MM/YYYY
+- Ngày/giờ (DATE): giữ nguyên định dạng tìm thấy trong tài liệu — nếu có cả ngày lẫn giờ thì trả đủ (vd: "09:40 - 25/05/2026"), chỉ có ngày thì trả ngày (vd: "25/05/2026"), chỉ có giờ thì trả giờ (vd: "09:40")
 - lineItems: mảng rỗng [] nếu không có bảng hàng hóa
-- ${tablesHint}`;
+
+${tablesPrompt}`;
 
     // --- 4. Tạo nội dung request phù hợp với từng loại file ---
     let contentParts: Part[];
@@ -89,7 +93,11 @@ Quy tắc quan trọng:
 
     const parsed = JSON.parse(jsonStr) as {
       fields?: Array<{ fieldKey: string; value: string; confidence?: number }>;
-      lineItems?: Array<{ tableKey?: string; stt?: number; name?: string; unit?: string; quantity?: number; unitPrice?: number; amount?: number }>;
+      lineItems?: Array<{
+        tableKey?: string; stt?: number;
+        name?: string; unit?: string; quantity?: number; unitPrice?: number; amount?: number;
+        extraData?: Record<string, unknown>;
+      }>;
     };
 
     const fields: OcrExtractedField[] = (parsed.fields ?? []).map(f => ({
@@ -106,6 +114,7 @@ Quy tắc quan trọng:
       quantity: typeof li.quantity === 'number' ? li.quantity : undefined,
       unitPrice: typeof li.unitPrice === 'number' ? li.unitPrice : undefined,
       amount: typeof li.amount === 'number' ? li.amount : undefined,
+      extraData: li.extraData ?? undefined,
     }));
 
     const filledFields = fields.filter(f => f.value.trim() !== '');
@@ -148,15 +157,31 @@ function buildFieldsPrompt(request: OcrRequest): string {
   ].join('\n');
 }
 
-function buildTablesHint(request: OcrRequest): string {
-  const tableKeys = [...new Set(
-    (request.schemaFields ?? [])
-      .map(f => (f as { tableKey?: string }).tableKey)
-      .filter((k): k is string => !!k),
-  )];
-  return tableKeys.length
-    ? `Tài liệu có các bảng: ${tableKeys.join(', ')}. Điền "tableKey" theo đúng tên bảng tương ứng.`
-    : 'Nếu tài liệu có nhiều bảng, điền "tableKey" là tên bảng chứa dòng đó. Nếu chỉ có 1 bảng, bỏ qua hoặc để "".';
+function buildTablesPrompt(request: OcrRequest): string {
+  const tables = (request.schemaTables ?? []).filter((t: OcrSchemaTable) => t.columns.length > 0);
+
+  if (tables.length === 0) {
+    const tableKeys = [...new Set(
+      (request.schemaFields ?? [])
+        .map(f => (f as { tableKey?: string }).tableKey)
+        .filter((k): k is string => !!k),
+    )];
+    return tableKeys.length
+      ? `Tài liệu có các bảng: ${tableKeys.join(', ')}. Điền "tableKey" theo đúng tên bảng tương ứng.`
+      : 'Nếu tài liệu có bảng hàng hóa, điền "tableKey" theo tên bảng và dùng format name/unit/quantity/unitPrice/amount.';
+  }
+
+  const lines = ['QUAN TRỌNG — Cấu trúc bảng trong tài liệu này:'];
+  for (const table of tables) {
+    const exampleEntries = table.columns.map((c: OcrSchemaTableColumn) => `"${c.columnKey}": "giá_trị"`).join(', ');
+    lines.push(
+      `\nBảng "${table.name}" (tableKey: "${table.tableKey}") — ${table.columns.length} cột:`,
+      ...table.columns.map((c: OcrSchemaTableColumn, i: number) => `  Cột ${i + 1}: ${c.label}  →  key="${c.columnKey}" (${c.dataType})`),
+      `  Ví dụ dòng: { "tableKey": "${table.tableKey}", "stt": 1, "extraData": { ${exampleEntries} } }`,
+    );
+  }
+  lines.push('\nVới bảng TÙY CHỈNH: đặt toàn bộ giá trị vào "extraData" (key = columnKey, không dùng name/unit/quantity/unitPrice/amount).');
+  return lines.join('\n');
 }
 
 function extractJson(text: string): string | null {

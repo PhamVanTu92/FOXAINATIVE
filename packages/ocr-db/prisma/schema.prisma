@@ -128,6 +128,7 @@ model DocumentTableColumn {
   label        String
   dataType     FieldDataType
   isRequired   Boolean       @default(false)
+  description  String?
   displayOrder Int           @default(0)
 
   table DocumentTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
@@ -183,7 +184,6 @@ model Document {
   lineItems DocumentLineItem[]
   auditLogs DocumentAuditLog[]
 
-  @@unique([sellerTaxCode, invoiceNumber], name: "uq_seller_invoice")
   @@index([status])
   @@index([createdAt])
   @@index([schemaCode])
@@ -242,7 +242,7 @@ model DocumentLineItem {
 
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
-  @@unique([documentId, stt])
+  @@index([documentId, tableKey, stt])
   @@index([documentId])
   @@map("document_line_items")
 }

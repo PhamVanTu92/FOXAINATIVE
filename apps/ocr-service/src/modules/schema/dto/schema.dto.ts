@@ -25,6 +25,7 @@ export class CreateDocumentTableColumnDto {
   @IsString() @MaxLength(255) label!: string;
   @IsEnum(FieldDataType) dataType!: FieldDataType;
   @IsOptional() @IsBoolean() isRequired?: boolean = false;
+  @IsOptional() @IsString() @MaxLength(1000) description?: string;
   @IsOptional() @IsInt() @Min(0) displayOrder?: number = 0;
 }
 
@@ -83,6 +84,7 @@ export class UpdateDocumentTableColumnDto {
   @IsOptional() @IsString() @MaxLength(255) label?: string;
   @IsOptional() @IsEnum(FieldDataType) dataType?: FieldDataType;
   @IsOptional() @IsBoolean() isRequired?: boolean;
+  @IsOptional() @IsString() @MaxLength(1000) description?: string;
   @IsOptional() @IsInt() @Min(0) displayOrder?: number;
 }
 

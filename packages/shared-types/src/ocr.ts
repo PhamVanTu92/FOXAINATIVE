@@ -40,6 +40,18 @@ export interface OcrSchemaField {
   description?: string | null;
 }
 
+export interface OcrSchemaTableColumn {
+  columnKey: string;
+  label: string;
+  dataType: string;
+}
+
+export interface OcrSchemaTable {
+  tableKey: string;
+  name: string;
+  columns: OcrSchemaTableColumn[];
+}
+
 export interface OcrRequest {
   documentId: string;
   schemaId: string;
@@ -47,4 +59,6 @@ export interface OcrRequest {
   mimeType?: string;
   language: 'vi' | 'en' | 'vi+en';
   schemaFields?: OcrSchemaField[];
+  /** Định nghĩa các bảng tùy chỉnh — AI dùng để điền extraData thay vì name/unit/qty/price/amount */
+  schemaTables?: OcrSchemaTable[];
 }

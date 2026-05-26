@@ -65,6 +65,7 @@ export interface SchemaTableColumn {
   dataType: DataType;
   isRequired: boolean;
   displayOrder: number;
+  description: string | null;
 }
 
 export interface SchemaTable {
@@ -104,6 +105,7 @@ export interface LineItem {
   quantity: number | null;
   unitPrice: number | null;
   amount: number | null;
+  extraData?: Record<string, unknown> | null;
   isManuallyAdded: boolean;
 }
 
@@ -195,7 +197,7 @@ export const ocrApi = {
     id: string,
     body: {
       values?: Array<{ fieldId: string; stringValue: string }>;
-      lineItems?: Array<{ stt: number; name?: string | null; unit?: string | null; quantity?: number | null; unitPrice?: number | null; amount?: number | null }>;
+      lineItems?: Array<{ stt: number; tableKey?: string | null; name?: string | null; unit?: string | null; quantity?: number | null; unitPrice?: number | null; amount?: number | null; extraData?: Record<string, unknown> | null }>;
     },
   ) => req<DocDetail>(`/documents/${id}`, {
     method: 'PATCH',
@@ -315,7 +317,7 @@ export const ocrApi = {
     req<{ deleted: boolean }>(`/schemas/${schemaId}/tables/${tableId}`, { method: 'DELETE' }),
 
   addTableColumn: (schemaId: string, tableId: string, body: {
-    columnKey: string; label: string; dataType: DataType; isRequired?: boolean;
+    columnKey: string; label: string; dataType: DataType; isRequired?: boolean; description?: string;
   }) => req<SchemaTableColumn>(`/schemas/${schemaId}/tables/${tableId}/columns`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -332,7 +334,7 @@ export const ocrApi = {
       body: JSON.stringify(body),
     }),
 
-  updateTableColumn: (schemaId: string, tableId: string, columnId: string, body: Partial<{ label: string; dataType: DataType }>) =>
+  updateTableColumn: (schemaId: string, tableId: string, columnId: string, body: Partial<{ label: string; dataType: DataType; description: string }>) =>
     req<SchemaTableColumn>(`/schemas/${schemaId}/tables/${tableId}/columns/${columnId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

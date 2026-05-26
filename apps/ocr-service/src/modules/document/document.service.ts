@@ -122,7 +122,7 @@ export class DocumentService {
         await tx.documentLineItem.deleteMany({ where: { documentId: id } });
         for (const li of dto.lineItems) {
           await tx.documentLineItem.create({
-            data: { documentId: id, stt: li.stt, name: li.name, unit: li.unit, quantity: li.quantity, unitPrice: li.unitPrice, amount: li.amount, isManuallyAdded: !li.id },
+            data: { documentId: id, stt: li.stt, tableKey: li.tableKey ?? null, name: li.name, unit: li.unit, quantity: li.quantity, unitPrice: li.unitPrice, amount: li.amount, extraData: li.extraData as object | undefined, isManuallyAdded: !li.id },
           });
         }
       }

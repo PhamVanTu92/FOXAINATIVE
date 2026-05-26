@@ -1,5 +1,5 @@
 import {
-  IsArray, IsEnum, IsOptional, IsString, MaxLength, ValidateNested, IsNumber,
+  IsArray, IsEnum, IsOptional, IsString, MaxLength, ValidateNested, IsNumber, IsObject,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { DocumentStatus, DocumentType } from '@foxai/ocr-db';
@@ -18,11 +18,13 @@ export class UpdateDocumentValueDto {
 export class UpdateDocumentLineItemDto {
   @IsOptional() @IsString() id?: string;
   @IsNumber() stt!: number;
+  @IsOptional() @IsString() tableKey?: string;
   @IsOptional() @IsString() name?: string;
   @IsOptional() @IsString() unit?: string;
   @IsOptional() @IsNumber() quantity?: number;
   @IsOptional() @IsNumber() unitPrice?: number;
   @IsOptional() @IsNumber() amount?: number;
+  @IsOptional() @IsObject() extraData?: Record<string, unknown>;
 }
 
 export class UpdateDocumentDto {

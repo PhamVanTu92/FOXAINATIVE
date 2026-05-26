@@ -1,7 +1,7 @@
 import { Inject, Logger } from '@nestjs/common';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
-import { DocumentStatus, Prisma, ocrPrisma } from '@foxai/ocr-db';
+import { DocumentStatus, ocrPrisma } from '@foxai/ocr-db';
 import type { OcrJobPayload } from '@foxai/shared-types';
 import { QUEUE_NAMES } from '@foxai/shared-types';
 import { IOcrProvider, OCR_PROVIDER } from '../providers/ocr.provider';
@@ -22,7 +22,7 @@ export class OcrProcessor extends WorkerHost {
       await job.updateProgress(10);
       const schema = await ocrPrisma.documentSchema.findUniqueOrThrow({
         where: { id: schemaId },
-        include: { fields: true },
+        include: { fields: true, tables: { include: { columns: true }, orderBy: { displayOrder: 'asc' } } },
       });
       await job.updateProgress(20);
 
@@ -31,6 +31,11 @@ export class OcrProcessor extends WorkerHost {
         schemaFields: schema.fields.map(f => ({
           fieldKey: f.fieldKey, label: f.label, dataType: f.dataType,
           description: (f as { description?: string | null }).description ?? null,
+        })),
+        schemaTables: schema.tables.map(t => ({
+          tableKey: t.tableKey,
+          name: t.name,
+          columns: t.columns.map(c => ({ columnKey: c.columnKey, label: c.label, dataType: c.dataType })),
         })),
       });
       await job.updateProgress(70);
@@ -85,11 +90,9 @@ export class OcrProcessor extends WorkerHost {
       this.logger.log(`✅ Hoàn tất OCR cho document ${documentId}`);
       return { ok: true };
     } catch (err) {
-      const isDup = err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
-      const message = isDup ? 'Hóa đơn đã tồn tại (MST + số hóa đơn trùng).' : err instanceof Error ? err.message : String(err);
+      const message = err instanceof Error ? err.message : String(err);
       this.logger.error(`❌ Lỗi OCR document ${documentId}: ${message}`);
       await ocrPrisma.document.update({ where: { id: documentId }, data: { status: DocumentStatus.ERROR, ocrError: message } });
-      if (isDup) return { ok: true };
       throw err;
     }
   }

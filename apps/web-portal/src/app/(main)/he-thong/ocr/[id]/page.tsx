@@ -63,17 +63,16 @@ function DataTypeBadge({ dt }: { dt: DataType }) {
 // ─── Edit-state types ──────────────────────────────────────────────────────────
 
 interface FieldEdit { label: string; dataType: DataType; position: FieldPosition; description: string; saving: boolean; }
-interface ColEdit   { label: string; dataType: DataType; saving: boolean; }
+interface ColEdit   { label: string; dataType: DataType; description: string; saving: boolean; }
 interface TableEdit { name: string; saving: boolean; }
 
 // ─── Add-form types ───────────────────────────────────────────────────────────
 
 interface NewFieldForm { label: string; fieldKey: string; dataType: DataType; position: FieldPosition; description: string; _keyManuallySet: boolean; }
-interface NewColForm   { label: string; dataType: DataType; }
 interface NewTableForm { name: string; initColLabel: string; initColType: DataType; }
+interface PendingCol  { tempId: string; label: string; dataType: DataType; description: string; }
 
 const emptyField = (): NewFieldForm => ({ label: '', fieldKey: '', dataType: 'TEXT', position: 'HEADER', description: '', _keyManuallySet: false });
-const emptyCol   = (): NewColForm   => ({ label: '', dataType: 'TEXT' });
 const emptyTable = (): NewTableForm => ({ name: '', initColLabel: '', initColType: 'TEXT' });
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -112,10 +111,8 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
   const [newTable, setNewTable]       = useState<NewTableForm>(emptyTable());
   const [tableAdding, setTableAdding] = useState(false);
 
-  // ── Inline add column ─────────────────────────────────────────────────────
-  const [addColTableId, setAddColTableId] = useState<string | null>(null);
-  const [newCol, setNewCol]               = useState<NewColForm>(emptyCol());
-  const [colAdding, setColAdding]         = useState(false);
+  // ── Pending new columns (saved on Lưu cấu hình) ──────────────────────────
+  const [pendingCols, setPendingCols] = useState<Record<string, PendingCol[]>>({});
 
   // ── Column drag-and-drop ──────────────────────────────────────────────────
   const [dragColId, setDragColId]       = useState<string | null>(null);
@@ -143,7 +140,7 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
       const cEdits: Record<string, ColEdit> = {};
       data.tables.forEach(t => {
         tEdits[t.id] = { name: t.name, saving: false };
-        t.columns.forEach(c => { cEdits[c.id] = { label: c.label, dataType: c.dataType, saving: false }; });
+        t.columns.forEach(c => { cEdits[c.id] = { label: c.label, dataType: c.dataType, description: c.description ?? '', saving: false }; });
       });
       setTableEdits(tEdits);
       setColEdits(cEdits);
@@ -167,6 +164,44 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
     setMetaSaving(true); setSaveError(null);
     try {
       await ocrApi.updateSchema(id, { name: name.trim(), type, description: description.trim() || undefined, isActive });
+
+      // Lưu tất cả trường và cột đang có thay đổi
+      if (schema) {
+        const saves: Promise<void>[] = [];
+
+        for (const f of schema.fields) {
+          const e = fieldEdits[f.id];
+          if (!e || !e.label.trim()) continue;
+          const isDirty = e.label !== f.label || e.dataType !== f.dataType || e.position !== f.position || e.description !== (f.description ?? '');
+          if (isDirty) {
+            saves.push(
+              ocrApi.updateField(id, f.id, { label: e.label.trim(), dataType: e.dataType, position: e.position, description: e.description.trim() || undefined }).then(() => {})
+            );
+          }
+        }
+
+        for (const table of schema.tables) {
+          for (const col of table.columns) {
+            const e = colEdits[col.id];
+            if (!e || !e.label.trim()) continue;
+            const isDirty = e.label !== col.label || e.dataType !== col.dataType || e.description !== (col.description ?? '');
+            if (isDirty) {
+              saves.push(
+                ocrApi.updateTableColumn(id, table.id, col.id, { label: e.label.trim(), dataType: e.dataType, description: e.description || undefined }).then(() => {})
+              );
+            }
+          }
+          for (const pc of (pendingCols[table.id] ?? []).filter(pc => pc.label.trim())) {
+            saves.push(
+              ocrApi.addTableColumn(id, table.id, { columnKey: toKey(pc.label), label: pc.label.trim(), dataType: pc.dataType, isRequired: false, description: pc.description || undefined }).then(() => {})
+            );
+          }
+        }
+
+        await Promise.all(saves);
+        setPendingCols({});
+      }
+
       router.push('/he-thong/ocr');
     } catch (e: unknown) { setSaveError((e as Error).message); }
     finally { setMetaSaving(false); }
@@ -236,7 +271,7 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
       setSchema(prev => prev ? { ...prev, tables: [...prev.tables, added] } : prev);
       setExpandedTables(prev => new Set([...prev, added.id]));
       setTableEdits(prev => ({ ...prev, [added.id]: { name: added.name, saving: false } }));
-      added.columns.forEach(c => { setColEdits(prev => ({ ...prev, [c.id]: { label: c.label, dataType: c.dataType, saving: false } })); });
+      added.columns.forEach(c => { setColEdits(prev => ({ ...prev, [c.id]: { label: c.label, dataType: c.dataType, description: c.description ?? '', saving: false } })); });
       setAddingTable(false); setNewTable(emptyTable());
     } catch (e: unknown) { setSaveError((e as Error).message); }
     finally { setTableAdding(false); }
@@ -277,37 +312,34 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
 
   // ── Column save ───────────────────────────────────────────────────────────
 
-  const handleSaveCol = async (tableId: string, columnId: string) => {
-    const e = colEdits[columnId];
+  const handleSaveCol = async (tableId: string, columnId: string, override?: Partial<ColEdit>) => {
+    const e = { ...colEdits[columnId], ...override };
     if (!e || !e.label.trim()) { setSaveError('Tên cột không được để trống.'); return; }
     setColEdits(prev => ({ ...prev, [columnId]: { ...prev[columnId], saving: true } }));
     setSaveError(null);
     try {
-      const updated = await ocrApi.updateTableColumn(id, tableId, columnId, { label: e.label.trim(), dataType: e.dataType });
+      const updated = await ocrApi.updateTableColumn(id, tableId, columnId, { label: e.label.trim(), dataType: e.dataType, description: e.description || undefined });
       setSchema(prev => {
         if (!prev) return prev;
         return { ...prev, tables: prev.tables.map(t => t.id === tableId ? { ...t, columns: t.columns.map(c => c.id === columnId ? updated : c) } : t) };
       });
-      setColEdits(prev => ({ ...prev, [columnId]: { label: updated.label, dataType: updated.dataType, saving: false } }));
+      setColEdits(prev => ({ ...prev, [columnId]: { label: updated.label, dataType: updated.dataType, description: updated.description ?? '', saving: false } }));
     } catch (err: unknown) { setSaveError((err as Error).message); setColEdits(prev => ({ ...prev, [columnId]: { ...prev[columnId], saving: false } })); }
   };
 
-  // ── Column add ────────────────────────────────────────────────────────────
+  // ── Pending column helpers ────────────────────────────────────────────────
 
-  const handleAddColumn = async () => {
-    if (!addColTableId || !newCol.label.trim()) { setSaveError('Vui lòng nhập tên cột.'); return; }
-    setColAdding(true);
-    try {
-      const added = await ocrApi.addTableColumn(id, addColTableId, { columnKey: toKey(newCol.label), label: newCol.label.trim(), dataType: newCol.dataType, isRequired: false });
-      setSchema(prev => {
-        if (!prev) return prev;
-        return { ...prev, tables: prev.tables.map(t => t.id === addColTableId ? { ...t, columns: [...t.columns, added] } : t) };
-      });
-      setColEdits(prev => ({ ...prev, [added.id]: { label: added.label, dataType: added.dataType, saving: false } }));
-      setAddColTableId(null); setNewCol(emptyCol());
-    } catch (e: unknown) { setSaveError((e as Error).message); }
-    finally { setColAdding(false); }
+  const addPendingCol = (tableId: string) => {
+    const tempId = `pending_${Date.now()}_${Math.random()}`;
+    setPendingCols(prev => ({ ...prev, [tableId]: [...(prev[tableId] ?? []), { tempId, label: '', dataType: 'TEXT', description: '' }] }));
+    setExpandedTables(prev => new Set([...prev, tableId]));
   };
+
+  const updatePendingCol = (tableId: string, tempId: string, patch: Partial<PendingCol>) =>
+    setPendingCols(prev => ({ ...prev, [tableId]: (prev[tableId] ?? []).map(pc => pc.tempId === tempId ? { ...pc, ...patch } : pc) }));
+
+  const removePendingCol = (tableId: string, tempId: string) =>
+    setPendingCols(prev => ({ ...prev, [tableId]: (prev[tableId] ?? []).filter(pc => pc.tempId !== tempId) }));
 
   // ── Column remove ─────────────────────────────────────────────────────────
 
@@ -504,14 +536,6 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
                       <td className="px-4 py-2.5 text-center">
                         <div className="flex items-center justify-center gap-1">
                           <button
-                            onClick={() => handleSaveField(f.id)}
-                            disabled={e.saving || !dirty}
-                            title={dirty ? 'Lưu thay đổi' : 'Chưa có thay đổi'}
-                            className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 ${dirty ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-gray-100 text-gray-400 cursor-default'}`}
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                          </button>
-                          <button
                             onClick={() => handleRemoveField(f)}
                             className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                             title="Xóa trường"
@@ -620,7 +644,6 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
             <div className="divide-y">
               {schema?.tables.map(t => {
                 const expanded = expandedTables.has(t.id);
-                const isAddingCol = addColTableId === t.id;
                 const te = tableEdits[t.id];
                 const tableNameDirty = te && te.name !== t.name;
                 return (
@@ -671,13 +694,14 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
                               <th className="px-3 py-2 text-left w-8">STT</th>
                               <th className="px-3 py-2 text-left">Tên cột</th>
                               <th className="px-3 py-2 text-left w-44">Kiểu dữ liệu</th>
-                              <th className="px-3 py-2 text-center w-20">Thao tác</th>
+                              <th className="px-3 py-2 text-left">Mô tả cho AI</th>
+                              <th className="px-3 py-2 w-10"></th>
                             </tr>
                           </thead>
                           <tbody>
                             {t.columns.map((c, cIdx) => {
                               const ce = colEdits[c.id];
-                              const colDirty = ce && (ce.label !== c.label || ce.dataType !== c.dataType);
+                              const colDirty = ce && (ce.label !== c.label || ce.dataType !== c.dataType || ce.description !== (c.description ?? ''));
                               if (!ce) return null;
                               return (
                                 <tr
@@ -689,7 +713,7 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
                                   onDragEnd={() => { setDragColId(null); setDragColOverId(null); dragColFromHandle.current = false; }}
                                   className={`border-b last:border-0 transition-colors ${
                                     dragColOverId === c.id && dragColId !== c.id ? 'border-t-2 border-blue-400' : ''
-                                  } ${dragColId === c.id ? 'opacity-40' : colDirty ? 'bg-amber-50/30' : 'hover:bg-gray-50'}`}
+                                  } ${dragColId === c.id ? 'opacity-40' : 'hover:bg-gray-50'}`}
                                 >
                                   <td className="px-3 py-2">
                                     <GripVertical
@@ -715,54 +739,72 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
                                       {DATA_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                                     </select>
                                   </td>
+                                  <td className="px-3 py-2">
+                                    <input
+                                      value={ce.description}
+                                      onChange={ev => setColEdits(prev => ({ ...prev, [c.id]: { ...prev[c.id], description: ev.target.value } }))}
+                                      placeholder="VD: cột giá trị trước thuế..."
+                                      className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-600"
+                                    />
+                                  </td>
                                   <td className="px-3 py-2 text-center">
-                                    <div className="flex items-center justify-center gap-1">
-                                      <button
-                                        onClick={() => handleSaveCol(t.id, c.id)}
-                                        disabled={ce.saving || !colDirty}
-                                        title={colDirty ? 'Lưu thay đổi' : 'Chưa có thay đổi'}
-                                        className={`p-1 rounded transition-colors disabled:opacity-40 ${colDirty ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-gray-100 text-gray-400 cursor-default'}`}
-                                      >
-                                        <Check className="w-3 h-3" />
-                                      </button>
-                                      <button onClick={() => handleRemoveColumn(t.id, c.id, c.label)} className="p-1 text-gray-300 hover:text-red-400 rounded transition-colors" title="Xóa cột">
-                                        <Trash2 className="w-3 h-3" />
-                                      </button>
-                                    </div>
+                                    <button onClick={() => handleRemoveColumn(t.id, c.id, c.label)} className="p-1 text-gray-300 hover:text-red-400 rounded transition-colors" title="Xóa cột">
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
                                   </td>
                                 </tr>
                               );
                             })}
 
-                            {/* Inline add column */}
-                            {isAddingCol && (
-                              <tr className="border-b last:border-0 bg-blue-50/30">
+                            {/* Pending new columns */}
+                            {(pendingCols[t.id] ?? []).map((pc, pcIdx) => (
+                              <tr key={pc.tempId} className="border-b last:border-0 bg-blue-50/20">
                                 <td className="px-3 py-2" />
-                                <td className="px-3 py-2 text-gray-400 align-top pt-2.5">{t.columns.length + 1}</td>
+                                <td className="px-3 py-2 text-gray-400">{t.columns.length + pcIdx + 1}</td>
                                 <td className="px-3 py-2">
-                                  <input autoFocus value={newCol.label} onChange={e => setNewCol(prev => ({ ...prev, label: e.target.value }))} placeholder="Tên cột *" className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                                  <input
+                                    autoFocus={pcIdx === 0}
+                                    value={pc.label}
+                                    onChange={e => updatePendingCol(t.id, pc.tempId, { label: e.target.value })}
+                                    placeholder="Tên cột *"
+                                    className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                  />
                                 </td>
-                                <td className="px-3 py-2 align-top">
-                                  <select value={newCol.dataType} onChange={e => setNewCol(prev => ({ ...prev, dataType: e.target.value as DataType }))} className="w-full px-2 py-1 border rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                <td className="px-3 py-2">
+                                  <select
+                                    value={pc.dataType}
+                                    onChange={e => updatePendingCol(t.id, pc.tempId, { dataType: e.target.value as DataType })}
+                                    className="w-full px-2 py-1 border rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                  >
                                     {DATA_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                                   </select>
                                 </td>
-                                <td className="px-3 py-2 text-center align-top">
-                                  <div className="flex items-center justify-center gap-1">
-                                    <button onClick={handleAddColumn} disabled={colAdding} className="p-1 bg-blue-500 hover:bg-blue-600 text-white rounded disabled:opacity-50" title="Xác nhận"><Check className="w-3 h-3" /></button>
-                                    <button onClick={() => { setAddColTableId(null); setNewCol(emptyCol()); }} className="p-1 text-gray-300 hover:text-gray-600 rounded" title="Hủy"><X className="w-3 h-3" /></button>
-                                  </div>
+                                <td className="px-3 py-2">
+                                  <input
+                                    value={pc.description}
+                                    onChange={e => updatePendingCol(t.id, pc.tempId, { description: e.target.value })}
+                                    placeholder="VD: cột giá trị trước thuế..."
+                                    className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-600"
+                                  />
+                                </td>
+                                <td className="px-3 py-2 text-center">
+                                  <button
+                                    onClick={() => removePendingCol(t.id, pc.tempId)}
+                                    className="p-1 text-gray-300 hover:text-red-400 rounded"
+                                    title="Xóa"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
                                 </td>
                               </tr>
-                            )}
+                            ))}
                           </tbody>
                           <tfoot>
                             <tr>
-                              <td colSpan={5} className="px-3 py-2 border-t bg-gray-50/50">
+                              <td colSpan={6} className="px-3 py-2 border-t bg-gray-50/50">
                                 <button
-                                  onClick={() => { setAddColTableId(t.id); setNewCol(emptyCol()); setExpandedTables(prev => new Set([...prev, t.id])); }}
-                                  disabled={isAddingCol}
-                                  className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                  onClick={() => addPendingCol(t.id)}
+                                  className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 rounded transition-colors"
                                 >
                                   <Plus className="w-3 h-3" /> Thêm cột
                                 </button>

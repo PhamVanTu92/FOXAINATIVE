@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search, ChevronLeft, ChevronRight, FileText, AlertCircle,
   Pencil, Trash2, Download, X, Database, Check, Eye,
-  ClipboardList, Clock, TrendingUp, Loader2, ZoomIn, Table2, Image as ImageIcon,
+  ClipboardList, Clock, Loader2, ZoomIn, Table2, Image as ImageIcon,
 } from 'lucide-react';
 import { ocrApi } from '@/lib/ocr-api';
 import type { DocListItem, DocStats, DocDetail } from '@/lib/ocr-api';
@@ -17,6 +17,16 @@ const STATUS_CONFIG = {
   TRANSFERRED: { label: 'Đã chuyển kho',cls: 'bg-purple-50  text-purple-600 border-purple-200' },
   ERROR:       { label: 'Lỗi',          cls: 'bg-red-50     text-red-600    border-red-200'    },
 } as const;
+
+const STANDARD_COLUMNS = [
+  { key: 'name',      numeric: false },
+  { key: 'unit',      numeric: false },
+  { key: 'quantity',  numeric: true  },
+  { key: 'unitPrice', numeric: true  },
+  { key: 'amount',    numeric: true  },
+] as const;
+
+const STANDARD_FIELD_KEYS = new Set(STANDARD_COLUMNS.map(c => c.key));
 
 const TYPE_CONFIG: Record<string, { label: string; cls: string }> = {
   INVOICE:           { label: 'Hóa đơn VAT',    cls: 'bg-blue-50  text-blue-600  border-blue-200' },
@@ -292,45 +302,70 @@ export default function ChungTuPage() {
     try {
       const details = await Promise.all(idsToExport.map(id => ocrApi.getDocument(id)));
 
-      const masterRows = details.map(d => ({
-        'Mã chứng từ':       d.invoiceNumber ?? d.id.slice(0, 12),
-        'Loại chứng từ':     TYPE_CONFIG[d.schema.type]?.label ?? d.schema.type,
-        'Số hóa đơn':        d.invoiceNumber ?? '',
-        'Ngày phát hành':    d.issueDate ? fmtDate(d.issueDate) : '',
-        'MST người bán':     d.sellerTaxCode ?? '',
-        'Tên người bán':     d.sellerName ?? '',
-        'Tổng tiền hàng':    d.totalAmount ?? '',
-        'Tiền thuế VAT':     d.vatAmount ?? '',
-        'Tổng thanh toán':   d.grandTotal ?? '',
-        'Trạng thái':        STATUS_CONFIG[d.status as keyof typeof STATUS_CONFIG]?.label ?? d.status,
-        'Người tạo':         '',
-        'Ngày tạo':          fmtDate(d.createdAt),
-      }));
+      // Master: one row per document — base info + all extracted field values
+      const masterRows = details.map(d => {
+        const row: Record<string, unknown> = {
+          'Tên file':   d.fileName ?? '',
+          'Schema':     d.schema.name,
+          'Loại':       TYPE_CONFIG[d.schema.type]?.label ?? d.schema.type,
+          'Trạng thái': STATUS_CONFIG[d.status as keyof typeof STATUS_CONFIG]?.label ?? d.status,
+          'Ngày tạo':   fmtDate(d.createdAt),
+        };
+        for (const v of d.values.filter(v => v.stringValue)) {
+          row[v.field.label] = v.stringValue ?? '';
+        }
+        return row;
+      });
 
+      // Line items: per-table, schema-aware columns
       const lineRows: Record<string, unknown>[] = [];
       for (const d of details) {
-        for (const li of d.lineItems) {
-          lineRows.push({
-            'Mã chứng từ':           d.invoiceNumber ?? d.id.slice(0, 12),
-            'STT':                   li.stt,
-            'Tên hàng hóa/dịch vụ': li.name ?? '',
-            'ĐVT':                   li.unit ?? '',
-            'Số lượng':              li.quantity ?? '',
-            'Đơn giá':               li.unitPrice ?? '',
-            'Thành tiền':            li.amount ?? '',
-          });
+        if (d.lineItems.length === 0) continue;
+        const docRef = d.fileName ?? d.id.slice(0, 12);
+        const STANDARD_KEYS = new Set(['name', 'unit', 'quantity', 'unitPrice', 'amount']);
+
+        const exportLineItem = (li: typeof d.lineItems[0], row: Record<string, unknown>, columns: Array<{ columnKey: string; label: string }>) => {
+          for (const col of columns) {
+            const raw = STANDARD_KEYS.has(col.columnKey)
+              ? li[col.columnKey as keyof typeof li]
+              : li.extraData?.[col.columnKey];
+            row[col.label] = raw != null ? raw : '';
+          }
+        };
+
+        // Build columns: schema-defined labels if available, otherwise field keys (no translation)
+        const resolveColumns = (schemaCols: typeof d.schema.tables[0]['columns']) =>
+          schemaCols.length > 0
+            ? schemaCols.map(c => ({ columnKey: c.columnKey, label: c.label }))
+            : STANDARD_COLUMNS.map(c => ({ columnKey: c.key, label: c.key }));
+
+        if (d.schema.tables.length > 0) {
+          for (const table of d.schema.tables) {
+            const tableLineItems = d.lineItems.filter(li => !li.tableKey || li.tableKey === table.tableKey);
+            const columns = resolveColumns(table.columns);
+            for (const li of tableLineItems) {
+              const row: Record<string, unknown> = { 'Tên file': docRef, 'Bảng': table.name, 'STT': li.stt };
+              exportLineItem(li, row, columns);
+              lineRows.push(row);
+            }
+          }
+        } else {
+          for (const li of d.lineItems) {
+            const row: Record<string, unknown> = { 'Tên file': docRef, 'STT': li.stt };
+            const extraKeys = li.extraData ? Object.keys(li.extraData) : [];
+            if (extraKeys.length > 0) {
+              for (const k of extraKeys) row[k] = li.extraData?.[k] ?? '';
+            } else {
+              for (const c of STANDARD_COLUMNS) row[c.key] = li[c.key as keyof typeof li] ?? '';
+            }
+            lineRows.push(row);
+          }
         }
       }
 
       const wb = XLSX.utils.book_new();
-      const wsMaster = XLSX.utils.json_to_sheet(masterRows);
-      const wsLines  = XLSX.utils.json_to_sheet(
-        lineRows.length ? lineRows
-          : [{ 'Mã chứng từ': '', STT: '', 'Tên hàng hóa/dịch vụ': '', ĐVT: '', 'Số lượng': '', 'Đơn giá': '', 'Thành tiền': '' }],
-      );
-
-      wsMaster['!cols'] = [15, 20, 15, 14, 15, 30, 16, 14, 16, 14, 18, 14].map(wch => ({ wch }));
-      wsLines['!cols']  = [15, 6, 30, 10, 10, 16, 16].map(wch => ({ wch }));
+      const wsMaster = XLSX.utils.json_to_sheet(masterRows.length ? masterRows : [{}]);
+      const wsLines  = XLSX.utils.json_to_sheet(lineRows.length ? lineRows : [{}]);
 
       XLSX.utils.book_append_sheet(wb, wsMaster, 'Master_Data');
       XLSX.utils.book_append_sheet(wb, wsLines, 'Line_Items');
@@ -558,7 +593,7 @@ export default function ChungTuPage() {
                     {(page - 1) * 25 + idx + 1}
                   </td>
                   <td className="px-4 py-3 font-medium text-gray-800">
-                    {doc.invoiceNumber ?? doc.id.slice(0, 10) + '...'}
+                    {doc.fileName ?? doc.id.slice(0, 10) + '...'}
                   </td>
                   <td className="px-4 py-3 text-gray-700 max-w-[200px]">
                     <button
@@ -661,7 +696,7 @@ export default function ChungTuPage() {
                 <input
                   type="text"
                   readOnly
-                  value={editDoc.invoiceNumber ?? editDoc.id.slice(0, 12) + '...'}
+                  value={editDoc.fileName ?? editDoc.id.slice(0, 12) + '...'}
                   className="w-full px-3 py-2 text-sm border rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
                 />
               </div>
@@ -835,49 +870,6 @@ export default function ChungTuPage() {
               ) : detailDoc ? (
                 <div className="p-6 space-y-5">
 
-                  {/* Meta info grid */}
-                  <div className="grid grid-cols-2 gap-2">
-                    {([
-                      { label: 'Mã chứng từ',    value: detailDoc.invoiceNumber },
-                      { label: 'Ngày phát hành', value: fmtDate(detailDoc.issueDate) },
-                      { label: 'Người bán',      value: detailDoc.sellerName },
-                      { label: 'MST người bán',  value: detailDoc.sellerTaxCode },
-                      { label: 'Ngày OCR',       value: fmtDate(detailDoc.createdAt) },
-                    ] as { label: string; value: string | null | undefined }[])
-                      .filter(f => f.value && f.value !== '—')
-                      .map(({ label, value }) => (
-                        <div key={label} className="bg-white rounded-lg border px-3 py-2.5">
-                          <p className="text-xs text-gray-400">{label}</p>
-                          <p className="text-sm font-medium text-gray-800 mt-0.5 truncate">{value}</p>
-                        </div>
-                      ))}
-                  </div>
-
-                  {/* Amounts */}
-                  {(detailDoc.totalAmount != null || detailDoc.grandTotal != null) && (
-                    <div className="bg-blue-50 border border-blue-100 rounded-xl px-5 py-4 flex items-center gap-6 flex-wrap">
-                      <TrendingUp className="w-4 h-4 text-blue-400 shrink-0" />
-                      {detailDoc.totalAmount != null && (
-                        <div>
-                          <p className="text-xs text-blue-500">Chưa thuế</p>
-                          <p className="font-mono font-semibold text-gray-800 text-sm">{fmtNum(detailDoc.totalAmount)}</p>
-                        </div>
-                      )}
-                      {detailDoc.vatAmount != null && (
-                        <div>
-                          <p className="text-xs text-blue-500">VAT</p>
-                          <p className="font-mono font-semibold text-gray-800 text-sm">{fmtNum(detailDoc.vatAmount)}</p>
-                        </div>
-                      )}
-                      {detailDoc.grandTotal != null && (
-                        <div className="ml-auto">
-                          <p className="text-xs text-blue-600 font-medium">Tổng thanh toán</p>
-                          <p className="font-mono font-bold text-blue-700 text-base">{fmtNum(detailDoc.grandTotal)}</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
                   {/* OCR confidence */}
                   {detailDoc.ocrConfidence != null && (
                     <div className="bg-white border rounded-xl px-4 py-3 flex items-center gap-3">
@@ -903,21 +895,25 @@ export default function ChungTuPage() {
                   )}
 
                   {/* Field values */}
-                  {detailDoc.values.filter(v => v.stringValue).length > 0 && (
+                  {detailDoc.values.length > 0 && (
                     <div className="bg-white border rounded-xl overflow-hidden">
                       <div className="px-4 py-3 border-b bg-blue-50 flex items-center gap-2">
                         <ClipboardList className="w-4 h-4 text-blue-500" />
                         <h3 className="text-sm font-semibold text-blue-800">Trường dữ liệu</h3>
                         <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
-                          {detailDoc.values.filter(v => v.stringValue).length} trường
+                          {detailDoc.values.length} trường
                         </span>
                       </div>
                       <div className="divide-y divide-gray-50">
-                        {detailDoc.values.filter(v => v.stringValue).map(v => (
+                        {detailDoc.values.map(v => (
                           <div key={v.fieldId} className="flex items-center px-4 py-2.5 gap-3">
                             <span className="text-xs text-gray-500 w-36 shrink-0">{v.field.label}</span>
-                            <span className="text-sm text-gray-800 flex-1 truncate">{v.stringValue}</span>
-                            {v.confidence != null && (
+                            <span className={`text-sm flex-1 truncate ${v.stringValue ? 'text-gray-800' : 'text-gray-300 italic'}${v.field.dataType === 'CURRENCY' && v.stringValue ? ' font-mono' : ''}`}>
+                              {v.field.dataType === 'CURRENCY' && v.stringValue
+                                ? fmtNum(v.stringValue)
+                                : (v.stringValue || '—')}
+                            </span>
+                            {v.confidence != null && v.stringValue && (
                               <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${v.confidence > 0.85 ? 'text-green-600 bg-green-50' : v.confidence > 0.6 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50'}`}>
                                 {Math.round(v.confidence * 100)}%
                               </span>
@@ -928,43 +924,55 @@ export default function ChungTuPage() {
                     </div>
                   )}
 
-                  {/* Line items */}
-                  {detailDoc.lineItems.length > 0 && (
-                    <div className="bg-white border rounded-xl overflow-hidden">
-                      <div className="px-4 py-3 border-b bg-orange-50 flex items-center gap-2">
-                        <h3 className="text-sm font-semibold text-orange-800">Hàng hóa / Dịch vụ</h3>
-                        <span className="text-xs text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">
-                          {detailDoc.lineItems.length} dòng
-                        </span>
+                  {/* Line items — only shown when schema has tables configured */}
+                  {detailDoc.schema.tables.length > 0 && detailDoc.schema.tables.map(table => {
+                    const items = detailDoc.lineItems.filter(li => !li.tableKey || li.tableKey === table.tableKey);
+                    if (items.length === 0) return null;
+                    const useSchemaColumns = table.columns.length > 0;
+                    return (
+                      <div key={table.id} className="bg-white border rounded-xl overflow-hidden">
+                        <div className="px-4 py-3 border-b bg-orange-50 flex items-center gap-2">
+                          <Table2 className="w-4 h-4 text-orange-500" />
+                          <h3 className="text-sm font-semibold text-orange-800">{table.name}</h3>
+                          <span className="text-xs text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">{items.length} dòng</span>
+                        </div>
+                        {!useSchemaColumns ? (
+                          <p className="px-4 py-3 text-sm text-gray-500">Bảng chưa được cấu hình cột.</p>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="bg-gray-50 border-b text-xs text-gray-500 uppercase tracking-wide">
+                                  <th className="px-3 py-2.5 text-center w-10">STT</th>
+                                  {table.columns.map(col => (
+                                    <th key={col.id} className={`px-3 py-2.5 ${col.dataType === 'NUMBER' || col.dataType === 'CURRENCY' ? 'text-right' : 'text-left'}`}>{col.label}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {items.map((li, i) => (
+                                  <tr key={li.stt} className={`border-b last:border-0 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
+                                    <td className="px-3 py-2.5 text-center text-gray-500 text-xs">{li.stt}</td>
+                                    {table.columns.map(col => {
+                                      const isNum = col.dataType === 'NUMBER' || col.dataType === 'CURRENCY';
+                                      const raw = STANDARD_FIELD_KEYS.has(col.columnKey)
+                                        ? li[col.columnKey as keyof typeof li]
+                                        : li.extraData?.[col.columnKey];
+                                      return (
+                                        <td key={col.columnKey} className={`px-3 py-2.5 text-gray-800 text-xs${isNum ? ' text-right font-mono' : ''}`}>
+                                          {isNum ? fmtNum(raw as number | null | undefined) : String(raw ?? '—')}
+                                        </td>
+                                      );
+                                    })}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
                       </div>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="bg-gray-50 border-b text-xs text-gray-500 uppercase tracking-wide">
-                              <th className="px-3 py-2.5 text-center w-10">STT</th>
-                              <th className="px-3 py-2.5 text-left">Tên hàng hóa</th>
-                              <th className="px-3 py-2.5 text-center">ĐVT</th>
-                              <th className="px-3 py-2.5 text-right">SL</th>
-                              <th className="px-3 py-2.5 text-right">Đơn giá</th>
-                              <th className="px-3 py-2.5 text-right">Thành tiền</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {detailDoc.lineItems.map((li, i) => (
-                              <tr key={li.stt} className={`border-b last:border-0 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
-                                <td className="px-3 py-2.5 text-center text-gray-500 text-xs">{li.stt}</td>
-                                <td className="px-3 py-2.5 text-gray-800">{li.name ?? '—'}</td>
-                                <td className="px-3 py-2.5 text-center text-gray-600 text-xs">{li.unit ?? '—'}</td>
-                                <td className="px-3 py-2.5 text-right text-gray-700">{li.quantity ?? '—'}</td>
-                                <td className="px-3 py-2.5 text-right font-mono text-gray-700 text-xs">{fmtNum(li.unitPrice)}</td>
-                                <td className="px-3 py-2.5 text-right font-mono font-semibold text-gray-800">{fmtNum(li.amount)}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
+                    );
+                  })}
 
                   {/* Audit log */}
                   {detailDoc.auditLogs.length > 0 && (
@@ -1102,6 +1110,9 @@ export default function ChungTuPage() {
           </button>
         </div>
       )}
+      
     </div>
+    
   );
+  
 }

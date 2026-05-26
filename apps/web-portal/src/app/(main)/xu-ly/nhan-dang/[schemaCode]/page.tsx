@@ -41,6 +41,14 @@ const STATUS_CONFIG = {
   ERROR:       { label: 'Lỗi OCR',       cls: 'bg-red-50    text-red-700   border-red-200' },
 } as const;
 
+const TYPE_LABEL: Record<string, string> = {
+  INVOICE: 'Hóa đơn VAT', RECEIPT: 'Hóa đơn bán lẻ', CONTRACT: 'Hợp đồng',
+  STATEMENT: 'Bảng kê', MINUTES: 'Biên bản', WAREHOUSE_RECEIPT: 'Phiếu nhập kho', OTHERS: 'Khác',
+};
+
+const STANDARD_FIELD_KEYS = new Set(['name', 'unit', 'quantity', 'unitPrice', 'amount']);
+const NUMERIC_FIELD_KEYS  = new Set(['quantity', 'unitPrice', 'amount']);
+
 function getFileIcon(fileName: string): { Icon: React.ComponentType<{ className?: string }>; color: string; label: string } {
   const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
   if (['xlsx', 'xls'].includes(ext)) return { Icon: Table2,     color: 'text-green-500',  label: 'Excel' };
@@ -75,6 +83,7 @@ export default function NhanDangOCRPage({ params }: { params: { schemaCode: stri
   const [dirty, setDirty]           = useState(false);
   const [saving, setSaving]         = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [focusedCellKey, setFocusedCellKey] = useState<string | null>(null);
 
   useEffect(() => {
     ocrApi.getSchemaByCode(schemaCode)
@@ -169,8 +178,8 @@ export default function NhanDangOCRPage({ params }: { params: { schemaCode: stri
     try {
       const updated = await ocrApi.updateDocument(doc.id, {
         values: Object.entries(fieldValues).map(([fieldId, stringValue]) => ({ fieldId, stringValue })),
-        lineItems: lineItems.map(({ stt, name, unit, quantity, unitPrice, amount }) =>
-          ({ stt, name, unit, quantity, unitPrice, amount })),
+        lineItems: lineItems.map(({ stt, tableKey, name, unit, quantity, unitPrice, amount, extraData }) =>
+          ({ stt, tableKey, name, unit, quantity, unitPrice, amount, extraData })),
       });
       setDoc(updated);
       setDirty(false);
@@ -185,8 +194,8 @@ export default function NhanDangOCRPage({ params }: { params: { schemaCode: stri
       if (dirty) {
         const updated = await ocrApi.updateDocument(doc.id, {
           values: Object.entries(fieldValues).map(([fieldId, stringValue]) => ({ fieldId, stringValue })),
-          lineItems: lineItems.map(({ stt, name, unit, quantity, unitPrice, amount }) =>
-            ({ stt, name, unit, quantity, unitPrice, amount })),
+          lineItems: lineItems.map(({ stt, tableKey, name, unit, quantity, unitPrice, amount, extraData }) =>
+            ({ stt, tableKey, name, unit, quantity, unitPrice, amount, extraData })),
         });
         setDoc(updated);
         setDirty(false);
@@ -210,9 +219,9 @@ export default function NhanDangOCRPage({ params }: { params: { schemaCode: stri
     if (eventSourceRef.current) { eventSourceRef.current.close(); eventSourceRef.current = null; setPolling(false); }
   };
 
-  const addLineItem = () => {
+  const addLineItem = (tableKey?: string) => {
     const stt = lineItems.length ? Math.max(...lineItems.map(li => li.stt)) + 1 : 1;
-    setLineItems(prev => [...prev, { id: '', stt, name: '', unit: '', quantity: null, unitPrice: null, amount: null, isManuallyAdded: true }]);
+    setLineItems(prev => [...prev, { id: '', stt, tableKey: tableKey ?? null, name: '', unit: '', quantity: null, unitPrice: null, amount: null, isManuallyAdded: true }]);
     setDirty(true);
   };
 
@@ -220,6 +229,13 @@ export default function NhanDangOCRPage({ params }: { params: { schemaCode: stri
 
   const updateLi = <K extends keyof LineItem>(stt: number, key: K, value: LineItem[K]) => {
     setLineItems(prev => prev.map(li => li.stt === stt ? { ...li, [key]: value } : li));
+    setDirty(true);
+  };
+
+  const updateLiExtra = (stt: number, colKey: string, value: string) => {
+    setLineItems(prev => prev.map(li =>
+      li.stt === stt ? { ...li, extraData: { ...(li.extraData ?? {}), [colKey]: value } } : li,
+    ));
     setDirty(true);
   };
 
@@ -315,7 +331,7 @@ export default function NhanDangOCRPage({ params }: { params: { schemaCode: stri
             <h1 className="text-base font-semibold text-gray-900 truncate">{schema.name}</h1>
             <span className="text-xs font-mono text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">[{schema.code}]</span>
             <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded">
-              {schema.type === 'INVOICE' ? 'Hóa đơn' : schema.type === 'RECEIPT' ? 'Bán lẻ' : schema.type === 'CONTRACT' ? 'Hợp đồng' : schema.type}
+              {TYPE_LABEL[schema.type] ?? schema.type}
             </span>
             {docStatus && (
               <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border ${docStatus.cls}`}>
@@ -472,27 +488,6 @@ export default function NhanDangOCRPage({ params }: { params: { schemaCode: stri
                   <span className="font-semibold text-gray-800">{lineItems.length} dòng</span>
                 </div>
               )}
-              {doc.totalAmount != null && (
-                <div className="flex items-center gap-1.5 text-sm">
-                  <span className="text-gray-500">Chưa thuế:</span>
-                  <span className="font-mono font-semibold text-gray-800">{fmt(doc.totalAmount)}</span>
-                </div>
-              )}
-              {doc.vatAmount != null && (
-                <div className="flex items-center gap-1.5 text-sm">
-                  <span className="text-gray-500">VAT:</span>
-                  <span className="font-mono font-semibold text-gray-800">{fmt(doc.vatAmount)}</span>
-                </div>
-              )}
-              {doc.grandTotal != null && (
-                <>
-                  <div className="h-4 w-px bg-gray-200" />
-                  <div className="flex items-center gap-1.5 text-sm">
-                    <span className="font-semibold text-gray-700">Tổng thanh toán:</span>
-                    <span className={`font-mono font-bold text-base ${confTextColor}`}>{fmt(doc.grandTotal)}</span>
-                  </div>
-                </>
-              )}
             </div>
           )}
         </div>
@@ -584,21 +579,26 @@ export default function NhanDangOCRPage({ params }: { params: { schemaCode: stri
               <Table2 className="w-8 h-8 text-gray-300 mb-3" />
               <p className="text-sm text-gray-500">Schema này chưa có bảng dữ liệu</p>
             </div>
-          ) : schema.tables.map((table, tIdx) => (
+          ) : schema.tables.map((table, tIdx) => {
+            const useSchemaColumns = table.columns.length > 0;
+            const tableLineItems = lineItems.filter(li => !li.tableKey || li.tableKey === table.tableKey);
+            const colCount = useSchemaColumns ? table.columns.length : 0;
+
+            return (
             <div key={table.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
               <div className="flex items-center justify-between px-5 py-3.5 border-b bg-orange-50">
                 <div className="flex items-center gap-2.5">
                   <Table2 className="w-4 h-4 text-orange-500" />
                   <h2 className="text-sm font-semibold text-orange-800">{table.name}</h2>
-                  {lineItems.length > 0 && tIdx === 0 && (
+                  {tableLineItems.length > 0 && (
                     <span className="text-xs text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full font-medium">
-                      {lineItems.length} dòng
+                      {tableLineItems.length} dòng
                     </span>
                   )}
                 </div>
-                {doc && !isConfirmed && (
+                {doc && !isConfirmed && useSchemaColumns && (
                   <button
-                    onClick={addLineItem}
+                    onClick={() => addLineItem(table.tableKey)}
                     className="flex items-center gap-1.5 text-xs text-orange-700 bg-white border border-orange-200 hover:bg-orange-50 px-3 py-1.5 rounded-lg transition-colors font-medium"
                   >
                     <Plus className="w-3.5 h-3.5" /> Thêm dòng
@@ -606,24 +606,20 @@ export default function NhanDangOCRPage({ params }: { params: { schemaCode: stri
                 )}
               </div>
 
+              {!useSchemaColumns ? (
+                <div className="px-5 py-4 text-sm text-gray-500 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                  Bảng này chưa có cột nào được cấu hình trong schema. Vui lòng cấu hình cột để xem và chỉnh sửa dữ liệu.
+                </div>
+              ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b bg-gray-100 text-gray-600 uppercase tracking-wide font-semibold text-xs">
                       <th className="px-3 py-2.5 text-center w-10">STT</th>
-                      {tIdx === 0 ? (
-                        <>
-                          <th className="px-3 py-2.5 text-left">Tên hàng hóa / dịch vụ</th>
-                          <th className="px-3 py-2.5 text-center w-16">ĐVT</th>
-                          <th className="px-3 py-2.5 text-right w-20">Số lượng</th>
-                          <th className="px-3 py-2.5 text-right w-28">Đơn giá</th>
-                          <th className="px-3 py-2.5 text-right w-32">Thành tiền</th>
-                        </>
-                      ) : (
-                        table.columns.map(col => (
-                          <th key={col.id} className="px-3 py-2.5 text-left">{col.label}</th>
-                        ))
-                      )}
+                      {table.columns.map(col => (
+                        <th key={col.id} className={`px-3 py-2.5 ${NUMERIC_FIELD_KEYS.has(col.columnKey) || col.dataType === 'NUMBER' || col.dataType === 'CURRENCY' ? 'text-right' : 'text-left'}`}>{col.label}</th>
+                      ))}
                       {doc && !isConfirmed && <th className="w-8" />}
                     </tr>
                   </thead>
@@ -632,49 +628,60 @@ export default function NhanDangOCRPage({ params }: { params: { schemaCode: stri
                       Array.from({ length: 3 }).map((_, i) => (
                         <tr key={i} className="border-b">
                           <td className="px-4 py-3 text-center"><div className="h-4 bg-gray-100 rounded animate-pulse w-6 mx-auto" /></td>
-                          {Array.from({ length: tIdx === 0 ? 5 : table.columns.length }).map((_, j) => (
+                          {Array.from({ length: colCount }).map((_, j) => (
                             <td key={j} className="px-4 py-3"><div className="h-4 bg-gray-100 rounded animate-pulse" /></td>
                           ))}
                         </tr>
                       ))
-                    ) : tIdx === 0 && lineItems.length > 0 ? (
-                      lineItems.map((li, liIdx) => (
-                        <tr key={li.stt} className={`border-b last:border-0 hover:bg-blue-50/20 ${liIdx % 2 === 1 ? 'bg-slate-50' : ''}`}>
-                          <td className="px-4 py-3 text-center text-sm font-medium text-gray-500">{li.stt}</td>
-                          <td className="px-4 py-3">
-                            <input type="text" value={li.name ?? ''} onChange={e => updateLi(li.stt, 'name', e.target.value)} disabled={isConfirmed}
-                              className="w-full bg-transparent focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-300 rounded px-1.5 py-1 disabled:text-gray-700 text-gray-900 text-sm" />
-                          </td>
-                          <td className="px-4 py-3">
-                            <input type="text" value={li.unit ?? ''} onChange={e => updateLi(li.stt, 'unit', e.target.value)} disabled={isConfirmed}
-                              className="w-full bg-transparent text-center focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-300 rounded px-1.5 py-1 disabled:text-gray-700 text-gray-900 text-sm" />
-                          </td>
-                          <td className="px-4 py-3">
-                            <input type="number" value={li.quantity ?? ''} onChange={e => updateLi(li.stt, 'quantity', e.target.value ? Number(e.target.value) : null)} disabled={isConfirmed}
-                              className="w-full bg-transparent text-right focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-300 rounded px-1.5 py-1 disabled:text-gray-700 text-gray-900 text-sm" />
-                          </td>
-                          <td className="px-4 py-3">
-                            <input type="number" value={li.unitPrice ?? ''} onChange={e => updateLi(li.stt, 'unitPrice', e.target.value ? Number(e.target.value) : null)} disabled={isConfirmed}
-                              className="w-full bg-transparent text-right focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-300 rounded px-1.5 py-1 disabled:text-gray-700 text-gray-900 text-sm" />
-                          </td>
-                          <td className={`px-4 py-3 text-right font-mono font-semibold text-sm ${arithmeticWarnings.lineItems.has(li.stt) ? 'text-amber-600 bg-amber-50' : 'text-gray-800'}`}>
-                            {fmt(li.amount)}
-                            {arithmeticWarnings.lineItems.has(li.stt) && (
-                              <span className="ml-1 text-amber-400" title={`Kỳ vọng: ${li.quantity != null && li.unitPrice != null ? fmt(Math.round(li.quantity * li.unitPrice)) : '?'}`}>⚠</span>
+                    ) : tableLineItems.length > 0 ? (
+                        tableLineItems.map((li, liIdx) => (
+                          <tr key={li.stt} className={`border-b last:border-0 hover:bg-blue-50/20 ${liIdx % 2 === 1 ? 'bg-slate-50' : ''}`}>
+                            <td className="px-4 py-3 text-center text-sm font-medium text-gray-500">{li.stt}</td>
+                            {table.columns.map(col => {
+                              const isStandard = STANDARD_FIELD_KEYS.has(col.columnKey);
+                              const isNumeric = NUMERIC_FIELD_KEYS.has(col.columnKey) || col.dataType === 'NUMBER' || col.dataType === 'CURRENCY';
+                              const raw = isStandard ? li[col.columnKey as keyof typeof li] : li.extraData?.[col.columnKey];
+                              const rawStr = raw != null ? String(raw) : '';
+                              const cellKey = `${li.stt}_${col.columnKey}`;
+                              const isFocused = focusedCellKey === cellKey;
+                              const displayVal = isNumeric && rawStr !== '' && !isFocused
+                                ? new Intl.NumberFormat('vi-VN').format(Number(rawStr))
+                                : rawStr;
+                              const isAmountWarning = col.columnKey === 'amount' && arithmeticWarnings.lineItems.has(li.stt);
+                              const handleChange = (val: string) => {
+                                if (isStandard && isNumeric) updateLi(li.stt, col.columnKey as 'quantity' | 'unitPrice' | 'amount', val ? Number(val) : null);
+                                else if (isStandard) updateLi(li.stt, col.columnKey as 'name' | 'unit', val);
+                                else updateLiExtra(li.stt, col.columnKey, isNumeric ? (val ? val : '') : val);
+                              };
+                              return (
+                                <td key={col.columnKey} className={`px-4 py-3${isAmountWarning ? ' bg-amber-50' : ''}`}>
+                                  <input
+                                    type={isNumeric && isFocused ? 'number' : 'text'}
+                                    value={displayVal}
+                                    onChange={e => handleChange(e.target.value)}
+                                    onFocus={() => setFocusedCellKey(cellKey)}
+                                    onBlur={() => setFocusedCellKey(null)}
+                                    disabled={isConfirmed}
+                                    className={`w-full bg-transparent focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-300 rounded px-1.5 py-1 disabled:text-gray-700 text-sm${isNumeric ? ' text-right font-mono' : ' text-gray-900'}${isAmountWarning ? ' text-amber-600 font-semibold' : ''}`}
+                                  />
+                                  {isAmountWarning && (
+                                    <span className="text-amber-400 text-xs" title={`Kỳ vọng: ${li.quantity != null && li.unitPrice != null ? fmt(Math.round(li.quantity * li.unitPrice)) : '?'}`}>⚠</span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                            {!isConfirmed && (
+                              <td className="px-2 py-3">
+                                <button onClick={() => removeLineItem(li.stt)} className="p-1 text-gray-300 hover:text-red-400 rounded transition-colors">
+                                  <Minus className="w-4 h-4" />
+                                </button>
+                              </td>
                             )}
-                          </td>
-                          {!isConfirmed && (
-                            <td className="px-2 py-3">
-                              <button onClick={() => removeLineItem(li.stt)} className="p-1 text-gray-300 hover:text-red-400 rounded transition-colors">
-                                <Minus className="w-4 h-4" />
-                              </button>
-                            </td>
-                          )}
-                        </tr>
-                      ))
+                          </tr>
+                        ))
                     ) : (
                       <tr>
-                        <td colSpan={tIdx === 0 ? 7 : table.columns.length + 2} className="px-4 py-12 text-center text-gray-500 text-sm">
+                        <td colSpan={colCount + 2} className="px-4 py-12 text-center text-gray-500 text-sm">
                           {doc?.status === 'ERROR'
                             ? `Lỗi OCR: ${doc.ocrError ?? 'Không xác định'}`
                             : 'Kết quả bảng sẽ hiển thị sau khi nhận dạng'}
@@ -684,22 +691,11 @@ export default function NhanDangOCRPage({ params }: { params: { schemaCode: stri
                   </tbody>
                 </table>
               </div>
-
-              {tIdx === 0 && lineItems.length > 0 && doc && (doc.totalAmount != null || doc.grandTotal != null) && (
-                <div className="px-5 py-3.5 border-t bg-slate-50 flex items-center justify-end gap-6 text-sm">
-                  {doc.totalAmount != null && (
-                    <span className="text-gray-600">Chưa thuế: <span className="font-semibold text-gray-800 font-mono">{fmt(doc.totalAmount)}</span></span>
-                  )}
-                  {doc.vatAmount != null && (
-                    <span className="text-gray-600">VAT: <span className="font-semibold text-gray-800 font-mono">{fmt(doc.vatAmount)}</span></span>
-                  )}
-                  {doc.grandTotal != null && (
-                    <span className="text-gray-700 font-semibold border-l pl-6">Tổng thanh toán: <span className="text-blue-700 font-mono text-base">{fmt(doc.grandTotal)}</span></span>
-                  )}
-                </div>
               )}
+
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
