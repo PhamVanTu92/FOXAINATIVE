@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState, useEffect } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { ChevronDown, ScanLine } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { navConfig } from './nav-config';
-import type { NavItem } from './nav-config';
+import type { NavItem, NavSection } from './nav-config';
+import { ocrApi } from '@/lib/ocr-api';
 
 function SidebarChildItem({ href, label, icon: Icon }: { href: string; label: string; icon: LucideIcon }) {
   const pathname = usePathname();
@@ -87,6 +88,25 @@ function SidebarNavItem({ item }: { item: NavItem }) {
 }
 
 export default function Sidebar() {
+  const [schemaChildren, setSchemaChildren] = useState<{ label: string; href: string; icon: LucideIcon }[]>([]);
+
+  useEffect(() => {
+    ocrApi.getSchemas().then(list => {
+      setSchemaChildren(
+        list.map(s => ({ label: s.name, href: `/xu-ly/nhan-dang/${s.code}`, icon: ScanLine }))
+      );
+    }).catch(() => {});
+  }, []);
+
+  const dynamicNavConfig = useMemo<NavSection[]>(() => navConfig.map(section => ({
+    ...section,
+    items: section.items.map(item =>
+      item.label === 'Nhận dạng OCR'
+        ? { ...item, children: schemaChildren }
+        : item
+    ),
+  })), [schemaChildren]);
+
   return (
     <aside className="flex flex-col h-screen w-64 bg-[#0d1f3c] border-r border-white/5 select-none">
       {/* Logo */}
@@ -102,7 +122,7 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-3 scrollbar-thin">
-        {navConfig.map((section) => (
+        {dynamicNavConfig.map((section) => (
           <div key={section.section} className="mb-3">
             <p className="px-5 py-1.5 text-[10px] font-semibold tracking-widest text-slate-500 uppercase">
               {section.section}

@@ -1,9 +1,13 @@
 # TÀI LIỆU ĐẶC TẢ NGHIỆP VỤ: QUẢN LÝ DANH SÁCH CHỨNG TỪ
 
 > **Mã tài liệu:** BA-OCR-03
-> **Phiên bản:** 1.0
+> **Phiên bản:** 2.0
 > **Phân hệ:** Quản lý vòng đời Chứng từ (Document Lifecycle Management)
 > **Vai trò trong hệ thống:** Module Quản trị & Tích hợp (Governance & Integration Layer)
+> **Service xử lý:** OCR Service (`apps/ocr-service`) – NestJS + gRPC
+> **Database:** OCR_DB (`packages/ocr-db`) – kết nối qua `OCR_DATABASE_URL` (port `5433`)
+> **Tích hợp cross-service:** Giao tiếp với Chatbot Service qua **gRPC call** (port `50053`) hoặc Message Queue
+> **Giao tiếp:** Client → API Gateway (REST) → OCR Service (gRPC port `50052`)
 
 ---
 
@@ -188,21 +192,29 @@ File `.xlsx` gồm **2 sheet** liên kết, đảm bảo cấu trúc Master-Deta
 - **DMS (Document Management System):** Lưu trữ file gốc + metadata có thể tra cứu.
 - **AI Knowledge Base (Vector DB):** Index dữ liệu chứng từ thành vector embedding, sẵn sàng cho tìm kiếm ngữ nghĩa và RAG (Retrieval Augmented Generation).
 
-#### 5.2.2. Luồng xử lý ngầm
+#### 5.2.2. Luồng xử lý ngầm (theo kiến trúc Microservices)
+
+> **⚠️ Quy tắc kiến trúc:** OCR Service **không được** ghi trực tiếp vào `chatbot_db` hay `system_db`. Mọi tích hợp cross-service phải đi qua **gRPC call** hoặc **Message Queue (BullMQ)**.
 
 ```
-[Chứng từ Đã xác nhận]
+[Chứng từ Đã xác nhận – OCR Service]
         │
-        ├──▶ [DMS] Lưu file gốc + metadata structured
+        │ (1) Trong OCR_DB: cập nhật status → PROCESSED, ghi processedAt/processedBy
         │
-        ├──▶ [Data Warehouse] Đẩy vào BI để phân tích xu hướng chi tiêu
+        ├──▶ [DMS / File Storage] OCR Service gọi trực tiếp → lưu file gốc + metadata
         │
-        ├──▶ [Vector DB] Embedding nội dung → tìm kiếm ngữ nghĩa
+        ├──▶ [Chatbot Service – gRPC port 50053]
+        │         └─▶ Chatbot Service nhận metadata chứng từ
+        │               ├─▶ Sinh vector embedding (OpenAI text-embedding-3-small / Voyage AI)
+        │               ├─▶ Lưu vào Chatbot_DB (Knowledge Base, Vector Embeddings)
+        │               └─▶ Sẵn sàng cho RAG / Semantic Search
         │
-        └──▶ [ERP] (tùy chọn) Đồng bộ sang hệ thống kế toán
+        └──▶ [ERP] (tùy chọn) Đồng bộ sang hệ thống kế toán qua Message Queue
         
    ✅ Trạng thái chứng từ tự động chuyển: Đã xác nhận → Đã chuyển kho
 ```
+
+> **Lưu ý triển khai:** Nếu Chatbot Service chưa sẵn sàng nhận request tại thời điểm push, OCR Service có thể dispatch vào `kb-sync-queue` (BullMQ) để Chatbot Service Worker tiêu thụ bất đồng bộ. Cơ chế retry policy: 3 lần, exponential backoff.
 
 #### 5.2.3. Giá trị mang lại (Business Value)
 
@@ -229,8 +241,10 @@ File `.xlsx` gồm **2 sheet** liên kết, đảm bảo cấu trúc Master-Deta
 ---
 
 > 📌 **Tài liệu liên quan:**
-> - [[Thiet_lap_Chung_tu_OCR]] – Cung cấp schema để chứng từ tuân thủ cấu trúc thống nhất.
-> - [[Nhan_dang_Chung_tu_OCR]] – Nguồn cung cấp chứng từ đã số hóa cho phân hệ này.
+> - [[OCR/Thiet_lap_Chung_tu_OCR]] – Cung cấp schema để chứng từ tuân thủ cấu trúc thống nhất.
+> - [[OCR/Nhan_dang_Chung_tu_OCR]] – Nguồn cung cấp chứng từ đã số hóa cho phân hệ này.
+> - [[OCR/Database_Design_OCR_System]] – Thiết kế vòng đời `DocumentStatus` và bảng `document_audit_logs`.
+> - [[Tech_Stack_Architecture]] – Kiến trúc tổng thể: quy tắc cách ly DB, gRPC cross-service.
 
 ---
 

@@ -1,0 +1,22 @@
+**/node_modules
+**/.next
+**/.turbo
+**/dist
+**/*.log
+**/*.log.*
+.git
+.gitignore
+
+# Local env files (injected via docker-compose environment)
+.env
+apps/**/.env
+packages/**/.env
+
+# Dev/test artifacts
+**/__tests__
+**/*.test.ts
+**/*.spec.ts
+**/coverage
+
+# Uploads (mounted as volume)
+apps/ocr-service/uploads

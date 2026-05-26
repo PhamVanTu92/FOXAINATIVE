@@ -4,7 +4,7 @@ import { ocrPrisma } from '@foxai/ocr-db';
 @Injectable()
 export class PrismaService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
-  public readonly client = ocrPrisma;
+  public readonly client: typeof ocrPrisma = ocrPrisma;
 
   async onModuleInit() {
     await this.client.$connect();

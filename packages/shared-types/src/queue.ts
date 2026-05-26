@@ -7,12 +7,21 @@ export const QUEUE_NAMES = {
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
 
+export type OcrProviderName = 'gemini' | 'claude' | 'local-pdf' | 'mock';
+
+export interface OcrFileRef {
+  url: string;
+  mimeType?: string;
+}
+
 export interface OcrJobPayload {
   documentId: string;
   schemaId: string;
   fileUrl: string;
   mimeType?: string;
+  extraFileUrls?: OcrFileRef[];
   language: 'vi' | 'en' | 'vi+en';
+  ocrProvider?: OcrProviderName;
 }
 
 export interface EmbeddingJobPayload {
