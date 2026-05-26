@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>KnowledgeService.Api</RootNamespace>
+    <AssemblyName>KnowledgeService.Api</AssemblyName>
+    <UserSecretsId>foxai-knowledge-service-d4e5f6a7-b8c9</UserSecretsId>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KnowledgeService.Application\KnowledgeService.Application.csproj" />
+    <ProjectReference Include="..\KnowledgeService.Infrastructure\KnowledgeService.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" Version="2.66.0" />
+    <PackageReference Include="Grpc.AspNetCore.Server.Reflection" Version="2.66.0" />
+    <PackageReference Include="Grpc.AspNetCore.HealthChecks" Version="2.66.0" />
+    <PackageReference Include="Google.Protobuf" Version="3.28.3" />
+    <PackageReference Include="Grpc.Tools" Version="2.67.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.3" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+    <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
+    <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
+    <PackageReference Include="DotNetEnv" Version="3.1.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Protobuf Include="..\..\..\..\packages\shared-proto\proto\knowledge\*.proto"
+              GrpcServices="Both"
+              ProtoRoot="..\..\..\..\packages\shared-proto\proto"
+              Link="Protos\knowledge\%(Filename).proto" />
+    <Protobuf Include="..\..\..\..\packages\shared-proto\proto\common\*.proto"
+              GrpcServices="None"
+              ProtoRoot="..\..\..\..\packages\shared-proto\proto"
+              Link="Protos\common\%(Filename).proto" />
+  </ItemGroup>
+
+</Project>
