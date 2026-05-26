@@ -26,15 +26,21 @@ export class ClaudeOcrProvider implements IOcrProvider {
     this.client = new Anthropic({ apiKey });
     this.logger.log(`🤖 Claude OCR → document ${request.documentId}`);
 
-    // --- 1. Đọc file và parse bằng FileParserFactory ---
-    const filePath = resolveFilePath(request.fileUrl);
-    if (!filePath || !fs.existsSync(filePath)) {
-      throw new Error(`Không tìm thấy file: ${request.fileUrl}`);
+    // --- 1. Đọc / nhận nội dung file ---
+    let parsedFile: { type: 'image' | 'text'; content: string; mimeType?: string };
+    if (request.inlineContent) {
+      parsedFile = request.inlineContent;
+      this.logger.log(`📦 inlineContent: type="${parsedFile.type}" mimeType="${parsedFile.mimeType ?? ''}"`);
+    } else {
+      const filePath = resolveFilePath(request.fileUrl);
+      if (!filePath || !fs.existsSync(filePath)) {
+        throw new Error(`Không tìm thấy file: ${request.fileUrl}`);
+      }
+      const buffer = fs.readFileSync(filePath);
+      const parser = FileParserFactory.getParser(filePath);
+      parsedFile = await parser.parse(buffer, filePath);
+      this.logger.log(`📦 Parser: ${path.extname(filePath)} → type="${parsedFile.type}"`);
     }
-    const buffer = fs.readFileSync(filePath);
-    const parser = FileParserFactory.getParser(filePath);
-    const parsedFile = await parser.parse(buffer, filePath);
-    this.logger.log(`📦 Parser: ${path.extname(filePath)} → type="${parsedFile.type}"`);
 
     // --- 2. Xây dựng prompt ---
     const fieldsPrompt = buildFieldsPrompt(request);

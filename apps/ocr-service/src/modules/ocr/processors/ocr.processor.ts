@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import { Inject, Logger } from '@nestjs/common';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
@@ -10,6 +12,10 @@ import { MockOcrProvider } from '../providers/mock-ocr.provider';
 import { LocalPdfOcrProvider } from '../providers/local-pdf-ocr.provider';
 import { ClaudeOcrProvider } from '../providers/claude-ocr.provider';
 import { GeminiOcrProvider } from '../providers/gemini-ocr.provider';
+import { splitPdfToPages } from '../file-parsers/pdf-splitter';
+import { splitExcelToChunks } from '../file-parsers/excel-splitter';
+
+const PAGE_BATCH_SIZE = 5;
 
 @Processor(QUEUE_NAMES.OCR, { concurrency: Number(process.env['WORKER_CONCURRENCY'] ?? 3) })
 export class OcrProcessor extends WorkerHost {
@@ -70,14 +76,85 @@ export class OcrProcessor extends WorkerHost {
 
       this.logger.log(`🔌 Provider: ${ocr.name}${ocrProvider ? ` (per-job override)` : ` (server default)`} | ${allFiles.length} file(s)`);
 
-      // Scan each file, then merge results
-      const progressPerFile = 45 / allFiles.length;
+      // Scan files — PDF đơn → tách trang → song song; Excel đơn → tách chunk → song song; còn lại → tuần tự
       const results: OcrResult[] = [];
-      for (let i = 0; i < allFiles.length; i++) {
-        const f = allFiles[i]!;
-        const r = await ocr.scan({ ...baseRequest, fileUrl: f.url, mimeType: f.mimeType });
-        results.push(r);
-        await job.updateProgress(20 + Math.round(progressPerFile * (i + 1)));
+      const singleFile = allFiles.length === 1 ? allFiles[0]! : null;
+      const isPdfFile = (f: OcrFileRef) =>
+        f.mimeType === 'application/pdf' || f.url.toLowerCase().endsWith('.pdf');
+      const isExcelFile = (f: OcrFileRef) =>
+        /\.(xlsx?|csv)$/i.test(f.url) ||
+        ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel', 'text/csv'].includes(f.mimeType ?? '');
+
+      if (singleFile && isPdfFile(singleFile)) {
+        const localPath = resolveLocalPath(singleFile.url);
+        let pageBuffers: Buffer[] = [];
+        if (localPath && fs.existsSync(localPath)) {
+          try {
+            pageBuffers = await splitPdfToPages(fs.readFileSync(localPath));
+          } catch {
+            this.logger.warn(`⚠️  Không tách trang PDF được, fallback scan toàn bộ`);
+          }
+        }
+
+        if (pageBuffers.length > 1) {
+          this.logger.log(`📄 PDF ${pageBuffers.length} trang — xử lý song song (batch ${PAGE_BATCH_SIZE})`);
+          for (let bi = 0; bi < pageBuffers.length; bi += PAGE_BATCH_SIZE) {
+            const batch = pageBuffers.slice(bi, bi + PAGE_BATCH_SIZE);
+            const batchResults = await Promise.all(
+              batch.map(pb => ocr.scan({
+                ...baseRequest,
+                fileUrl: singleFile.url,
+                mimeType: 'application/pdf',
+                inlineContent: { type: 'image', content: pb.toString('base64'), mimeType: 'application/pdf' },
+              })),
+            );
+            results.push(...batchResults);
+            await job.updateProgress(20 + Math.round(45 * Math.min(bi + batch.length, pageBuffers.length) / pageBuffers.length));
+          }
+        } else {
+          // Single-page PDF hoặc fallback
+          results.push(await ocr.scan({ ...baseRequest, fileUrl: singleFile.url, mimeType: singleFile.mimeType }));
+          await job.updateProgress(65);
+        }
+      } else if (singleFile && isExcelFile(singleFile)) {
+        const localPath = resolveLocalPath(singleFile.url);
+        let chunks: { label: string; content: string }[] = [];
+        if (localPath && fs.existsSync(localPath)) {
+          try {
+            chunks = splitExcelToChunks(fs.readFileSync(localPath));
+          } catch {
+            this.logger.warn(`⚠️  Không tách sheet Excel được, fallback scan toàn bộ`);
+          }
+        }
+
+        if (chunks.length > 1) {
+          this.logger.log(`📊 Excel ${chunks.length} chunk(s) — xử lý song song (batch ${PAGE_BATCH_SIZE})`);
+          for (let bi = 0; bi < chunks.length; bi += PAGE_BATCH_SIZE) {
+            const batch = chunks.slice(bi, bi + PAGE_BATCH_SIZE);
+            const batchResults = await Promise.all(
+              batch.map(chunk => ocr.scan({
+                ...baseRequest,
+                fileUrl: singleFile.url,
+                mimeType: singleFile.mimeType,
+                inlineContent: { type: 'text', content: chunk.content },
+              })),
+            );
+            results.push(...batchResults);
+            await job.updateProgress(20 + Math.round(45 * Math.min(bi + batch.length, chunks.length) / chunks.length));
+          }
+        } else {
+          // 1 chunk hoặc fallback
+          results.push(await ocr.scan({ ...baseRequest, fileUrl: singleFile.url, mimeType: singleFile.mimeType }));
+          await job.updateProgress(65);
+        }
+      } else {
+        // Nhiều file hoặc file không phải PDF/Excel → tuần tự như cũ
+        const progressPerFile = 45 / allFiles.length;
+        for (let i = 0; i < allFiles.length; i++) {
+          const f = allFiles[i]!;
+          results.push(await ocr.scan({ ...baseRequest, fileUrl: f.url, mimeType: f.mimeType }));
+          await job.updateProgress(20 + Math.round(progressPerFile * (i + 1)));
+        }
       }
 
       const result = mergeOcrResults(results);
@@ -139,6 +216,13 @@ export class OcrProcessor extends WorkerHost {
       throw err;
     }
   }
+}
+
+function resolveLocalPath(fileUrl: string): string | null {
+  if (fileUrl.startsWith('file:///')) return decodeURIComponent(fileUrl.slice(8));
+  if (fileUrl.startsWith('file://'))  return decodeURIComponent(fileUrl.slice(7));
+  if (path.isAbsolute(fileUrl))       return fileUrl;
+  return null;
 }
 
 function mergeOcrResults(results: OcrResult[]): OcrResult {

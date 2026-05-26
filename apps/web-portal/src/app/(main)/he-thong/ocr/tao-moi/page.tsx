@@ -53,6 +53,11 @@ const PROMPT_TEMPLATES: { id: string; label: string; text: string }[] = [
     label: 'Bảng có chữ viết tay',
     text: 'Tài liệu có thể chứa phần điền tay kết hợp với phần in sẵn. Hãy ưu tiên đọc chính xác phần chữ viết tay, kể cả khi nét chữ không rõ ràng. Nếu không đọc được, ghi nhận là null thay vì đoán sai.',
   },
+  {
+    id: 'flat-json-merged',
+    label: 'Flat JSON + Forward-fill ô gộp',
+    text: 'Hãy trích xuất bảng thành một mảng JSON phẳng (Flat JSON Array), không lồng nhau.\n\nQuy tắc xử lý ô gộp (Merged Cells):\n- Tại các cột bị gộp dọc, bắt buộc phải LẶP LẠI (Forward-fill) giá trị đó cho từng dòng dữ liệu con. Không được để trống hoặc dùng mảng lồng.\n- Các ô không có dữ liệu thì để chuỗi rỗng "".',
+  },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -676,7 +681,7 @@ export default function TaoMoiOcrPage() {
               onChange={e => setAiPrompt(e.target.value)}
               rows={5}
               placeholder={`Nhập hướng dẫn chung cho AI khi nhận dạng loại chứng từ này.\n\nVD: Đây là phiếu nhập kho nội bộ, không phải hóa đơn VAT. Cột "Cộng" là tổng tiền chưa VAT. Trường "Số" là số phiếu nhập, không phải số hóa đơn. Nếu có nhiều bảng hàng hóa, chỉ lấy bảng đầu tiên.`}
-              className="w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none text-gray-700 placeholder:text-gray-300 leading-relaxed"
+              className="w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 resize-y min-h-[120px] text-gray-700 placeholder:text-gray-300 leading-relaxed"
             />
             <p className="text-xs text-gray-400 mt-2">
               Prompt này được đưa vào câu hỏi gửi AI mỗi lần quét tài liệu thuộc loại chứng từ này. Dùng để làm rõ các trường hợp đặc biệt hoặc cách đọc tài liệu.

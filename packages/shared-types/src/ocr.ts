@@ -63,4 +63,6 @@ export interface OcrRequest {
   schemaTables?: OcrSchemaTable[];
   /** Prompt chung do người dùng cấu hình cho loại chứng từ này */
   promptTemplate?: string | null;
+  /** Nội dung file đã parse sẵn — provider sẽ skip đọc từ disk khi field này được set */
+  inlineContent?: { type: 'image' | 'text'; content: string; mimeType?: string };
 }
