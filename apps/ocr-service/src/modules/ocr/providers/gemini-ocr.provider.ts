@@ -23,17 +23,21 @@ export class GeminiOcrProvider implements IOcrProvider {
     this.genAI = new GoogleGenerativeAI(apiKey);
     const model = process.env['GEMINI_MODEL'] ?? 'gemini-2.5-flash';
 
-    // --- 1. Đọc file từ disk ---
-    const filePath = resolveFilePath(request.fileUrl);
-    if (!filePath || !fs.existsSync(filePath)) {
-      throw new Error(`Không tìm thấy file: ${request.fileUrl}`);
+    // --- 1. Đọc / nhận nội dung file ---
+    let parsedFile: { type: 'image' | 'text'; content: string; mimeType?: string };
+    if (request.inlineContent) {
+      parsedFile = request.inlineContent;
+      this.logger.log(`🔮 Gemini OCR → document ${request.documentId} | inlineContent: type="${parsedFile.type}" | model: ${model}`);
+    } else {
+      const filePath = resolveFilePath(request.fileUrl);
+      if (!filePath || !fs.existsSync(filePath)) {
+        throw new Error(`Không tìm thấy file: ${request.fileUrl}`);
+      }
+      const buffer = fs.readFileSync(filePath);
+      const parser = FileParserFactory.getParser(filePath);
+      parsedFile = await parser.parse(buffer, filePath);
+      this.logger.log(`🔮 Gemini OCR → document ${request.documentId} | parser: ${path.extname(filePath)} → type="${parsedFile.type}" | model: ${model}`);
     }
-    const buffer = fs.readFileSync(filePath);
-
-    // --- 2. Parse file bằng FileParserFactory (Strategy Pattern) ---
-    const parser = FileParserFactory.getParser(filePath);
-    const parsedFile = await parser.parse(buffer, filePath);
-    this.logger.log(`🔮 Gemini OCR → document ${request.documentId} | parser: ${path.extname(filePath)} → type="${parsedFile.type}" | model: ${model}`);
 
     // --- 3. Xây dựng prompt ---
     const fieldsPrompt = buildFieldsPrompt(request);
@@ -85,8 +89,15 @@ ${tablesPrompt}`;
     }
 
     // --- 5. Gọi Gemini API ---
-    const geminiModel = this.genAI.getGenerativeModel({ model });
+    // thinkingBudget=0: tắt chế độ "thinking" của Gemini 2.5 — không cần suy luận cho bài toán trích xuất có cấu trúc
+    const geminiModel = this.genAI.getGenerativeModel({
+      model,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      generationConfig: { thinkingConfig: { thinkingBudget: 0 } } as any,
+    });
+    const t0 = Date.now();
     const geminiResult = await geminiModel.generateContent(contentParts);
+    this.logger.log(`⏱️  Gemini API response: ${Date.now() - t0}ms`);
     const rawText = geminiResult.response.text();
     this.logger.debug(`Gemini raw response:\n${rawText.slice(0, 400)}`);
 
