@@ -127,6 +127,32 @@ export default function ChungTuPage() {
   const [detailDoc, setDetailDoc]       = useState<DocDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [activeFileIdx, setActiveFileIdx] = useState(0);
+  const [panelWidth, setPanelWidth]     = useState(480);
+  const [isDragging, setIsDragging]     = useState(false);
+  const dragStartRef = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  const handleDividerMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    dragStartRef.current = { startX: e.clientX, startWidth: panelWidth };
+    setIsDragging(true);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!dragStartRef.current) return;
+      const delta = dragStartRef.current.startX - ev.clientX;
+      setPanelWidth(Math.max(320, Math.min(800, dragStartRef.current.startWidth + delta)));
+    };
+    const onMouseUp = () => {
+      dragStartRef.current = null;
+      setIsDragging(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }, [panelWidth]);
 
   // Confirm dialog
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -795,8 +821,8 @@ export default function ChungTuPage() {
       {/* Detail drawer */}
       {detailOpen && (
         <div className="fixed inset-0 z-50 flex">
-          {/* Left: document viewer */}
-          <div className="flex-1 bg-gray-900 flex flex-col overflow-hidden">
+          {/* Left: document viewer — pointer-events-none khi kéo để iframe không nuốt mouseup */}
+          <div className={`flex-1 bg-gray-900 flex flex-col overflow-hidden${isDragging ? ' pointer-events-none' : ''}`}>
             {/* File tabs — shown when document has multiple source files */}
             {detailDoc && (() => {
               const allFiles = [
@@ -903,8 +929,15 @@ export default function ChungTuPage() {
               );
             })()}
           </div>
+          {/* Drag divider */}
+          <div
+            onMouseDown={handleDividerMouseDown}
+            className="w-1 shrink-0 bg-gray-700 hover:bg-blue-400 active:bg-blue-500 cursor-col-resize transition-colors relative"
+          >
+            <div className="absolute inset-y-0 -left-1 -right-1" />
+          </div>
           {/* Right: detail panel */}
-          <div className="w-[480px] shrink-0 bg-white shadow-2xl flex flex-col overflow-hidden">
+          <div className="shrink-0 bg-white shadow-2xl flex flex-col overflow-hidden" style={{ width: panelWidth }}>
             {/* Drawer header */}
             <div className="px-6 py-4 border-b flex items-start justify-between shrink-0 bg-white">
               <div className="min-w-0 flex-1">
