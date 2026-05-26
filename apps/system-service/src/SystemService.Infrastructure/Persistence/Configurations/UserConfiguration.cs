@@ -11,6 +11,7 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.ToTable("users");
         builder.HasKey(u => u.Id);
 
+        builder.Property(u => u.Username).IsRequired().HasMaxLength(64);
         builder.Property(u => u.Email).IsRequired().HasMaxLength(254);
         builder.Property(u => u.PasswordHash).IsRequired().HasMaxLength(255);
         builder.Property(u => u.FullName).IsRequired().HasMaxLength(200);
@@ -22,6 +23,7 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .HasMaxLength(20)
             .IsRequired();
 
+        builder.HasIndex(u => u.Username).IsUnique();
         builder.HasIndex(u => u.Email).IsUnique();
         builder.HasIndex(u => u.Status);
         builder.HasIndex(u => u.OrganizationId);

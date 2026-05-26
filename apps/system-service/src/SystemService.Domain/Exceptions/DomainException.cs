@@ -45,6 +45,17 @@ public sealed class EmailAlreadyExistsException : DomainException
     }
 }
 
+public sealed class UsernameAlreadyExistsException : DomainException
+{
+    public string Username { get; }
+
+    public UsernameAlreadyExistsException(string username)
+        : base($"Tên đăng nhập '{username}' đã được sử dụng.")
+    {
+        Username = username;
+    }
+}
+
 public sealed class CodeAlreadyExistsException : DomainException
 {
     public string EntityName { get; }

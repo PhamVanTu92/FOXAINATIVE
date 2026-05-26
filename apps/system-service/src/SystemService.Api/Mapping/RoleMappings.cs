@@ -18,7 +18,19 @@ internal static class RoleMappings
         };
 
         if (!string.IsNullOrEmpty(dto.Description)) msg.Description = dto.Description;
-        msg.Permissions.AddRange(dto.Permissions);
+
+        foreach (var g in dto.Grants)
+        {
+            msg.Grants.Add(new RolesProto.RoleGrantDto
+            {
+                ModuleId = g.ModuleId.ToString(),
+                ModuleCode = g.ModuleCode,
+                ModuleName = g.ModuleName,
+                ActionId = g.ActionId.ToString(),
+                ActionCode = g.ActionCode,
+                ActionName = g.ActionName,
+            });
+        }
         return msg;
     }
 }

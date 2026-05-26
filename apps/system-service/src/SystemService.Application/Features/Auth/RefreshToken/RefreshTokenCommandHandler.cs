@@ -29,7 +29,7 @@ public sealed class RefreshTokenCommandHandler(
             throw new UnauthorizedException("Refresh token đã hết hạn hoặc bị thu hồi.");
         }
 
-        var user = await users.FindByIdWithRolesAndPermissionsAsync(stored.UserId, cancellationToken)
+        var user = await users.FindByIdWithGrantsAsync(stored.UserId, cancellationToken)
                    ?? throw new UnauthorizedException("Tài khoản không tồn tại.");
 
         if (user.Status != UserStatus.Active)

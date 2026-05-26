@@ -32,7 +32,7 @@ public sealed class RefreshTokenTests(PostgresContainerFixture postgres) : IAsyn
     {
         var login = await _client.LoginAsync(new LoginRequest
         {
-            Email = DataSeeder.DefaultAdminEmail,
+            Login = DataSeeder.DefaultAdminEmail,
             Password = DataSeeder.DefaultAdminPassword,
         });
 
@@ -58,7 +58,7 @@ public sealed class RefreshTokenTests(PostgresContainerFixture postgres) : IAsyn
     {
         var login = await _client.LoginAsync(new LoginRequest
         {
-            Email = DataSeeder.DefaultAdminEmail,
+            Login = DataSeeder.DefaultAdminEmail,
             Password = DataSeeder.DefaultAdminPassword,
         });
 
@@ -78,7 +78,7 @@ public sealed class RefreshTokenTests(PostgresContainerFixture postgres) : IAsyn
     {
         var login = await _client.LoginAsync(new LoginRequest
         {
-            Email = DataSeeder.DefaultAdminEmail,
+            Login = DataSeeder.DefaultAdminEmail,
             Password = DataSeeder.DefaultAdminPassword,
         });
 

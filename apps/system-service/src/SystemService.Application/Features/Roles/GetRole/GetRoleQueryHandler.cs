@@ -10,7 +10,7 @@ public sealed class GetRoleQueryHandler(IRoleRepository roles) : IRequestHandler
 {
     public async Task<RoleDto> Handle(GetRoleQuery request, CancellationToken cancellationToken)
     {
-        var role = await roles.FindByIdWithPermissionsAsync(request.Id, cancellationToken)
+        var role = await roles.FindByIdWithGrantsAsync(request.Id, cancellationToken)
                    ?? throw new NotFoundException("Role", request.Id);
         return role.ToDto();
     }

@@ -24,5 +24,12 @@ public sealed class OrganizationNodeConfiguration : IEntityTypeConfiguration<Org
             .WithMany(p => p.Children)
             .HasForeignKey(o => o.ParentId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(o => o.Manager)
+            .WithMany()
+            .HasForeignKey(o => o.ManagerId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(o => o.ManagerId);
     }
 }

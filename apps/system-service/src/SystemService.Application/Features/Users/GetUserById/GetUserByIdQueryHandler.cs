@@ -10,7 +10,7 @@ public sealed class GetUserByIdQueryHandler(IUserRepository users) : IRequestHan
 {
     public async Task<UserDto> Handle(GetUserByIdQuery request, CancellationToken cancellationToken)
     {
-        var user = await users.FindByIdWithRolesAndPermissionsAsync(request.Id, cancellationToken)
+        var user = await users.FindByIdWithGrantsAsync(request.Id, cancellationToken)
                    ?? throw new NotFoundException("User", request.Id);
         return user.ToDto();
     }

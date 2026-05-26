@@ -9,18 +9,14 @@ public sealed class RoleRepository(SystemDbContext db) : IRoleRepository
     public Task<Role?> FindByIdAsync(Guid id, CancellationToken ct = default) =>
         db.Roles.FirstOrDefaultAsync(r => r.Id == id, ct);
 
-    public Task<Role?> FindByIdWithPermissionsAsync(Guid id, CancellationToken ct = default) =>
-        db.Roles
-            .Include(r => r.RolePermissions).ThenInclude(rp => rp.Permission)
-            .FirstOrDefaultAsync(r => r.Id == id, ct);
+    public Task<Role?> FindByIdWithGrantsAsync(Guid id, CancellationToken ct = default) =>
+        BuildWithGrantsQuery().FirstOrDefaultAsync(r => r.Id == id, ct);
 
     public Task<Role?> FindByCodeAsync(string code, CancellationToken ct = default) =>
         db.Roles.FirstOrDefaultAsync(r => r.Code == code, ct);
 
-    public Task<Role?> FindByCodeWithPermissionsAsync(string code, CancellationToken ct = default) =>
-        db.Roles
-            .Include(r => r.RolePermissions).ThenInclude(rp => rp.Permission)
-            .FirstOrDefaultAsync(r => r.Code == code, ct);
+    public Task<Role?> FindByCodeWithGrantsAsync(string code, CancellationToken ct = default) =>
+        BuildWithGrantsQuery().FirstOrDefaultAsync(r => r.Code == code, ct);
 
     public Task<bool> CodeExistsAsync(string code, CancellationToken ct = default) =>
         db.Roles.AnyAsync(r => r.Code == code, ct);
@@ -29,7 +25,7 @@ public sealed class RoleRepository(SystemDbContext db) : IRoleRepository
         int page,
         int pageSize,
         string? search,
-        bool includePermissions,
+        bool includeGrants,
         string? sortBy,
         string? sortOrder,
         CancellationToken ct = default)
@@ -56,9 +52,11 @@ public sealed class RoleRepository(SystemDbContext db) : IRoleRepository
 
         query = query.Skip((page - 1) * pageSize).Take(pageSize);
 
-        if (includePermissions)
+        if (includeGrants)
         {
-            query = query.Include(r => r.RolePermissions).ThenInclude(rp => rp.Permission);
+            query = query
+                .Include(r => r.RolePermissions).ThenInclude(rp => rp.Module).ThenInclude(m => m.Group)
+                .Include(r => r.RolePermissions).ThenInclude(rp => rp.Action);
         }
 
         var items = await query.ToListAsync(ct);
@@ -71,7 +69,21 @@ public sealed class RoleRepository(SystemDbContext db) : IRoleRepository
         return await db.Roles.Where(r => codeList.Contains(r.Code)).ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<(Guid ModuleId, Guid ActionId)>> GetGrantPairsAsync(Guid roleId, CancellationToken ct = default)
+    {
+        var rows = await db.RolePermissions
+            .Where(rp => rp.RoleId == roleId)
+            .Select(rp => new { rp.ModuleId, rp.ActionId })
+            .ToListAsync(ct);
+        return rows.Select(r => (r.ModuleId, r.ActionId)).ToList();
+    }
+
     public void Add(Role role) => db.Roles.Add(role);
 
     public void Remove(Role role) => db.Roles.Remove(role);
+
+    private IQueryable<Role> BuildWithGrantsQuery() =>
+        db.Roles
+            .Include(r => r.RolePermissions).ThenInclude(rp => rp.Module).ThenInclude(m => m.Group)
+            .Include(r => r.RolePermissions).ThenInclude(rp => rp.Action);
 }

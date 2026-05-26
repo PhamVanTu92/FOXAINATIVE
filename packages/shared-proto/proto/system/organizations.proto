@@ -11,6 +11,7 @@ service OrganizationsService {
   rpc CreateNode(CreateNodeRequest) returns (OrganizationNodeDto);
   rpc GetNode(GetNodeRequest) returns (OrganizationNodeDto);
   rpc GetTree(GetTreeRequest) returns (OrganizationTreeResponse);
+  rpc ListNodes(ListNodesRequest) returns (ListNodesResponse);
   rpc UpdateNode(UpdateNodeRequest) returns (OrganizationNodeDto);
   rpc MoveNode(MoveNodeRequest) returns (OrganizationNodeDto);
   rpc DeleteNode(DeleteNodeRequest) returns (foxai.common.EmptyResponse);
@@ -27,12 +28,16 @@ message OrganizationNodeDto {
   repeated OrganizationNodeDto children = 7;
   string created_at = 8;
   string updated_at = 9;
+  optional string parent_name = 10;
+  optional string manager_id = 11;
+  optional string manager_name = 12;
 }
 
 message CreateNodeRequest {
   string code = 1;
   string name = 2;
   optional string parent_id = 3;
+  optional string manager_id = 4;
 }
 
 message GetNodeRequest {
@@ -50,6 +55,8 @@ message OrganizationTreeResponse {
 message UpdateNodeRequest {
   string id = 1;
   optional string name = 2;
+  optional string manager_id = 3;
+  bool clear_manager = 4;
 }
 
 message MoveNodeRequest {
@@ -59,6 +66,15 @@ message MoveNodeRequest {
 
 message DeleteNodeRequest {
   string id = 1;
+}
+
+message ListNodesRequest {
+  foxai.common.PageRequest pagination = 1;
+}
+
+message ListNodesResponse {
+  repeated OrganizationNodeDto items = 1;
+  foxai.common.PageMetadata page = 2;
 }
 
 message ListUsersByOrgRequest {
