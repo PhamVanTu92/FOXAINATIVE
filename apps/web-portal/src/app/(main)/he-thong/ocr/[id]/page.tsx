@@ -335,6 +335,17 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
     } catch (e: unknown) { alert((e as Error).message); }
   };
 
+  // ─── Validation ──────────────────────────────────────────────────────────
+
+  const canSave =
+    name.trim() !== '' &&
+    !(schema?.fields.some(f => { const e = fieldEdits[f.id]; return e !== undefined && !e.label.trim(); })) &&
+    !(schema?.tables.some(t => { const te = tableEdits[t.id]; return te !== undefined && !te.name.trim(); })) &&
+    !(schema?.tables.some(t => t.columns.some(c => { const ce = colEdits[c.id]; return ce !== undefined && !ce.label.trim(); }))) &&
+    !(addingField && !newField.label.trim()) &&
+    !(addingTable && (!newTable.name.trim() || !newTable.initColLabel.trim())) &&
+    !Object.values(pendingCols).flat().some(pc => !pc.label.trim());
+
   // ─── Screens ─────────────────────────────────────────────────────────────
 
   if (loading) return (
@@ -384,7 +395,7 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
           </button>
           <button
             onClick={handleSaveMeta}
-            disabled={metaSaving}
+            disabled={metaSaving || !canSave}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
             <Save className="w-4 h-4" />

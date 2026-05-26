@@ -231,6 +231,11 @@ export default function TaoMoiOcrPage() {
     setSaveError(null);
     if (!code.trim()) { setSaveError('Vui lòng nhập mã chứng từ.'); return; }
     if (!name.trim()) { setSaveError('Vui lòng nhập tên chứng từ.'); return; }
+    if (fields.some(f => !f.label.trim())) { setSaveError('Vui lòng nhập tên cho tất cả các trường OCR.'); return; }
+    for (const t of tables) {
+      if (!t.name.trim()) { setSaveError('Vui lòng nhập tên cho tất cả các bảng OCR.'); return; }
+      if (t.columns.some(c => !c.label.trim())) { setSaveError(`Bảng "${t.name}" còn cột chưa nhập tên. Vui lòng nhập đầy đủ.`); return; }
+    }
     const validFields = fields.filter(f => f.label.trim() && f.fieldKey.trim());
     if (validFields.length === 0) { setSaveError('Cần ít nhất 1 trường OCR hợp lệ.'); return; }
     const validTables = tables
@@ -269,6 +274,14 @@ export default function TaoMoiOcrPage() {
     }
   };
 
+  // ─── Validation ──────────────────────────────────────────────────────────────
+
+  const canSave =
+    code.trim() !== '' &&
+    name.trim() !== '' &&
+    fields.every(f => f.label.trim() !== '') &&
+    tables.every(t => t.name.trim() !== '' && t.columns.every(c => c.label.trim() !== ''));
+
   // ─── Render ───────────────────────────────────────────────────────────────────
 
   return (
@@ -305,7 +318,7 @@ export default function TaoMoiOcrPage() {
           </button>
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || !canSave}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
             <Save className="w-4 h-4" />
@@ -421,7 +434,7 @@ export default function TaoMoiOcrPage() {
                       value={f.label}
                       onChange={e => updateFieldLabel(idx, e.target.value)}
                       placeholder="Tên trường *"
-                      className="w-full px-2.5 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className={`w-full px-2.5 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 ${!f.label.trim() ? 'border-red-400 bg-red-50' : ''}`}
                     />
                   </td>
                   <td className="px-4 py-3">
@@ -519,7 +532,7 @@ export default function TaoMoiOcrPage() {
                         value={t.name}
                         onChange={e => updateTableName(tIdx, e.target.value)}
                         placeholder="Tên bảng *"
-                        className="flex-1 min-w-0 px-2.5 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className={`flex-1 min-w-0 px-2.5 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 ${!t.name.trim() ? 'border-red-400 bg-red-50' : ''}`}
                       />
                       <input
                         value={t.tableKey}
@@ -577,7 +590,7 @@ export default function TaoMoiOcrPage() {
                                   value={c.label}
                                   onChange={e => updateColumnLabel(tIdx, cIdx, e.target.value)}
                                   placeholder="Tên cột *"
-                                  className="w-full px-2 py-1.5 border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                  className={`w-full px-2 py-1.5 border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${!c.label.trim() ? 'border-red-400 bg-red-50' : ''}`}
                                 />
                               </td>
                               <td className="px-3 py-2">
