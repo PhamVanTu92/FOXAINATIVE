@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   # ─── System DB ──────────────────────────────────────────────────────────────
   system-db:
@@ -7,15 +5,17 @@ services:
     container_name: foxai-system-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: system_user
-      POSTGRES_PASSWORD: system_pass
-      POSTGRES_DB: system_db
+      # Đọc credentials từ root .env (single source of truth) - default postgres/postgres
+      POSTGRES_USER: ${SYSTEM_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${SYSTEM_DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${SYSTEM_DB_NAME:-system_db}
+    # Host 5432 thường bị PostgreSQL native chiếm trên Windows -> map ra 5433.
     ports:
-      - '5432:5432'
+      - '5433:5432'
     volumes:
       - system_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U system_user -d system_db']
+      test: ['CMD-SHELL', 'pg_isready -U ${SYSTEM_DB_USER:-postgres} -d ${SYSTEM_DB_NAME:-system_db}']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -60,6 +60,89 @@ services:
       timeout: 5s
       retries: 5
 
+  # ─── System Service (.NET 9 + gRPC) ─────────────────────────────────────────
+  system-service:
+    build:
+      context: .
+      dockerfile: apps/system-service/Dockerfile
+    container_name: foxai-system-service
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${SYSTEM_SERVICE_ENV:-Production}
+      # Container-to-container: host = `system-db` (compose DNS). Đọc URL từ
+      # SYSTEM_DATABASE_URL_DOCKER ở root .env (riêng với native URL dùng localhost).
+      SYSTEM_DATABASE_URL: ${SYSTEM_DATABASE_URL_DOCKER:-postgresql://myuser:mypassword@system-db:5432/system_db}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-use-a-long-random-string-32+}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      Jwt__Secret: ${JWT_SECRET:-change-me-in-production-use-a-long-random-string-32+}
+      Jwt__Issuer: foxai-system-service
+      Jwt__Audience: foxai-platform
+      Jwt__ExpiresIn: ${JWT_EXPIRES_IN:-7d}
+      GRPC_PORT: '50051'
+      HTTP_PORT: '3002'
+      SYSTEM_SERVICE_AUTOMIGRATE: 'true'
+      SYSTEM_SERVICE_SEED: 'true'
+    # Host port 51051 because Windows often reserves 49960-50059 for HyperV/WSL2.
+    # Container-to-container traffic uses internal 50051.
+    ports:
+      - '51051:50051'
+      - '3002:3002'
+    depends_on:
+      system-db:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:3002/health']
+      interval: 20s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  # ─── Knowledge DB ───────────────────────────────────────────────────────────
+  knowledge-db:
+    image: postgres:16-alpine
+    container_name: foxai-knowledge-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${KNOWLEDGE_DB_USER:-kb_user}
+      POSTGRES_PASSWORD: ${KNOWLEDGE_DB_PASSWORD:-kb_pass}
+      POSTGRES_DB: ${KNOWLEDGE_DB_NAME:-knowledge_db}
+    ports:
+      - '5435:5432'
+    volumes:
+      - knowledge_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${KNOWLEDGE_DB_USER:-kb_user} -d ${KNOWLEDGE_DB_NAME:-knowledge_db}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Knowledge Service (.NET 9 + gRPC) ──────────────────────────────────────
+  knowledge-service:
+    build:
+      context: .
+      dockerfile: apps/knowledge-service/Dockerfile
+    container_name: foxai-knowledge-service
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${KNOWLEDGE_SERVICE_ENV:-Production}
+      KNOWLEDGE_DATABASE_URL: ${KNOWLEDGE_DATABASE_URL_DOCKER:-postgresql://kb_user:kb_pass@knowledge-db:5432/knowledge_db}
+      GRPC_PORT: '50052'
+      HTTP_PORT: '3005'
+      KNOWLEDGE_SERVICE_AUTOMIGRATE: 'true'
+      KNOWLEDGE_SERVICE_SEED: 'true'
+    ports:
+      - '52052:50052'
+      - '3005:3005'
+    depends_on:
+      knowledge-db:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:3005/health']
+      interval: 20s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
   # ─── Redis (BullMQ) ─────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
@@ -76,8 +159,68 @@ services:
       timeout: 5s
       retries: 5
 
+  # ─── OCR API (HTTP server + job producer) ───────────────────────────────────
+  ocr-api:
+    build:
+      context: .
+      dockerfile: apps/ocr-service/Dockerfile
+    container_name: foxai-ocr-api
+    restart: unless-stopped
+    environment:
+      APP_MODE: api
+      NODE_ENV: production
+      OCR_SERVICE_PORT: 3003
+      OCR_DATABASE_URL: postgresql://ocr_user:ocr_pass@ocr-db:5432/ocr_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ''
+      BULLMQ_PREFIX: ocr
+      OCR_PROVIDER: ${OCR_PROVIDER:-gemini}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      WORKER_CONCURRENCY: 3
+      UPLOAD_DIR: ./uploads
+    ports:
+      - '${OCR_SERVICE_PORT:-3003}:3003'
+    volumes:
+      - ocr_uploads:/app/apps/ocr-service/uploads
+    depends_on:
+      ocr-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ─── OCR Workers (job consumers, no HTTP) ────────────────────────────────────
+  ocr-worker:
+    build:
+      context: .
+      dockerfile: apps/ocr-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      APP_MODE: worker
+      NODE_ENV: production
+      OCR_DATABASE_URL: postgresql://ocr_user:ocr_pass@ocr-db:5432/ocr_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ''
+      BULLMQ_PREFIX: ocr
+      OCR_PROVIDER: ${OCR_PROVIDER:-gemini}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      WORKER_CONCURRENCY: 15
+      UPLOAD_DIR: ./uploads
+    volumes:
+      - ocr_uploads:/app/apps/ocr-service/uploads
+    depends_on:
+      ocr-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      replicas: 2
+
 volumes:
   system_db_data:
   ocr_db_data:
   chatbot_db_data:
+  knowledge_db_data:
   redis_data:
+  ocr_uploads:

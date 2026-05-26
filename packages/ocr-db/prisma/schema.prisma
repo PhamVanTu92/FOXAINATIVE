@@ -48,6 +48,7 @@ enum DocumentStatus {
   DRAFT
   CONFIRMED
   PROCESSED
+  TRANSFERRED
   ERROR
 }
 
@@ -127,6 +128,7 @@ model DocumentTableColumn {
   label        String
   dataType     FieldDataType
   isRequired   Boolean       @default(false)
+  description  String?
   displayOrder Int           @default(0)
 
   table DocumentTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
@@ -145,10 +147,11 @@ model Document {
   schemaId   String
   schemaCode String
 
-  fileUrl  String
-  fileName String?
-  fileSize Int?
-  mimeType String?
+  fileUrl       String
+  fileName      String?
+  fileSize      Int?
+  mimeType      String?
+  extraFileUrls Json?   @map("extra_file_urls")
 
   // Denormalized header fields for fast filter
   invoiceNumber String?
@@ -182,7 +185,6 @@ model Document {
   lineItems DocumentLineItem[]
   auditLogs DocumentAuditLog[]
 
-  @@unique([sellerTaxCode, invoiceNumber], name: "uq_seller_invoice")
   @@index([status])
   @@index([createdAt])
   @@index([schemaCode])
@@ -226,6 +228,7 @@ model DocumentLineItem {
   documentId String
   stt        Int
 
+  tableKey  String?
   name      String?
   unit      String?
   quantity  Decimal? @db.Decimal(18, 4)
@@ -240,7 +243,7 @@ model DocumentLineItem {
 
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
-  @@unique([documentId, stt])
+  @@index([documentId, tableKey, stt])
   @@index([documentId])
   @@map("document_line_items")
 }

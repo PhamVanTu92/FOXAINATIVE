@@ -2,38 +2,27 @@
   "name": "@foxai/system-service",
   "version": "0.1.0",
   "private": true,
+  "description": "FOXAI System Service (.NET 9, gRPC) - Users, RBAC, Organization Tree, JWT issuance.",
   "scripts": {
-    "dev": "nest start --watch",
-    "build": "nest build",
-    "start": "node dist/main.js",
-    "lint": "eslint \"src/**/*.ts\"",
-    "typecheck": "tsc --noEmit",
-    "clean": "rimraf dist"
-  },
-  "dependencies": {
-    "@nestjs/common": "^10.3.3",
-    "@nestjs/config": "^3.2.0",
-    "@nestjs/core": "^10.3.3",
-    "@nestjs/microservices": "^10.3.3",
-    "@nestjs/platform-express": "^10.3.3",
-    "@nestjs/swagger": "^7.3.0",
-    "@foxai/shared-types": "workspace:*",
-    "@foxai/system-db": "workspace:*",
-    "bcryptjs": "^2.4.3",
-    "class-transformer": "^0.5.1",
-    "class-validator": "^0.14.1",
-    "reflect-metadata": "^0.2.1",
-    "rxjs": "^7.8.1"
+    "predev": "kill-port 3002 51051",
+    "dev": "dotnet watch run --project src/SystemService.Api/SystemService.Api.csproj",
+    "build": "dotnet build -c Release",
+    "start": "dotnet run --project src/SystemService.Api/SystemService.Api.csproj -c Release",
+    "kill": "kill-port 3002 51051",
+    "docker:stop": "docker compose stop system-service",
+    "docker:start": "docker compose up -d system-service",
+    "docker:restart": "docker compose restart system-service",
+    "docker:logs": "docker compose logs -f system-service",
+    "test": "dotnet test",
+    "test:unit": "dotnet test tests/SystemService.UnitTests/SystemService.UnitTests.csproj",
+    "test:integration": "dotnet test tests/SystemService.IntegrationTests/SystemService.IntegrationTests.csproj",
+    "lint": "dotnet format --verify-no-changes",
+    "format": "dotnet format",
+    "typecheck": "dotnet build --no-restore -c Debug",
+    "clean": "dotnet clean && rimraf \"**/bin\" \"**/obj\""
   },
   "devDependencies": {
-    "@nestjs/cli": "^10.3.2",
-    "@nestjs/schematics": "^10.1.1",
-    "@types/bcryptjs": "^2.4.6",
-    "@types/node": "^20.11.0",
-    "rimraf": "^5.0.5",
-    "ts-loader": "^9.5.1",
-    "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.3.3"
+    "kill-port": "^2.0.1",
+    "rimraf": "^5.0.5"
   }
 }

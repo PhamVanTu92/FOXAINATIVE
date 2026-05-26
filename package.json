@@ -16,10 +16,10 @@
     "typecheck": "pnpm -r run typecheck",
     "clean": "pnpm -r run clean && rimraf node_modules",
 
-    "db:system:generate": "pnpm -C packages/system-db run prisma:generate",
-    "db:system:migrate": "pnpm -C packages/system-db run prisma:migrate:dev",
-    "db:system:seed": "pnpm -C packages/system-db run prisma:seed",
-    "db:system:studio": "pnpm -C packages/system-db run prisma:studio",
+    "db:system:migrate": "dotnet ef database update --project apps/system-service/src/SystemService.Infrastructure --startup-project apps/system-service/src/SystemService.Api",
+    "db:system:migration:add": "dotnet ef migrations add --project apps/system-service/src/SystemService.Infrastructure --startup-project apps/system-service/src/SystemService.Api --output-dir Persistence/Migrations",
+    "db:system:migration:remove": "dotnet ef migrations remove --project apps/system-service/src/SystemService.Infrastructure --startup-project apps/system-service/src/SystemService.Api",
+    "db:system:reset": "dotnet ef database drop -f --project apps/system-service/src/SystemService.Infrastructure --startup-project apps/system-service/src/SystemService.Api && pnpm db:system:migrate",
 
     "db:ocr:generate": "pnpm -C packages/ocr-db run prisma:generate",
     "db:ocr:migrate": "pnpm -C packages/ocr-db run prisma:migrate:dev",
@@ -31,7 +31,7 @@
     "db:chatbot:seed": "pnpm -C packages/chatbot-db run prisma:seed",
     "db:chatbot:studio": "pnpm -C packages/chatbot-db run prisma:studio",
 
-    "db:generate:all": "pnpm db:system:generate && pnpm db:ocr:generate && pnpm db:chatbot:generate",
+    "db:generate:all": "pnpm db:ocr:generate && pnpm db:chatbot:generate",
     "db:migrate:all": "pnpm db:system:migrate && pnpm db:ocr:migrate && pnpm db:chatbot:migrate",
 
     "docker:up": "docker compose up -d",
