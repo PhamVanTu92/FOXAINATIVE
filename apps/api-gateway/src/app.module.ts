@@ -13,6 +13,7 @@ import { ModuleGroupsModule } from './system/module-groups/module-groups.module'
 import { ModulesModule } from './system/modules/modules.module';
 import { PermissionActionsModule } from './system/permission-actions/permission-actions.module';
 import { OrganizationsModule } from './system/organizations/organizations.module';
+import { KnowledgeModule } from './knowledge/knowledge.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { OrganizationsModule } from './system/organizations/organizations.module
     ModulesModule,
     PermissionActionsModule,
     OrganizationsModule,
+    KnowledgeModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

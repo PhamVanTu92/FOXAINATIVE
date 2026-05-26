@@ -30,7 +30,7 @@ export interface UserProfile {
 }
 
 export interface LoginRequest {
-  // Username (lowercase) hoặc email — server tự detect.
+  // Phải khớp với proto field name: string login = 1
   login: string;
   password: string;
 }

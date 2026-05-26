@@ -3,7 +3,10 @@
     "allow": [
       "Bash(netstat -ano)",
       "Bash(pnpm -C \"D:/Project/FOXAINATIVE/apps/backend\" run dev)",
-      "PowerShell($root='d:\\\\FOXAI NATIVE\\\\FOXAINATIVE\\\\apps\\\\system-service'; @\\('src\\\\SystemService.Domain','src\\\\SystemService.Application','src\\\\SystemService.Infrastructure','src\\\\SystemService.Api','tests\\\\SystemService.UnitTests','tests\\\\SystemService.IntegrationTests'\\) | ForEach-Object { New-Item -ItemType Directory -Force -Path \\(Join-Path $root $_\\) | Out-Null }; \"OK\")"
+      "PowerShell($root='d:\\\\FOXAI NATIVE\\\\FOXAINATIVE\\\\apps\\\\system-service'; @\\('src\\\\SystemService.Domain','src\\\\SystemService.Application','src\\\\SystemService.Infrastructure','src\\\\SystemService.Api','tests\\\\SystemService.UnitTests','tests\\\\SystemService.IntegrationTests'\\) | ForEach-Object { New-Item -ItemType Directory -Force -Path \\(Join-Path $root $_\\) | Out-Null }; \"OK\")",
+      "PowerShell(Get-Content \"$env:TEMP\\\\knowledge-svc.log\" -Tail 10)",
+      "PowerShell(Start-Sleep -Seconds 12; Get-Content \"$env:TEMP\\\\knowledge-svc.log\" -Tail 6; Get-Content \"$env:TEMP\\\\knowledge-svc-err.log\" -Tail 5)",
+      "PowerShell($proc = Start-Process -NoNewWindow -FilePath \"dotnet\" -ArgumentList \"run\",\"--no-build\",\"--configuration\",\"Debug\" -WorkingDirectory \"d:\\\\FOXAI NATIVE\\\\FOXAINATIVE\\\\apps\\\\knowledge-service\\\\src\\\\KnowledgeService.Api\" -RedirectStandardOutput \"$env:TEMP\\\\knowledge-svc.log\" -RedirectStandardError \"$env:TEMP\\\\knowledge-svc-err.log\" -PassThru; Write-Host \"PID: $\\($proc.Id\\)\"; Start-Sleep -Seconds 14; Get-Content \"$env:TEMP\\\\knowledge-svc.log\" -Tail 6; Get-Content \"$env:TEMP\\\\knowledge-svc-err.log\" -Tail 4)"
     ]
   }
 }

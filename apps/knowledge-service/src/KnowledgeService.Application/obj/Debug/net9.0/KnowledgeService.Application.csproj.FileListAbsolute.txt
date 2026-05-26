@@ -1,0 +1,15 @@
+d:\FOXAI NATIVE\FOXAINATIVE\apps\knowledge-service\src\KnowledgeService.Application\bin\Debug\net9.0\KnowledgeService.Application.deps.json
+D:\FOXAI NATIVE\FOXAINATIVE\apps\knowledge-service\src\KnowledgeService.Application\bin\Debug\net9.0\KnowledgeService.Application.dll
+D:\FOXAI NATIVE\FOXAINATIVE\apps\knowledge-service\src\KnowledgeService.Application\bin\Debug\net9.0\KnowledgeService.Application.pdb
+D:\FOXAI NATIVE\FOXAINATIVE\apps\knowledge-service\src\KnowledgeService.Application\bin\Debug\net9.0\KnowledgeService.Domain.dll
+D:\FOXAI NATIVE\FOXAINATIVE\apps\knowledge-service\src\KnowledgeService.Application\bin\Debug\net9.0\KnowledgeService.Domain.pdb
+D:\FOXAI NATIVE\FOXAINATIVE\apps\knowledge-service\src\KnowledgeService.Application\obj\Debug\net9.0\KnowledgeService.Application.csproj.AssemblyReference.cache
+D:\FOXAI NATIVE\FOXAINATIVE\apps\knowledge-service\src\KnowledgeService.Application\obj\Debug\net9.0\KnowledgeService.Application.GeneratedMSBuildEditorConfig.editorconfig
+D:\FOXAI NATIVE\FOXAINATIVE\apps\knowledge-service\src\KnowledgeService.Application\obj\Debug\net9.0\KnowledgeService.Application.AssemblyInfoInputs.cache
+D:\FOXAI NATIVE\FOXAINATIVE\apps\knowledge-service\src\KnowledgeService.Application\obj\Debug\net9.0\KnowledgeService.Application.AssemblyInfo.cs
+D:\FOXAI NATIVE\FOXAINATIVE\apps\knowledge-service\src\KnowledgeService.Application\obj\Debug\net9.0\KnowledgeService.Application.csproj.CoreCompileInputs.cache
+d:\FOXAI NATIVE\FOXAINATIVE\apps\knowledge-service\src\KnowledgeService.Application\obj\Debug\net9.0\Knowledg.0F179C7A.Up2Date
+D:\FOXAI NATIVE\FOXAINATIVE\apps\knowledge-service\src\KnowledgeService.Application\obj\Debug\net9.0\KnowledgeService.Application.dll
+D:\FOXAI NATIVE\FOXAINATIVE\apps\knowledge-service\src\KnowledgeService.Application\obj\Debug\net9.0\refint\KnowledgeService.Application.dll
+D:\FOXAI NATIVE\FOXAINATIVE\apps\knowledge-service\src\KnowledgeService.Application\obj\Debug\net9.0\KnowledgeService.Application.pdb
+d:\FOXAI NATIVE\FOXAINATIVE\apps\knowledge-service\src\KnowledgeService.Application\obj\Debug\net9.0\ref\KnowledgeService.Application.dll

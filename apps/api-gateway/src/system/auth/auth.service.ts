@@ -4,13 +4,13 @@ import { SYSTEM_PACKAGE } from '../../grpc/system-grpc.module';
 import { callGrpc } from '../../common/grpc/grpc-error-mapper';
 import {
   AuthGrpcService,
-  LoginRequest,
   LoginResponse,
   LogoutRequest,
   RefreshTokenRequest,
   ValidateTokenRequest,
   ValidateTokenResponse,
 } from '../grpc-interfaces';
+import { LoginDto } from './dto/auth.dto';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -22,8 +22,8 @@ export class AuthService implements OnModuleInit {
     this.auth = this.client.getService<AuthGrpcService>('AuthService');
   }
 
-  login(req: LoginRequest): Promise<LoginResponse> {
-    return callGrpc(this.auth.login(req));
+  login(dto: LoginDto): Promise<LoginResponse> {
+    return callGrpc(this.auth.login({ login: dto.username, password: dto.password }));
   }
 
   refresh(req: RefreshTokenRequest): Promise<LoginResponse> {
