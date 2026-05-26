@@ -19,6 +19,9 @@ internal static class OrganizationMappings
         };
 
         if (dto.ParentId is not null) msg.ParentId = dto.ParentId.Value.ToString();
+        if (dto.ParentName is not null) msg.ParentName = dto.ParentName;
+        if (dto.ManagerId is not null) msg.ManagerId = dto.ManagerId.Value.ToString();
+        if (dto.ManagerName is not null) msg.ManagerName = dto.ManagerName;
         msg.Children.AddRange(dto.Children.Select(c => c.ToProto()));
         return msg;
     }

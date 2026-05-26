@@ -13,7 +13,7 @@ public sealed class RevokePermissionsCommandHandler(IRoleRepository roles)
 
     public async Task<RoleDto> Handle(RevokePermissionsCommand request, CancellationToken cancellationToken)
     {
-        var role = await roles.FindByIdWithPermissionsAsync(request.RoleId, cancellationToken)
+        var role = await roles.FindByIdWithGrantsAsync(request.RoleId, cancellationToken)
                    ?? throw new NotFoundException("Role", request.RoleId);
 
         if (role.Code == SuperAdminCode)
@@ -21,18 +21,21 @@ public sealed class RevokePermissionsCommandHandler(IRoleRepository roles)
             throw new SystemRoleProtectedException(role.Code);
         }
 
-        var codes = request.PermissionCodes?.Where(c => !string.IsNullOrWhiteSpace(c)).Distinct().ToHashSet()
-                    ?? new HashSet<string>();
-        if (codes.Count == 0)
+        var toRevoke = (request.Grants ?? Array.Empty<AssignPermissions.RolePermissionPair>())
+            .Where(p => p.ModuleId != Guid.Empty && p.ActionId != Guid.Empty)
+            .Select(p => (p.ModuleId, p.ActionId))
+            .ToHashSet();
+
+        if (toRevoke.Count == 0)
         {
             return role.ToDto();
         }
 
-        var toRemove = role.RolePermissions
-            .Where(rp => codes.Contains(rp.Permission.Code))
+        var removing = role.RolePermissions
+            .Where(rp => toRevoke.Contains((rp.ModuleId, rp.ActionId)))
             .ToList();
 
-        foreach (var rp in toRemove)
+        foreach (var rp in removing)
         {
             role.RolePermissions.Remove(rp);
         }

@@ -12,7 +12,7 @@ public sealed class UpdateUserCommandHandler(
 {
     public async Task<UserDto> Handle(UpdateUserCommand request, CancellationToken cancellationToken)
     {
-        var user = await users.FindByIdWithRolesAndPermissionsAsync(request.Id, cancellationToken)
+        var user = await users.FindByIdWithGrantsAsync(request.Id, cancellationToken)
                    ?? throw new NotFoundException("User", request.Id);
 
         if (request.FullName is not null)

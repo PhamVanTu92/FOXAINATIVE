@@ -10,7 +10,7 @@ public sealed class UpdateRoleCommandHandler(IRoleRepository roles) : IRequestHa
 {
     public async Task<RoleDto> Handle(UpdateRoleCommand request, CancellationToken cancellationToken)
     {
-        var role = await roles.FindByIdWithPermissionsAsync(request.Id, cancellationToken)
+        var role = await roles.FindByIdWithGrantsAsync(request.Id, cancellationToken)
                    ?? throw new NotFoundException("Role", request.Id);
 
         if (request.Name is not null)

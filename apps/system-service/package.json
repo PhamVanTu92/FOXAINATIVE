@@ -4,18 +4,25 @@
   "private": true,
   "description": "FOXAI System Service (.NET 9, gRPC) - Users, RBAC, Organization Tree, JWT issuance.",
   "scripts": {
+    "predev": "kill-port 3002 51051",
     "dev": "dotnet watch run --project src/SystemService.Api/SystemService.Api.csproj",
     "build": "dotnet build -c Release",
     "start": "dotnet run --project src/SystemService.Api/SystemService.Api.csproj -c Release",
+    "kill": "kill-port 3002 51051",
+    "docker:stop": "docker compose stop system-service",
+    "docker:start": "docker compose up -d system-service",
+    "docker:restart": "docker compose restart system-service",
+    "docker:logs": "docker compose logs -f system-service",
     "test": "dotnet test",
     "test:unit": "dotnet test tests/SystemService.UnitTests/SystemService.UnitTests.csproj",
     "test:integration": "dotnet test tests/SystemService.IntegrationTests/SystemService.IntegrationTests.csproj",
     "lint": "dotnet format --verify-no-changes",
     "format": "dotnet format",
     "typecheck": "dotnet build --no-restore -c Debug",
-    "clean": "dotnet clean && rimraf '**/bin' '**/obj'"
+    "clean": "dotnet clean && rimraf \"**/bin\" \"**/obj\""
   },
   "devDependencies": {
+    "kill-port": "^2.0.1",
     "rimraf": "^5.0.5"
   }
 }

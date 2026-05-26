@@ -19,9 +19,9 @@ public sealed class LoginCommandHandler(
 {
     public async Task<LoginResponse> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
-        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
-        var user = await users.FindByEmailWithRolesAndPermissionsAsync(normalizedEmail, cancellationToken)
-                   ?? throw new UnauthorizedException("Email hoặc mật khẩu không đúng.");
+        var login = request.Login.Trim().ToLowerInvariant();
+        var user = await users.FindByLoginWithGrantsAsync(login, cancellationToken)
+                   ?? throw new UnauthorizedException("Tên đăng nhập hoặc mật khẩu không đúng.");
 
         if (user.Status != UserStatus.Active)
         {
@@ -30,7 +30,7 @@ public sealed class LoginCommandHandler(
 
         if (!hasher.Verify(request.Password, user.PasswordHash))
         {
-            throw new UnauthorizedException("Email hoặc mật khẩu không đúng.");
+            throw new UnauthorizedException("Tên đăng nhập hoặc mật khẩu không đúng.");
         }
 
         var (roles, permissions) = ExtractRolesAndPermissions(user);
@@ -64,14 +64,32 @@ public sealed class LoginCommandHandler(
                 user.OrganizationId));
     }
 
+    /// <summary>
+    /// Tính effective claims để embed vào JWT.
+    /// - Roles: list role code.
+    /// - Permissions: (∪ role grants) ∪ (user GRANT overrides) ∖ (user DENY overrides),
+    ///   format "MODULE_CODE.ACTION_CODE" cho API Gateway authorize endpoint nhanh.
+    /// </summary>
     internal static (IReadOnlyCollection<string> Roles, IReadOnlyCollection<string> Permissions) ExtractRolesAndPermissions(User user)
     {
         var roles = user.UserRoles.Select(ur => ur.Role.Code).Distinct().ToArray();
-        var permissions = user.UserRoles
-            .SelectMany(ur => ur.Role.RolePermissions)
-            .Select(rp => rp.Permission.Code)
-            .Distinct()
-            .ToArray();
-        return (roles, permissions);
+
+        var effective = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var rp in user.UserRoles.SelectMany(ur => ur.Role.RolePermissions))
+        {
+            if (rp.Module is null || rp.Action is null) continue;
+            effective.Add($"{rp.Module.Code}.{rp.Action.Code}");
+        }
+
+        foreach (var up in user.PermissionOverrides)
+        {
+            if (up.Module is null || up.Action is null) continue;
+            var key = $"{up.Module.Code}.{up.Action.Code}";
+            if (up.Effect == PermissionEffect.Grant) effective.Add(key);
+            else effective.Remove(key);
+        }
+
+        return (roles, effective.ToArray());
     }
 }

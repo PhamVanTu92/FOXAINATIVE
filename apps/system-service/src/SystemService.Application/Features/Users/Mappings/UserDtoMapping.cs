@@ -10,6 +10,7 @@ internal static class UserDtoMapping
         var roles = user.UserRoles?.Select(ur => ur.Role.Code).Distinct().ToArray() ?? Array.Empty<string>();
         return new UserDto(
             Id: user.Id,
+            Username: user.Username,
             Email: user.Email,
             FullName: user.FullName,
             Phone: user.Phone,

@@ -4,4 +4,4 @@ using SystemService.Application.Features.Roles.Dtos;
 
 namespace SystemService.Application.Features.Roles.ListRoles;
 
-public sealed record ListRolesQuery(PageRequest Pagination, bool IncludePermissions) : IRequest<PagedResult<RoleDto>>;
+public sealed record ListRolesQuery(PageRequest Pagination, bool IncludeGrants) : IRequest<PagedResult<RoleDto>>;

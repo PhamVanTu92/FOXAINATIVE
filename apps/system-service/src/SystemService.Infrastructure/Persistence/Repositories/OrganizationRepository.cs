@@ -7,10 +7,10 @@ namespace SystemService.Infrastructure.Persistence.Repositories;
 public sealed class OrganizationRepository(SystemDbContext db) : IOrganizationRepository
 {
     public Task<OrganizationNode?> FindByIdAsync(Guid id, CancellationToken ct = default) =>
-        db.OrganizationNodes.FirstOrDefaultAsync(o => o.Id == id, ct);
+        db.OrganizationNodes.Include(o => o.Manager).FirstOrDefaultAsync(o => o.Id == id, ct);
 
     public Task<OrganizationNode?> FindByCodeAsync(string code, CancellationToken ct = default) =>
-        db.OrganizationNodes.FirstOrDefaultAsync(o => o.Code == code, ct);
+        db.OrganizationNodes.Include(o => o.Manager).FirstOrDefaultAsync(o => o.Code == code, ct);
 
     public Task<bool> CodeExistsAsync(string code, CancellationToken ct = default) =>
         db.OrganizationNodes.AnyAsync(o => o.Code == code, ct);
@@ -25,7 +25,10 @@ public sealed class OrganizationRepository(SystemDbContext db) : IOrganizationRe
     {
         if (rootId is null)
         {
-            return await db.OrganizationNodes.OrderBy(o => o.Path).ToListAsync(ct);
+            return await db.OrganizationNodes
+                .Include(o => o.Manager)
+                .OrderBy(o => o.Path)
+                .ToListAsync(ct);
         }
 
         var root = await db.OrganizationNodes.FirstOrDefaultAsync(o => o.Id == rootId.Value, ct);
@@ -36,9 +39,33 @@ public sealed class OrganizationRepository(SystemDbContext db) : IOrganizationRe
 
         var prefix = root.Path;
         return await db.OrganizationNodes
+            .Include(o => o.Manager)
             .Where(o => o.Path == prefix || o.Path.StartsWith(prefix + "/"))
             .OrderBy(o => o.Path)
             .ToListAsync(ct);
+    }
+
+    public async Task<(IReadOnlyList<OrganizationNode> Items, long Total)> SearchAsync(
+        int page, int pageSize, string? search, CancellationToken ct = default)
+    {
+        var query = db.OrganizationNodes.Include(o => o.Manager).AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var pattern = $"%{search.Trim()}%";
+            query = query.Where(o =>
+                EF.Functions.ILike(o.Name, pattern) ||
+                EF.Functions.ILike(o.Code, pattern));
+        }
+
+        var total = await query.LongCountAsync(ct);
+        var items = await query
+            .OrderBy(o => o.Path)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return (items, total);
     }
 
     public async Task<IReadOnlyList<OrganizationNode>> GetDescendantsAsync(string pathPrefix, CancellationToken ct = default) =>

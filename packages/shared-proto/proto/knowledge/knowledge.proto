@@ -1,0 +1,271 @@
+syntax = "proto3";
+
+package foxai.knowledge;
+
+option csharp_namespace = "KnowledgeService.Api.Protos";
+
+// ─── Knowledge Base messages ────────────────────────────────────────────────
+
+message DepartmentRef {
+  string department_id   = 1;
+  string department_name = 2;
+}
+
+message FileCounts {
+  int32 word  = 1;
+  int32 excel = 2;
+  int32 pdf   = 3;
+  int32 image = 4;
+}
+
+message KnowledgeBaseMessage {
+  string         id                       = 1;
+  string         code                     = 2;
+  string         name                     = 3;
+  string         description              = 4;
+  string         managing_department_id   = 5;
+  string         managing_department_name = 6;
+  repeated DepartmentRef permissions      = 7;
+  FileCounts     file_counts              = 8;
+  int32          total_files              = 9;
+  string         created_at               = 10;
+  string         updated_at               = 11;
+}
+
+message KnowledgeFileMessage {
+  string         id                = 1;
+  string         knowledge_base_id = 2;
+  string         file_name         = 3;
+  string         file_type         = 4;
+  double         file_size_mb      = 5;
+  string         storage_path      = 6;
+  string         uploaded_at       = 7;
+  string         updated_at        = 8;
+  repeated DepartmentRef permissions = 9;
+}
+
+message StatsMessage {
+  int32  total_knowledge_bases   = 1;
+  int32  total_files             = 2;
+  int32  departments_using_count = 3;
+  string last_updated_at         = 4;
+}
+
+// ─── Knowledge Base requests ────────────────────────────────────────────────
+
+message ListKnowledgeBasesRequest {
+  string search        = 1;
+  string department_id = 2;
+  int32  page          = 3;
+  int32  page_size     = 4;
+}
+
+message ListKnowledgeBasesResponse {
+  repeated KnowledgeBaseMessage items = 1;
+  int32 total     = 2;
+  int32 page      = 3;
+  int32 page_size = 4;
+}
+
+message GetKnowledgeBaseRequest {
+  string id = 1;
+}
+
+message CreateKnowledgeBaseRequest {
+  string code                     = 1;
+  string name                     = 2;
+  string description              = 3;
+  string managing_department_id   = 4;
+  string managing_department_name = 5;
+  repeated DepartmentRef permitted_departments = 6;
+  string created_by = 7;
+}
+
+message UpdateKnowledgeBaseRequest {
+  string id                       = 1;
+  string name                     = 2;
+  string description              = 3;
+  string managing_department_id   = 4;
+  string managing_department_name = 5;
+  repeated DepartmentRef permitted_departments = 6;
+}
+
+message DeleteKnowledgeBaseRequest {
+  string id = 1;
+}
+
+message DeleteResponse {
+  bool success = 1;
+}
+
+message GetStatsRequest {}
+
+// ─── Knowledge File requests ─────────────────────────────────────────────────
+
+message ListKnowledgeFilesRequest {
+  string knowledge_base_id = 1;
+  string search            = 2;
+  string file_type         = 3;
+  int32  page              = 4;
+  int32  page_size         = 5;
+}
+
+message ListKnowledgeFilesResponse {
+  repeated KnowledgeFileMessage items = 1;
+  int32 total     = 2;
+  int32 page      = 3;
+  int32 page_size = 4;
+}
+
+message AddKnowledgeFileRequest {
+  string knowledge_base_id = 1;
+  string file_name         = 2;
+  string file_type         = 3;
+  double file_size_mb      = 4;
+  repeated DepartmentRef permitted_departments = 5;
+  string uploaded_by  = 6;
+  string storage_path = 7;
+}
+
+message UpdateKnowledgeFileRequest {
+  string id                = 1;
+  string knowledge_base_id = 2;
+  string file_name         = 3;
+  string file_type         = 4;
+  double file_size_mb      = 5;
+}
+
+message DeleteKnowledgeFileRequest {
+  string id                = 1;
+  string knowledge_base_id = 2;
+}
+
+message UpdateFilePermissionsRequest {
+  string id                = 1;
+  string knowledge_base_id = 2;
+  repeated DepartmentRef permitted_departments = 3;
+}
+
+message GetKnowledgeFileRequest {
+  string id                = 1;
+  string knowledge_base_id = 2;
+}
+
+// ─── Knowledge Document messages ─────────────────────────────────────────────
+
+message KnowledgeDocumentMessage {
+  string  id                  = 1;
+  string  knowledge_base_id   = 2;
+  string  knowledge_base_name = 3;
+  string  title               = 4;
+  string  file_type           = 5;
+  double  file_size_mb        = 6;
+  string  storage_path        = 7;
+  string  uploaded_by         = 8;
+  string  uploaded_at         = 9;
+  string  status              = 10;
+  string  current_version     = 11;
+  int32   version_count       = 12;
+  string  created_at          = 13;
+  string  updated_at          = 14;
+}
+
+message KnowledgeDocumentVersionMessage {
+  string id             = 1;
+  string document_id    = 2;
+  string version_number = 3;
+  string change_note    = 4;
+  string content_summary = 5;
+  string status         = 6;
+  string created_by     = 7;
+  string created_at     = 8;
+}
+
+// ─── Knowledge Document requests ─────────────────────────────────────────────
+
+message UploadDocumentRequest {
+  string knowledge_base_id = 1;
+  string title             = 2;
+  string file_type         = 3;
+  double file_size_mb      = 4;
+  string content_summary   = 5;
+  string note              = 6;
+  string uploaded_by       = 7;
+  string storage_path      = 8;
+}
+
+message GetDocumentRequest {
+  string id = 1;
+}
+
+message ListDocumentsRequest {
+  string knowledge_base_id = 1;
+  string search            = 2;
+  string status            = 3;
+  int32  page              = 4;
+  int32  page_size         = 5;
+}
+
+message ListDocumentsResponse {
+  repeated KnowledgeDocumentMessage items = 1;
+  int32 total     = 2;
+  int32 page      = 3;
+  int32 page_size = 4;
+}
+
+message DocumentActionRequest {
+  string id = 1;
+}
+
+message RequestDocumentRevisionRequest {
+  string id            = 1;
+  string revision_note = 2;
+}
+
+message CreateDocumentVersionRequest {
+  string id              = 1;
+  string change_note     = 2;
+  string content_summary = 3;
+  string created_by      = 4;
+}
+
+message ListDocumentVersionsRequest {
+  string document_id = 1;
+}
+
+message ListDocumentVersionsResponse {
+  repeated KnowledgeDocumentVersionMessage items = 1;
+}
+
+// ─── Service definition ──────────────────────────────────────────────────────
+
+service KnowledgeService {
+  // Knowledge Bases
+  rpc ListKnowledgeBases   (ListKnowledgeBasesRequest)   returns (ListKnowledgeBasesResponse);
+  rpc GetKnowledgeBase     (GetKnowledgeBaseRequest)     returns (KnowledgeBaseMessage);
+  rpc CreateKnowledgeBase  (CreateKnowledgeBaseRequest)  returns (KnowledgeBaseMessage);
+  rpc UpdateKnowledgeBase  (UpdateKnowledgeBaseRequest)  returns (KnowledgeBaseMessage);
+  rpc DeleteKnowledgeBase  (DeleteKnowledgeBaseRequest)  returns (DeleteResponse);
+  rpc GetStats             (GetStatsRequest)             returns (StatsMessage);
+
+  // Knowledge Files
+  rpc ListKnowledgeFiles   (ListKnowledgeFilesRequest)   returns (ListKnowledgeFilesResponse);
+  rpc GetKnowledgeFile     (GetKnowledgeFileRequest)     returns (KnowledgeFileMessage);
+  rpc AddKnowledgeFile     (AddKnowledgeFileRequest)     returns (KnowledgeFileMessage);
+  rpc UpdateKnowledgeFile  (UpdateKnowledgeFileRequest)  returns (KnowledgeFileMessage);
+  rpc DeleteKnowledgeFile  (DeleteKnowledgeFileRequest)  returns (DeleteResponse);
+  rpc UpdateFilePermissions(UpdateFilePermissionsRequest) returns (KnowledgeFileMessage);
+
+  // Knowledge Documents (upload + approval workflow)
+  rpc UploadDocument             (UploadDocumentRequest)             returns (KnowledgeDocumentMessage);
+  rpc GetDocument                (GetDocumentRequest)                returns (KnowledgeDocumentMessage);
+  rpc ListDocuments              (ListDocumentsRequest)              returns (ListDocumentsResponse);
+  rpc SubmitDocumentForReview    (DocumentActionRequest)             returns (KnowledgeDocumentMessage);
+  rpc ApproveDocument            (DocumentActionRequest)             returns (KnowledgeDocumentMessage);
+  rpc ReturnDocumentToDraft      (DocumentActionRequest)             returns (KnowledgeDocumentMessage);
+  rpc RequestDocumentRevision    (RequestDocumentRevisionRequest)    returns (KnowledgeDocumentMessage);
+  rpc ArchiveDocument            (DocumentActionRequest)             returns (KnowledgeDocumentMessage);
+  rpc RollbackDocument           (DocumentActionRequest)             returns (KnowledgeDocumentMessage);
+  rpc CreateDocumentVersion      (CreateDocumentVersionRequest)      returns (KnowledgeDocumentMessage);
+  rpc ListDocumentVersions       (ListDocumentVersionsRequest)       returns (ListDocumentVersionsResponse);
+}

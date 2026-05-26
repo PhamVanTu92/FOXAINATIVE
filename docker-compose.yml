@@ -5,15 +5,17 @@ services:
     container_name: foxai-system-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: YdESBSZ@1%a22
-      POSTGRES_DB: system_db
+      # Đọc credentials từ root .env (single source of truth) - default postgres/postgres
+      POSTGRES_USER: ${SYSTEM_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${SYSTEM_DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${SYSTEM_DB_NAME:-system_db}
+    # Host 5432 thường bị PostgreSQL native chiếm trên Windows -> map ra 5433.
     ports:
-      - '5432:5432'
+      - '5433:5432'
     volumes:
       - system_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d system_db']
+      test: ['CMD-SHELL', 'pg_isready -U ${SYSTEM_DB_USER:-postgres} -d ${SYSTEM_DB_NAME:-system_db}']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -67,7 +69,9 @@ services:
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: ${SYSTEM_SERVICE_ENV:-Production}
-      SYSTEM_DATABASE_URL: postgresql://myuser:mypassword@system-db:5432/system_db
+      # Container-to-container: host = `system-db` (compose DNS). Đọc URL từ
+      # SYSTEM_DATABASE_URL_DOCKER ở root .env (riêng với native URL dùng localhost).
+      SYSTEM_DATABASE_URL: ${SYSTEM_DATABASE_URL_DOCKER:-postgresql://myuser:mypassword@system-db:5432/system_db}
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production-use-a-long-random-string-32+}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       Jwt__Secret: ${JWT_SECRET:-change-me-in-production-use-a-long-random-string-32+}
@@ -88,6 +92,52 @@ services:
         condition: service_healthy
     healthcheck:
       test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:3002/health']
+      interval: 20s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  # ─── Knowledge DB ───────────────────────────────────────────────────────────
+  knowledge-db:
+    image: postgres:16-alpine
+    container_name: foxai-knowledge-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${KNOWLEDGE_DB_USER:-kb_user}
+      POSTGRES_PASSWORD: ${KNOWLEDGE_DB_PASSWORD:-kb_pass}
+      POSTGRES_DB: ${KNOWLEDGE_DB_NAME:-knowledge_db}
+    ports:
+      - '5435:5432'
+    volumes:
+      - knowledge_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${KNOWLEDGE_DB_USER:-kb_user} -d ${KNOWLEDGE_DB_NAME:-knowledge_db}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Knowledge Service (.NET 9 + gRPC) ──────────────────────────────────────
+  knowledge-service:
+    build:
+      context: .
+      dockerfile: apps/knowledge-service/Dockerfile
+    container_name: foxai-knowledge-service
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${KNOWLEDGE_SERVICE_ENV:-Production}
+      KNOWLEDGE_DATABASE_URL: ${KNOWLEDGE_DATABASE_URL_DOCKER:-postgresql://kb_user:kb_pass@knowledge-db:5432/knowledge_db}
+      GRPC_PORT: '50052'
+      HTTP_PORT: '3005'
+      KNOWLEDGE_SERVICE_AUTOMIGRATE: 'true'
+      KNOWLEDGE_SERVICE_SEED: 'true'
+    ports:
+      - '52052:50052'
+      - '3005:3005'
+    depends_on:
+      knowledge-db:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:3005/health']
       interval: 20s
       timeout: 5s
       start_period: 30s
@@ -171,5 +221,6 @@ volumes:
   system_db_data:
   ocr_db_data:
   chatbot_db_data:
+  knowledge_db_data:
   redis_data:
   ocr_uploads:

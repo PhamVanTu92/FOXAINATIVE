@@ -1,0 +1,2 @@
+obj\Debug\net9.0\knowledge/Knowledge.cs \
+obj\Debug\net9.0\knowledge/KnowledgeGrpc.cs: ../../../../packages/shared-proto/proto/knowledge/knowledge.proto

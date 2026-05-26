@@ -12,7 +12,7 @@ public sealed class UnassignRoleCommandHandler(
 
     public async Task<bool> Handle(UnassignRoleCommand request, CancellationToken cancellationToken)
     {
-        var user = await users.FindByIdWithRolesAndPermissionsAsync(request.UserId, cancellationToken)
+        var user = await users.FindByIdWithGrantsAsync(request.UserId, cancellationToken)
                    ?? throw new NotFoundException("User", request.UserId);
 
         var role = await roles.FindByCodeAsync(request.RoleCode, cancellationToken)

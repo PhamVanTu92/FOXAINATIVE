@@ -11,12 +11,17 @@ public sealed class RolesCrudTests(PostgresContainerFixture postgres) : IAsyncLi
 {
     private SystemServiceApplicationFactory _factory = default!;
     private RolesService.RolesServiceClient _roles = default!;
+    private ModulesService.ModulesServiceClient _modules = default!;
+    private PermissionActionsService.PermissionActionsServiceClient _actions = default!;
 
     public Task InitializeAsync()
     {
         _factory = new SystemServiceApplicationFactory(postgres.ConnectionUrl);
         _ = _factory.CreateDefaultClient();
-        _roles = new RolesService.RolesServiceClient(GrpcTestClientFactory.CreateChannel(_factory));
+        var channel = GrpcTestClientFactory.CreateChannel(_factory);
+        _roles = new RolesService.RolesServiceClient(channel);
+        _modules = new ModulesService.ModulesServiceClient(channel);
+        _actions = new PermissionActionsService.PermissionActionsServiceClient(channel);
         return Task.CompletedTask;
     }
 
@@ -27,7 +32,7 @@ public sealed class RolesCrudTests(PostgresContainerFixture postgres) : IAsyncLi
     }
 
     [Fact]
-    public async Task CreateRole_with_permissions_returns_role_with_permissions()
+    public async Task CreateRole_returns_role_without_grants()
     {
         var code = $"TEST_ROLE_{Guid.NewGuid():N}".ToUpperInvariant();
         var created = await _roles.CreateRoleAsync(new CreateRoleRequest
@@ -35,12 +40,11 @@ public sealed class RolesCrudTests(PostgresContainerFixture postgres) : IAsyncLi
             Code = code,
             Name = "Test Role",
             Description = "Vai trò cho test",
-            PermissionCodes = { "USER_READ", "ROLE_READ" },
         });
 
         created.Code.Should().Be(code);
         created.IsSystem.Should().BeFalse();
-        created.Permissions.Should().BeEquivalentTo(new[] { "USER_READ", "ROLE_READ" });
+        created.Grants.Should().BeEmpty();
     }
 
     [Fact]
@@ -79,24 +83,33 @@ public sealed class RolesCrudTests(PostgresContainerFixture postgres) : IAsyncLi
     }
 
     [Fact]
-    public async Task AssignPermissions_then_RevokePermissions_works()
+    public async Task AssignPermissions_then_RevokePermissions_works_on_module_action_pairs()
     {
         var code = $"PERM_ROLE_{Guid.NewGuid():N}".ToUpperInvariant();
         var role = await _roles.CreateRoleAsync(new CreateRoleRequest { Code = code, Name = "Perm Test" });
 
-        var afterAssign = await _roles.AssignPermissionsAsync(new AssignPermissionsRequest
-        {
-            RoleId = role.Id,
-            PermissionCodes = { "USER_CREATE", "USER_UPDATE" },
-        });
-        afterAssign.Permissions.Should().BeEquivalentTo(new[] { "USER_CREATE", "USER_UPDATE" });
+        // Fetch a couple modules + actions from seed
+        var modules = await _modules.ListModulesAsync(new ListModulesRequest { ActiveOnly = true });
+        var actions = await _actions.ListPermissionActionsAsync(new ListPermissionActionsRequest { ActiveOnly = true });
+        var moduleA = modules.Items.First(m => m.Code == "DASHBOARD");
+        var moduleB = modules.Items.First(m => m.Code == "REPORTS");
+        var actionRead = actions.Items.First(a => a.Code == "READ");
+        var actionExport = actions.Items.First(a => a.Code == "EXPORT");
 
-        var afterRevoke = await _roles.RevokePermissionsAsync(new RevokePermissionsRequest
-        {
-            RoleId = role.Id,
-            PermissionCodes = { "USER_CREATE" },
-        });
-        afterRevoke.Permissions.Should().Equal("USER_UPDATE");
+        var assignReq = new AssignPermissionsRequest { RoleId = role.Id };
+        assignReq.Grants.Add(new RolePermissionPair { ModuleId = moduleA.Id, ActionId = actionRead.Id });
+        assignReq.Grants.Add(new RolePermissionPair { ModuleId = moduleB.Id, ActionId = actionRead.Id });
+        assignReq.Grants.Add(new RolePermissionPair { ModuleId = moduleB.Id, ActionId = actionExport.Id });
+
+        var afterAssign = await _roles.AssignPermissionsAsync(assignReq);
+        afterAssign.Grants.Should().HaveCount(3);
+
+        var revokeReq = new RevokePermissionsRequest { RoleId = role.Id };
+        revokeReq.Grants.Add(new RolePermissionPair { ModuleId = moduleB.Id, ActionId = actionExport.Id });
+
+        var afterRevoke = await _roles.RevokePermissionsAsync(revokeReq);
+        afterRevoke.Grants.Should().HaveCount(2);
+        afterRevoke.Grants.Should().NotContain(g => g.ModuleCode == "REPORTS" && g.ActionCode == "EXPORT");
     }
 
     [Fact]
@@ -108,24 +121,26 @@ public sealed class RolesCrudTests(PostgresContainerFixture postgres) : IAsyncLi
         });
         var superAdmin = list.Items.Single(r => r.Code == "SUPER_ADMIN");
 
-        Func<Task> act = async () => await _roles.RevokePermissionsAsync(new RevokePermissionsRequest
-        {
-            RoleId = superAdmin.Id,
-            PermissionCodes = { "SYSTEM_ADMIN" },
-        });
+        var req = new RevokePermissionsRequest { RoleId = superAdmin.Id };
+        req.Grants.Add(new RolePermissionPair { ModuleId = Guid.NewGuid().ToString(), ActionId = Guid.NewGuid().ToString() });
+
+        Func<Task> act = async () => await _roles.RevokePermissionsAsync(req);
         (await act.Should().ThrowAsync<RpcException>()).Which.StatusCode.Should().Be(StatusCode.FailedPrecondition);
     }
 
     [Fact]
-    public async Task ListRoles_includes_seeded_system_roles()
+    public async Task ListRoles_with_includeGrants_returns_seeded_system_roles_with_grants()
     {
         var list = await _roles.ListRolesAsync(new ListRolesRequest
         {
             Pagination = new Foxai.Common.PageRequest { Page = 1, PageSize = 100 },
-            IncludePermissions = true,
+            IncludeGrants = true,
         });
 
         var codes = list.Items.Select(r => r.Code).ToList();
         codes.Should().Contain(new[] { "SUPER_ADMIN", "ADMIN", "USER" });
+
+        var superAdmin = list.Items.Single(r => r.Code == "SUPER_ADMIN");
+        superAdmin.Grants.Should().NotBeEmpty("SUPER_ADMIN cấp toàn bộ module × action");
     }
 }

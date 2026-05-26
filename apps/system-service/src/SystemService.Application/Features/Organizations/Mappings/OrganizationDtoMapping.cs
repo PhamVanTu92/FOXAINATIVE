@@ -5,12 +5,18 @@ namespace SystemService.Application.Features.Organizations.Mappings;
 
 internal static class OrganizationDtoMapping
 {
-    public static OrganizationNodeDto ToDto(this OrganizationNode node, IReadOnlyList<OrganizationNodeDto>? children = null) =>
+    public static OrganizationNodeDto ToDto(
+        this OrganizationNode node,
+        IReadOnlyList<OrganizationNodeDto>? children = null,
+        string? parentName = null) =>
         new(
             Id: node.Id,
             Code: node.Code,
             Name: node.Name,
             ParentId: node.ParentId,
+            ParentName: parentName ?? node.Parent?.Name,
+            ManagerId: node.ManagerId,
+            ManagerName: node.Manager is null ? null : node.Manager.FullName,
             Level: node.Level,
             Path: node.Path,
             CreatedAt: node.CreatedAt,
@@ -25,7 +31,10 @@ internal static class OrganizationDtoMapping
             return Array.Empty<OrganizationNodeDto>();
         }
 
-        var dtos = nodes.ToDictionary(n => n.Id, n => new MutableDto(n));
+        var nameMap = nodes.ToDictionary(n => n.Id, n => n.Name);
+        var dtos = nodes.ToDictionary(
+            n => n.Id,
+            n => new MutableDto(n, n.ParentId is { } pid && nameMap.TryGetValue(pid, out var pn) ? pn : null));
         var roots = new List<MutableDto>();
 
         foreach (var node in nodes)
@@ -44,12 +53,15 @@ internal static class OrganizationDtoMapping
         return roots.Select(r => r.ToDto()).ToList();
     }
 
-    private sealed class MutableDto(OrganizationNode node)
+    private sealed class MutableDto(OrganizationNode node, string? parentName)
     {
         public OrganizationNode Source { get; } = node;
+        public string? ParentName { get; } = parentName;
         public List<MutableDto> Children { get; } = new();
 
         public OrganizationNodeDto ToDto() =>
-            Source.ToDto(Children.OrderBy(c => c.Source.Code).Select(c => c.ToDto()).ToList());
+            Source.ToDto(
+                Children.OrderBy(c => c.Source.Code).Select(c => c.ToDto()).ToList(),
+                ParentName);
     }
 }
