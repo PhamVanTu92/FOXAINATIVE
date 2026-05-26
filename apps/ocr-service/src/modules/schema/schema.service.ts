@@ -69,6 +69,22 @@ export class SchemaService {
   async create(dto: CreateDocumentSchemaDto, createdBy = 'system') {
     const existing = await this.prisma.client.documentSchema.findUnique({ where: { code: dto.code } });
     if (existing) throw new ConflictException(`Mã chứng từ "${dto.code}" đã tồn tại.`);
+
+    const fieldKeys = dto.fields.map(f => f.fieldKey);
+    const dupField = fieldKeys.find((k, i) => fieldKeys.indexOf(k) !== i);
+    if (dupField) throw new ConflictException(`Trường "${dupField}" bị trùng lặp.`);
+
+    if (dto.tables?.length) {
+      const tableKeys = dto.tables.map(t => t.tableKey);
+      const dupTable = tableKeys.find((k, i) => tableKeys.indexOf(k) !== i);
+      if (dupTable) throw new ConflictException(`Bảng "${dupTable}" bị trùng lặp.`);
+      for (const t of dto.tables) {
+        const colKeys = t.columns.map(c => c.columnKey);
+        const dupCol = colKeys.find((k, i) => colKeys.indexOf(k) !== i);
+        if (dupCol) throw new ConflictException(`Cột "${dupCol}" trong bảng "${t.tableKey}" bị trùng lặp.`);
+      }
+    }
+
     return this.prisma.client.documentSchema.create({
       data: {
         code: dto.code, name: dto.name, type: dto.type,

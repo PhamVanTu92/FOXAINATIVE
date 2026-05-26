@@ -1,13 +1,14 @@
 import {
-  IsArray, IsEnum, IsOptional, IsString, IsUUID, MaxLength, ValidateNested, IsNumber,
+  IsArray, IsEnum, IsOptional, IsString, MaxLength, ValidateNested, IsNumber, IsObject,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { DocumentStatus, DocumentType } from '@foxai/ocr-db';
 import { PaginationDto } from '@foxai/shared-types';
 
 export class UploadDocumentDto {
-  @IsUUID() schemaId!: string;
+  @IsString() schemaId!: string;
   @IsOptional() @IsEnum(['vi', 'en', 'vi+en']) language?: 'vi' | 'en' | 'vi+en' = 'vi';
+  @IsOptional() @IsEnum(['gemini', 'claude', 'local-pdf', 'mock']) ocrProvider?: 'gemini' | 'claude' | 'local-pdf' | 'mock';
 }
 
 export class UpdateDocumentValueDto {
@@ -18,11 +19,13 @@ export class UpdateDocumentValueDto {
 export class UpdateDocumentLineItemDto {
   @IsOptional() @IsString() id?: string;
   @IsNumber() stt!: number;
+  @IsOptional() @IsString() tableKey?: string;
   @IsOptional() @IsString() name?: string;
   @IsOptional() @IsString() unit?: string;
   @IsOptional() @IsNumber() quantity?: number;
   @IsOptional() @IsNumber() unitPrice?: number;
   @IsOptional() @IsNumber() amount?: number;
+  @IsOptional() @IsObject() extraData?: Record<string, unknown>;
 }
 
 export class UpdateDocumentDto {
@@ -39,7 +42,10 @@ export class ConfirmDocumentDto {
 
 export class FilterDocumentDto extends PaginationDto {
   @IsOptional() @IsString() search?: string;
-  @IsOptional() @IsArray() @IsEnum(DocumentStatus, { each: true }) status?: DocumentStatus[];
+  @IsOptional()
+  @Transform(({ value }) => (Array.isArray(value) ? value : value ? [value] : undefined))
+  @IsArray() @IsEnum(DocumentStatus, { each: true })
+  status?: DocumentStatus[];
   @IsOptional() @IsString() schemaCode?: string;
   @IsOptional() @IsEnum(DocumentType) type?: DocumentType;
   @IsOptional() @IsString() sellerTaxCode?: string;

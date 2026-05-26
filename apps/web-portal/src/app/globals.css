@@ -1,3 +1,30 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── Thin scrollbars (Chromium / Safari) ────────────────────────────────── */
+*::-webkit-scrollbar        { width: 5px; height: 5px; }
+*::-webkit-scrollbar-track  { background: transparent; }
+*::-webkit-scrollbar-corner { background: transparent; }
+*::-webkit-scrollbar-thumb  {
+  background: #d1d5db;   /* gray-300 */
+  border-radius: 9999px;
+}
+*::-webkit-scrollbar-thumb:hover { background: #9ca3af; /* gray-400 */ }
+
+/* Firefox */
+* { scrollbar-width: thin; scrollbar-color: #d1d5db transparent; }
+
+/* Sidebar – dark variant */
+aside *::-webkit-scrollbar-thumb       { background: rgba(255,255,255,0.14); }
+aside *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.26); }
+aside * { scrollbar-color: rgba(255,255,255,0.14) transparent; }
+
+/* ── Date input – remove native calendar icon on Chrome ─────────────────── */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0.5;
+  cursor: pointer;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}

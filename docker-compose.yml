@@ -109,8 +109,67 @@ services:
       timeout: 5s
       retries: 5
 
+  # ─── OCR API (HTTP server + job producer) ───────────────────────────────────
+  ocr-api:
+    build:
+      context: .
+      dockerfile: apps/ocr-service/Dockerfile
+    container_name: foxai-ocr-api
+    restart: unless-stopped
+    environment:
+      APP_MODE: api
+      NODE_ENV: production
+      OCR_SERVICE_PORT: 3003
+      OCR_DATABASE_URL: postgresql://ocr_user:ocr_pass@ocr-db:5432/ocr_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ''
+      BULLMQ_PREFIX: ocr
+      OCR_PROVIDER: ${OCR_PROVIDER:-gemini}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      WORKER_CONCURRENCY: 3
+      UPLOAD_DIR: ./uploads
+    ports:
+      - '${OCR_SERVICE_PORT:-3003}:3003'
+    volumes:
+      - ocr_uploads:/app/apps/ocr-service/uploads
+    depends_on:
+      ocr-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ─── OCR Workers (job consumers, no HTTP) ────────────────────────────────────
+  ocr-worker:
+    build:
+      context: .
+      dockerfile: apps/ocr-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      APP_MODE: worker
+      NODE_ENV: production
+      OCR_DATABASE_URL: postgresql://ocr_user:ocr_pass@ocr-db:5432/ocr_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ''
+      BULLMQ_PREFIX: ocr
+      OCR_PROVIDER: ${OCR_PROVIDER:-gemini}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      WORKER_CONCURRENCY: 15
+      UPLOAD_DIR: ./uploads
+    volumes:
+      - ocr_uploads:/app/apps/ocr-service/uploads
+    depends_on:
+      ocr-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      replicas: 2
+
 volumes:
   system_db_data:
   ocr_db_data:
   chatbot_db_data:
   redis_data:
+  ocr_uploads:

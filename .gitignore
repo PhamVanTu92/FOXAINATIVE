@@ -47,3 +47,18 @@ minio_data/
 # Uploads (local dev)
 uploads/
 tmp/
+
+
+# .NET build
+bin/
+obj/
+
+# Output files
+*.dll
+*.exe
+*.pdb
+
+# Visual Studio
+.vs/
+*.user
+*.suo

@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Observable } from 'rxjs';
 import { DocumentStatus, Prisma } from '@foxai/ocr-db';
 import { BulkActionDto, ConfirmDocumentDto, FilterDocumentDto, UpdateDocumentDto } from './dto/document.dto';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -14,7 +15,9 @@ export class DocumentService {
   async createFromUpload(params: {
     schemaId: string; fileUrl: string; fileName?: string;
     fileSize?: number; mimeType?: string;
+    extraFiles?: Array<{ url: string; fileName?: string; mimeType?: string }>;
     language: 'vi' | 'en' | 'vi+en'; createdBy?: string;
+    ocrProvider?: 'gemini' | 'claude' | 'local-pdf' | 'mock';
   }) {
     const schema = await this.prisma.client.documentSchema.findUnique({ where: { id: params.schemaId } });
     if (!schema) throw new NotFoundException(`Không tìm thấy schema "${params.schemaId}".`);
@@ -25,6 +28,9 @@ export class DocumentService {
         schemaId: schema.id, schemaCode: schema.code,
         fileUrl: params.fileUrl, fileName: params.fileName,
         fileSize: params.fileSize, mimeType: params.mimeType,
+        extraFileUrls: params.extraFiles && params.extraFiles.length > 0
+          ? params.extraFiles as object[]
+          : undefined,
         status: DocumentStatus.DRAFT, ocrLanguage: params.language,
         createdBy: params.createdBy ?? 'system',
       },
@@ -33,7 +39,9 @@ export class DocumentService {
     const job = await this.ocrProducer.enqueue({
       documentId: document.id, schemaId: schema.id,
       fileUrl: params.fileUrl, mimeType: params.mimeType,
+      extraFileUrls: params.extraFiles?.map(f => ({ url: f.url, mimeType: f.mimeType })),
       language: params.language,
+      ocrProvider: params.ocrProvider,
     });
 
     await this.prisma.client.documentAuditLog.create({
@@ -44,14 +52,15 @@ export class DocumentService {
   }
 
   async getStats() {
-    const [total, draft, confirmed, processed, error] = await this.prisma.client.$transaction([
+    const [total, draft, confirmed, processed, transferred, error] = await this.prisma.client.$transaction([
       this.prisma.client.document.count(),
       this.prisma.client.document.count({ where: { status: DocumentStatus.DRAFT } }),
       this.prisma.client.document.count({ where: { status: DocumentStatus.CONFIRMED } }),
       this.prisma.client.document.count({ where: { status: DocumentStatus.PROCESSED } }),
+      this.prisma.client.document.count({ where: { status: DocumentStatus.TRANSFERRED } }),
       this.prisma.client.document.count({ where: { status: DocumentStatus.ERROR } }),
     ]);
-    return { total, draft, confirmed, processed, error };
+    return { total, draft, confirmed, processed, transferred, error };
   }
 
   async findMany(filter: FilterDocumentDto) {
@@ -120,7 +129,7 @@ export class DocumentService {
         await tx.documentLineItem.deleteMany({ where: { documentId: id } });
         for (const li of dto.lineItems) {
           await tx.documentLineItem.create({
-            data: { documentId: id, stt: li.stt, name: li.name, unit: li.unit, quantity: li.quantity, unitPrice: li.unitPrice, amount: li.amount, isManuallyAdded: !li.id },
+            data: { documentId: id, stt: li.stt, tableKey: li.tableKey ?? null, name: li.name, unit: li.unit, quantity: li.quantity, unitPrice: li.unitPrice, amount: li.amount, extraData: li.extraData as object | undefined, isManuallyAdded: !li.id },
           });
         }
       }
@@ -148,6 +157,30 @@ export class DocumentService {
     return { deleted: true };
   }
 
+  async transfer(id: string, transferredBy = 'system') {
+    const doc = await this.findOne(id);
+    if (doc.status !== DocumentStatus.CONFIRMED)
+      throw new ConflictException('Chỉ chứng từ "Đã xác nhận" mới có thể chuyển vào kho tri thức.');
+    await this.prisma.client.$transaction([
+      this.prisma.client.document.update({ where: { id }, data: { status: DocumentStatus.TRANSFERRED, processedAt: new Date(), processedBy: transferredBy } }),
+      this.prisma.client.documentAuditLog.create({ data: { documentId: id, action: 'STATUS_CHANGE', oldStatus: DocumentStatus.CONFIRMED, newStatus: DocumentStatus.TRANSFERRED, changedBy: transferredBy, note: 'Chuyển vào kho tri thức.' } }),
+    ]);
+    return this.findOne(id);
+  }
+
+  async bulkTransfer(dto: BulkActionDto, transferredBy = 'system') {
+    const docs = await this.prisma.client.document.findMany({ where: { id: { in: dto.documentIds } }, select: { id: true, status: true } });
+    const transferable = docs.filter((d) => d.status === DocumentStatus.CONFIRMED).map((d) => d.id);
+    const skipped = docs.filter((d) => d.status !== DocumentStatus.CONFIRMED).map((d) => d.id);
+    if (transferable.length > 0) {
+      await this.prisma.client.$transaction([
+        this.prisma.client.document.updateMany({ where: { id: { in: transferable } }, data: { status: DocumentStatus.TRANSFERRED, processedAt: new Date(), processedBy: transferredBy } }),
+        this.prisma.client.documentAuditLog.createMany({ data: transferable.map((id) => ({ documentId: id, action: 'STATUS_CHANGE', oldStatus: DocumentStatus.CONFIRMED, newStatus: DocumentStatus.TRANSFERRED, changedBy: transferredBy, note: 'Chuyển vào kho tri thức hàng loạt.' })) }),
+      ]);
+    }
+    return { transferred: transferable.length, skipped };
+  }
+
   async bulkConfirm(dto: BulkActionDto, confirmedBy = 'system') {
     const docs = await this.prisma.client.document.findMany({ where: { id: { in: dto.documentIds } }, select: { id: true, status: true } });
     const confirmable = docs.filter((d) => d.status === DocumentStatus.DRAFT || d.status === DocumentStatus.PROCESSED).map((d) => d.id);
@@ -167,5 +200,75 @@ export class DocumentService {
     const skipped = docs.filter((d) => d.status !== DocumentStatus.DRAFT && d.status !== DocumentStatus.ERROR).map((d) => d.id);
     if (deletable.length > 0) await this.prisma.client.document.deleteMany({ where: { id: { in: deletable } } });
     return { deleted: deletable.length, skipped };
+  }
+
+  getJobStatus(documentId: string) {
+    return this.ocrProducer.getJobStatus(documentId);
+  }
+
+  streamJobEvents(documentId: string): Observable<{ data: object }> {
+    return new Observable<{ data: object }>(subscriber => {
+      let done = false;
+
+      const finish = async (succeeded: boolean, failedReason?: string) => {
+        done = true;
+        clearInterval(timer);
+        clearTimeout(timeoutId);
+        if (succeeded) {
+          try {
+            const doc = await this.findOne(documentId);
+            subscriber.next({ data: { type: 'done', document: doc } });
+          } catch {
+            subscriber.next({ data: { type: 'done', state: 'ERROR' } });
+          }
+        } else {
+          subscriber.next({ data: { type: 'failed', error: failedReason ?? 'OCR thất bại.' } });
+        }
+        subscriber.complete();
+      };
+
+      const timer = setInterval(async () => {
+        if (done) return;
+        try {
+          const status = await this.ocrProducer.getJobStatus(documentId);
+          if (status.state === 'completed') {
+            await finish(true);
+          } else if (status.state === 'failed') {
+            await finish(false, status.failedReason);
+          } else if (status.state === 'not_found') {
+            // Job expired from Redis or already processed – fetch document directly
+            await finish(true);
+          } else {
+            subscriber.next({
+              data: {
+                type: 'progress',
+                state: status.state,
+                progress: typeof status.progress === 'number' ? status.progress : 0,
+              },
+            });
+          }
+        } catch (err) {
+          done = true;
+          clearInterval(timer);
+          clearTimeout(timeoutId);
+          subscriber.error(err);
+        }
+      }, 600);
+
+      // Auto-close after 10 minutes
+      const timeoutId = setTimeout(() => {
+        if (!done) {
+          done = true;
+          clearInterval(timer);
+          subscriber.complete();
+        }
+      }, 10 * 60 * 1000);
+
+      return () => {
+        done = true;
+        clearInterval(timer);
+        clearTimeout(timeoutId);
+      };
+    });
   }
 }
