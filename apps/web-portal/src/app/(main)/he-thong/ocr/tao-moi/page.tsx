@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Plus, Trash2, X, AlertCircle, FileText, Grid3X3,
   Table2, ArrowLeft, Save, ChevronDown, ChevronRight,
-  Settings, ScanLine, GripVertical,
+  Settings, ScanLine, GripVertical, Bot,
 } from 'lucide-react';
 import { ocrApi } from '@/lib/ocr-api';
 import type { DataType, FieldPosition, DocType } from '@/lib/ocr-api';
@@ -60,7 +60,6 @@ interface FieldRow {
   dataType: DataType;
   position: FieldPosition;
   isRequired: boolean;
-  description: string;
   _keyManuallySet: boolean;
 }
 
@@ -69,7 +68,6 @@ interface ColumnRow {
   columnKey: string;
   dataType: DataType;
   isRequired: boolean;
-  description: string;
   _keyManuallySet: boolean;
 }
 
@@ -83,12 +81,12 @@ interface TableRow {
 
 const newField = (): FieldRow => ({
   label: '', fieldKey: '', dataType: 'TEXT', position: 'HEADER',
-  isRequired: false, description: '', _keyManuallySet: false,
+  isRequired: false, _keyManuallySet: false,
 });
 
 const newColumn = (): ColumnRow => ({
   label: '', columnKey: '', dataType: 'TEXT', isRequired: false,
-  description: '', _keyManuallySet: false,
+  _keyManuallySet: false,
 });
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -99,7 +97,7 @@ export default function TaoMoiOcrPage() {
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [type, setType] = useState<DocType>('INVOICE');
-  const [description, setDescription] = useState('');
+  const [aiPrompt, setAiPrompt] = useState('');
   const [fields, setFields] = useState<FieldRow[]>([newField()]);
   const [tables, setTables] = useState<TableRow[]>([]);
   const [saving, setSaving] = useState(false);
@@ -233,17 +231,15 @@ export default function TaoMoiOcrPage() {
         code: code.toUpperCase().trim(),
         name: name.trim(),
         type,
-        description: description.trim() || undefined,
+        description: aiPrompt.trim() || undefined,
         fields: validFields.map(f => ({
           fieldKey: f.fieldKey, label: f.label, dataType: f.dataType,
           position: f.position, isRequired: f.isRequired,
-          description: f.description.trim() || undefined,
         })),
         tables: validTables.length > 0 ? validTables.map(t => ({
           tableKey: t.tableKey, name: t.name,
           columns: t.columns.map(c => ({
             columnKey: c.columnKey, label: c.label, dataType: c.dataType, isRequired: c.isRequired,
-            description: c.description || undefined,
           })),
         })) : undefined,
       });
@@ -316,7 +312,7 @@ export default function TaoMoiOcrPage() {
             <h2 className="text-sm font-semibold text-gray-800">Thông tin chứng từ</h2>
           </div>
           <div className="p-5">
-            <div className="grid grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">
                   Mã chứng từ <span className="text-red-500">*</span>
@@ -355,16 +351,6 @@ export default function TaoMoiOcrPage() {
                 </select>
               </div>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">Mô tả</label>
-              <input
-                type="text"
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                placeholder="Mô tả ngắn về loại chứng từ này"
-                className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
           </div>
         </div>
 
@@ -384,13 +370,10 @@ export default function TaoMoiOcrPage() {
             <thead>
               <tr className="border-b bg-green-50 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                 <th className="px-4 py-2.5 text-left w-12"></th>
-                <th className="px-4 py-2.5 text-left">Tên trường & Field Key</th>
+                <th className="px-4 py-2.5 text-left">Tên trường</th>
+                <th className="px-4 py-2.5 text-left w-48">Field Key</th>
                 <th className="px-4 py-2.5 text-left w-36">Kiểu dữ liệu</th>
                 <th className="px-4 py-2.5 text-left w-28">Vị trí</th>
-                <th className="px-4 py-2.5 text-left">
-                  Mô tả cho AI
-                  <span className="ml-1 text-[10px] font-normal text-gray-400 normal-case">(gợi ý vị trí để phân biệt trường trùng tên)</span>
-                </th>
                 <th className="px-4 py-2.5 text-center w-12"></th>
               </tr>
             </thead>
@@ -422,12 +405,14 @@ export default function TaoMoiOcrPage() {
                       placeholder="Tên trường *"
                       className="w-full px-2.5 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
+                  </td>
+                  <td className="px-4 py-3">
                     <input
                       type="text"
                       value={f.fieldKey}
                       onChange={e => updateFieldKey(idx, e.target.value)}
-                      placeholder="field_key (tự tạo từ tên)"
-                      className="w-full mt-1 px-2.5 py-1 text-xs border border-dashed rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono text-gray-500 bg-gray-50"
+                      placeholder="field_key"
+                      className="w-full px-2.5 py-1.5 text-xs border border-dashed rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono text-gray-500 bg-gray-50"
                     />
                   </td>
                   <td className="px-4 py-3">
@@ -447,15 +432,6 @@ export default function TaoMoiOcrPage() {
                     >
                       {POSITION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={f.description}
-                      onChange={e => updateField(idx, 'description', e.target.value)}
-                      placeholder="VD: Địa chỉ BÊN BÁN, khu vực phần trên hóa đơn"
-                      className="w-full px-2.5 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    />
                   </td>
                   <td className="px-4 py-3 text-center">
                     <button
@@ -552,9 +528,9 @@ export default function TaoMoiOcrPage() {
                           <tr className="bg-green-50 border-b text-gray-500 uppercase tracking-wide font-semibold">
                             <th className="px-3 py-2 w-8"></th>
                             <th className="px-3 py-2 text-left w-8">#</th>
-                            <th className="px-3 py-2 text-left">Tên cột & Column Key</th>
+                            <th className="px-3 py-2 text-left">Tên cột</th>
+                            <th className="px-3 py-2 text-left w-40">Column Key</th>
                             <th className="px-3 py-2 text-left w-36">Kiểu dữ liệu</th>
-                            <th className="px-3 py-2 text-left">Mô tả cho AI</th>
                             <th className="px-3 py-2 text-center w-10"></th>
                           </tr>
                         </thead>
@@ -585,14 +561,16 @@ export default function TaoMoiOcrPage() {
                                   placeholder="Tên cột *"
                                   className="w-full px-2 py-1.5 border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                                 />
+                              </td>
+                              <td className="px-3 py-2">
                                 <input
                                   value={c.columnKey}
                                   onChange={e => updateColumnKey(tIdx, cIdx, e.target.value)}
                                   placeholder="column_key"
-                                  className="w-full mt-1 px-2 py-1 text-[11px] border border-dashed rounded focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono text-gray-500 bg-gray-50"
+                                  className="w-full px-2 py-1.5 text-[11px] border border-dashed rounded focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono text-gray-500 bg-gray-50"
                                 />
                               </td>
-                              <td className="px-3 py-2 align-top pt-2">
+                              <td className="px-3 py-2">
                                 <select
                                   value={c.dataType}
                                   onChange={e => updateColumn(tIdx, cIdx, 'dataType', e.target.value)}
@@ -601,15 +579,7 @@ export default function TaoMoiOcrPage() {
                                   {DATA_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                                 </select>
                               </td>
-                              <td className="px-3 py-2 align-top pt-2">
-                                <input
-                                  value={c.description}
-                                  onChange={e => updateColumn(tIdx, cIdx, 'description', e.target.value)}
-                                  placeholder="VD: cột giá trị trước thuế..."
-                                  className="w-full px-2 py-1.5 border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-600"
-                                />
-                              </td>
-                              <td className="px-3 py-2 text-center align-top pt-2">
+                              <td className="px-3 py-2 text-center">
                                 <button
                                   onClick={() => removeColumn(tIdx, cIdx)}
                                   disabled={t.columns.length === 1}
@@ -641,6 +611,27 @@ export default function TaoMoiOcrPage() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* ── Card 4: Prompt cho AI ── */}
+        <div className="bg-white rounded-xl border overflow-hidden">
+          <div className="flex items-center gap-2 px-5 py-3.5 border-b bg-purple-50">
+            <Bot className="w-4 h-4 text-purple-500" />
+            <h2 className="text-sm font-semibold text-gray-800">Prompt cho AI</h2>
+            <span className="ml-1 text-xs text-gray-400 font-normal">(áp dụng chung cho toàn bộ chứng từ này)</span>
+          </div>
+          <div className="p-5">
+            <textarea
+              value={aiPrompt}
+              onChange={e => setAiPrompt(e.target.value)}
+              rows={5}
+              placeholder={`Nhập hướng dẫn chung cho AI khi nhận dạng loại chứng từ này.\n\nVD: Đây là phiếu nhập kho nội bộ, không phải hóa đơn VAT. Cột "Cộng" là tổng tiền chưa VAT. Trường "Số" là số phiếu nhập, không phải số hóa đơn. Nếu có nhiều bảng hàng hóa, chỉ lấy bảng đầu tiên.`}
+              className="w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none text-gray-700 placeholder:text-gray-300 leading-relaxed"
+            />
+            <p className="text-xs text-gray-400 mt-2">
+              Prompt này được đưa vào câu hỏi gửi AI mỗi lần quét tài liệu thuộc loại chứng từ này. Dùng để làm rõ các trường hợp đặc biệt hoặc cách đọc tài liệu.
+            </p>
+          </div>
         </div>
       </div>
     </div>

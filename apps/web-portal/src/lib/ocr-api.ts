@@ -132,9 +132,16 @@ export interface AuditLog {
   newStatus: DocStatus | null;
 }
 
+export interface FileRef {
+  url: string;
+  fileName?: string | null;
+  mimeType?: string | null;
+}
+
 export interface DocDetail extends DocListItem {
   mimeType: string | null;
   fileUrl: string | null;
+  extraFileUrls?: FileRef[] | null;
   schema: SchemaDetail;
   values: DocValue[];
   lineItems: LineItem[];
@@ -182,11 +189,13 @@ export const ocrApi = {
 
   getDocument: (id: string) => req<DocDetail>(`/documents/${id}`),
 
-  uploadDocument: (file: File, schemaId: string, language = 'vi') => {
+  uploadDocument: (files: File | File[], schemaId: string, language = 'vi', ocrProvider?: string) => {
     const fd = new FormData();
-    fd.append('file', file);
+    const arr = Array.isArray(files) ? files : [files];
+    for (const f of arr) fd.append('files', f);
     fd.append('schemaId', schemaId);
     fd.append('language', language);
+    if (ocrProvider) fd.append('ocrProvider', ocrProvider);
     return req<{ documentId: string; jobId: string; status: string; message: string }>(
       '/documents/upload',
       { method: 'POST', body: fd },

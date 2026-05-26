@@ -39,6 +39,9 @@ export class ClaudeOcrProvider implements IOcrProvider {
     // --- 2. Xây dựng prompt ---
     const fieldsPrompt = buildFieldsPrompt(request);
     const tablesPrompt = buildTablesPrompt(request);
+    const customPromptSection = request.promptTemplate?.trim()
+      ? `\nLƯU Ý ĐẶC BIỆT TỪ NGƯỜI DÙNG:\n${request.promptTemplate.trim()}\n`
+      : '';
     const systemPrompt = `Bạn là chuyên gia nhận dạng chứng từ kế toán Việt Nam. Nhiệm vụ của bạn là trích xuất thông tin từ tài liệu và trả về JSON chính xác.`;
 
     const extractionInstructions = `Hãy trích xuất thông tin từ tài liệu này theo các trường sau:
@@ -64,7 +67,7 @@ Quy tắc:
 - Số tiền: chỉ chữ số, không dấu chấm/phẩy phân cách (vd: 87000000)
 - Ngày/giờ (DATE): giữ nguyên định dạng tìm thấy trong tài liệu — nếu có cả ngày lẫn giờ thì trả đủ (vd: "09:40 - 25/05/2026"), chỉ có ngày thì trả ngày (vd: "25/05/2026"), chỉ có giờ thì trả giờ (vd: "09:40")
 - lineItems: danh sách hàng hóa/dữ liệu bảng (mảng rỗng nếu không có bảng)
-
+${customPromptSection}
 ${tablesPrompt}`;
 
     // --- 3. Tạo nội dung message phù hợp với loại file ---

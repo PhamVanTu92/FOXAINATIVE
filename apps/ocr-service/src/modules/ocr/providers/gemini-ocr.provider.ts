@@ -38,6 +38,9 @@ export class GeminiOcrProvider implements IOcrProvider {
     // --- 3. Xây dựng prompt ---
     const fieldsPrompt = buildFieldsPrompt(request);
     const tablesPrompt = buildTablesPrompt(request);
+    const customPromptSection = request.promptTemplate?.trim()
+      ? `\nLƯU Ý ĐẶC BIỆT TỪ NGƯỜI DÙNG:\n${request.promptTemplate.trim()}\n`
+      : '';
 
     const extractionInstructions = `Bạn là chuyên gia nhận dạng chứng từ kế toán Việt Nam. Hãy trích xuất thông tin từ tài liệu.
 
@@ -63,7 +66,7 @@ Quy tắc quan trọng:
 - Số tiền: chỉ chữ số nguyên, KHÔNG có dấu chấm/phẩy (vd: 87000000)
 - Ngày/giờ (DATE): giữ nguyên định dạng tìm thấy trong tài liệu — nếu có cả ngày lẫn giờ thì trả đủ (vd: "09:40 - 25/05/2026"), chỉ có ngày thì trả ngày (vd: "25/05/2026"), chỉ có giờ thì trả giờ (vd: "09:40")
 - lineItems: mảng rỗng [] nếu không có bảng hàng hóa
-
+${customPromptSection}
 ${tablesPrompt}`;
 
     // --- 4. Tạo nội dung request phù hợp với từng loại file ---

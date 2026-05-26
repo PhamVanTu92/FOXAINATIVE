@@ -8,6 +8,7 @@ import { PaginationDto } from '@foxai/shared-types';
 export class UploadDocumentDto {
   @IsString() schemaId!: string;
   @IsOptional() @IsEnum(['vi', 'en', 'vi+en']) language?: 'vi' | 'en' | 'vi+en' = 'vi';
+  @IsOptional() @IsEnum(['gemini', 'claude', 'local-pdf', 'mock']) ocrProvider?: 'gemini' | 'claude' | 'local-pdf' | 'mock';
 }
 
 export class UpdateDocumentValueDto {

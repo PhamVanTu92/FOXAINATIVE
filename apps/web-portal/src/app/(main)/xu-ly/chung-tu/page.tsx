@@ -38,6 +38,17 @@ const TYPE_CONFIG: Record<string, { label: string; cls: string }> = {
   OTHERS:            { label: 'Khác',            cls: 'bg-gray-50  text-gray-500  border-gray-200' },
 };
 
+function getFileIconDetail(mimeType: string | null | undefined, fileName: string) {
+  const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
+  if (mimeType?.startsWith('image/') || ['png','jpg','jpeg','gif','webp','tiff','tif'].includes(ext))
+    return { Icon: ImageIcon, color: 'text-purple-400' };
+  if (mimeType?.includes('spreadsheetml') || mimeType?.includes('ms-excel') || ['xlsx','xls','csv'].includes(ext))
+    return { Icon: Table2, color: 'text-green-400' };
+  if (mimeType?.includes('wordprocessingml') || ext === 'docx')
+    return { Icon: FileText, color: 'text-blue-400' };
+  return { Icon: FileText, color: 'text-red-400' };
+}
+
 function StatusBadge({ status }: { status: string }) {
   const s = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG]
     ?? { label: status, cls: 'bg-gray-100 text-gray-600 border-gray-200' };
@@ -115,6 +126,7 @@ export default function ChungTuPage() {
   const [detailOpen, setDetailOpen]     = useState(false);
   const [detailDoc, setDetailDoc]       = useState<DocDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [activeFileIdx, setActiveFileIdx] = useState(0);
 
   // Confirm dialog
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -261,6 +273,7 @@ export default function ChungTuPage() {
     setDetailOpen(true);
     setDetailLoading(true);
     setDetailDoc(null);
+    setActiveFileIdx(0);
     try {
       setDetailDoc(await ocrApi.getDocument(id));
     } catch (e: unknown) {
@@ -592,16 +605,21 @@ export default function ChungTuPage() {
                   <td className="px-4 py-3 text-gray-400 text-xs">
                     {(page - 1) * 25 + idx + 1}
                   </td>
-                  <td className="px-4 py-3 font-medium text-gray-800">
-                    {doc.fileName ?? doc.id.slice(0, 10) + '...'}
+                  <td className="px-4 py-3 font-mono text-xs font-semibold text-gray-700">
+                    {doc.schemaCode}
                   </td>
-                  <td className="px-4 py-3 text-gray-700 max-w-[200px]">
+                  <td className="px-4 py-3 max-w-[220px]">
                     <button
                       onClick={() => openDetailPanel(doc.id)}
-                      className="flex items-center gap-2 hover:text-blue-600 transition-colors text-left w-full"
+                      className="flex items-start gap-2 hover:text-blue-600 transition-colors text-left w-full"
                     >
-                      <FileText className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                      <span className="truncate">{doc.fileName ?? doc.schema.name}</span>
+                      <FileText className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
+                      <span className="flex flex-col min-w-0">
+                        <span className="truncate text-sm font-medium text-gray-800">{doc.schema.name}</span>
+                        {doc.fileName && (
+                          <span className="truncate text-xs text-gray-400">{doc.fileName}</span>
+                        )}
+                      </span>
                     </button>
                   </td>
                   <td className="px-4 py-3">
@@ -696,8 +714,8 @@ export default function ChungTuPage() {
                 <input
                   type="text"
                   readOnly
-                  value={editDoc.fileName ?? editDoc.id.slice(0, 12) + '...'}
-                  className="w-full px-3 py-2 text-sm border rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+                  value={editDoc.schemaCode}
+                  className="w-full px-3 py-2 text-sm border rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed font-mono"
                 />
               </div>
               <div>
@@ -705,10 +723,21 @@ export default function ChungTuPage() {
                 <input
                   type="text"
                   readOnly
-                  value={editDoc.fileName ?? editDoc.schema.name}
+                  value={editDoc.schema.name}
                   className="w-full px-3 py-2 text-sm border rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
                 />
               </div>
+              {editDoc.fileName && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Tên file</label>
+                  <input
+                    type="text"
+                    readOnly
+                    value={editDoc.fileName}
+                    className="w-full px-3 py-2 text-sm border rounded-lg bg-gray-50 text-gray-400 cursor-not-allowed"
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">Loại chứng từ</label>
                 <input
@@ -766,74 +795,111 @@ export default function ChungTuPage() {
         <div className="fixed inset-0 z-50 flex">
           {/* Left: document viewer */}
           <div className="flex-1 bg-gray-900 flex flex-col overflow-hidden">
+            {/* File tabs — shown when document has multiple source files */}
+            {detailDoc && (() => {
+              const allFiles = [
+                { url: ocrApi.getDocumentFileUrl(detailDoc.id), fileName: detailDoc.fileName, mimeType: detailDoc.mimeType, isPrimary: true },
+                ...(detailDoc.extraFileUrls ?? []).map((f, i) => ({
+                  url: `${ocrApi.getDocumentFileUrl(detailDoc.id)}?extra=${i}`,
+                  fileName: f.fileName ?? `Tệp ${i + 2}`,
+                  mimeType: f.mimeType,
+                  isPrimary: false,
+                })),
+              ];
+              if (allFiles.length <= 1) return null;
+              return (
+                <div className="flex items-center gap-0.5 px-2 py-1.5 bg-gray-800 border-b border-gray-700 overflow-x-auto shrink-0">
+                  {allFiles.map((f, idx) => {
+                    const { Icon: FI, color: fc } = getFileIconDetail(f.mimeType, f.fileName ?? '');
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => setActiveFileIdx(idx)}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs whitespace-nowrap transition-colors shrink-0 ${
+                          activeFileIdx === idx
+                            ? 'bg-gray-600 text-white'
+                            : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                        }`}
+                      >
+                        <FI className={`w-3 h-3 ${fc}`} />
+                        {f.fileName ?? `Tệp ${idx + 1}`}
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })()}
             {/* Viewer toolbar */}
-            <div className="flex items-center justify-between px-4 py-2.5 bg-gray-800 shrink-0">
-              <span className="text-xs text-gray-300 truncate max-w-xs">
-                {detailDoc?.fileName ?? 'Chứng từ gốc'}
-              </span>
-              {detailDoc?.mimeType && (
-                <a
-                  href={ocrApi.getDocumentFileUrl(detailDoc.id)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-xs text-gray-300 hover:text-white bg-gray-700 hover:bg-gray-600 px-2.5 py-1 rounded-md transition-colors shrink-0 ml-3"
-                >
-                  <ZoomIn className="w-3.5 h-3.5" />
-                  Mở rộng
-                </a>
-              )}
-            </div>
-            {/* Viewer content */}
-            <div className="flex-1 overflow-hidden relative">
-              {detailLoading ? (
-                <div className="flex items-center justify-center h-full">
-                  <Loader2 className="w-8 h-8 text-gray-500 animate-spin" />
-                </div>
-              ) : detailDoc?.mimeType?.startsWith('image/') ? (
-                <div className="h-full overflow-auto flex items-start justify-center p-4">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={ocrApi.getDocumentFileUrl(detailDoc.id)}
-                    alt={detailDoc.fileName ?? 'document'}
-                    className="max-w-full object-contain rounded shadow-lg"
-                  />
-                </div>
-              ) : detailDoc?.mimeType === 'application/pdf' ? (
-                <iframe
-                  src={ocrApi.getDocumentFileUrl(detailDoc.id)}
-                  className="w-full h-full border-0"
-                  title={detailDoc.fileName ?? 'document'}
-                />
-              ) : detailDoc ? (
-                <div className="flex flex-col items-center justify-center h-full gap-3 text-gray-500">
-                  {(detailDoc.mimeType?.includes('spreadsheetml') || detailDoc.mimeType?.includes('ms-excel') || detailDoc.mimeType === 'text/csv')
-                    ? <Table2 className="w-12 h-12 text-green-400" />
-                    : detailDoc.mimeType?.includes('wordprocessingml')
-                    ? <FileText className="w-12 h-12 text-blue-400" />
-                    : <ImageIcon className="w-12 h-12 text-gray-600" />
-                  }
-                  <p className="text-sm text-center px-6">
-                    {(detailDoc.mimeType?.includes('spreadsheetml') || detailDoc.mimeType?.includes('ms-excel') || detailDoc.mimeType === 'text/csv')
-                      ? 'File Excel/CSV — AI đã đọc nội dung bảng tính'
-                      : detailDoc.mimeType?.includes('wordprocessingml')
-                      ? 'File Word — AI đã đọc nội dung văn bản'
-                      : 'Không thể xem trước định dạng này'}
-                  </p>
-                  <a
-                    href={ocrApi.getDocumentFileUrl(detailDoc.id)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-blue-400 hover:text-blue-300 underline flex items-center gap-1"
-                  >
-                    <Download className="w-3.5 h-3.5" /> Tải file gốc xuống
-                  </a>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <p className="text-sm text-gray-500">Chọn chứng từ để xem</p>
-                </div>
-              )}
-            </div>
+            {(() => {
+              const allFiles = detailDoc ? [
+                { url: ocrApi.getDocumentFileUrl(detailDoc.id), fileName: detailDoc.fileName, mimeType: detailDoc.mimeType },
+                ...(detailDoc.extraFileUrls ?? []).map((f, i) => ({
+                  url: `${ocrApi.getDocumentFileUrl(detailDoc.id)}?extra=${i}`,
+                  fileName: f.fileName ?? `Tệp ${i + 2}`,
+                  mimeType: f.mimeType,
+                })),
+              ] : [];
+              const activeFile = allFiles[activeFileIdx] ?? allFiles[0];
+              return (
+                <>
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-gray-800 shrink-0">
+                    <span className="text-xs text-gray-300 truncate max-w-xs">
+                      {activeFile?.fileName ?? 'Chứng từ gốc'}
+                    </span>
+                    {activeFile?.mimeType && (
+                      <a
+                        href={activeFile.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-xs text-gray-300 hover:text-white bg-gray-700 hover:bg-gray-600 px-2.5 py-1 rounded-md transition-colors shrink-0 ml-3"
+                      >
+                        <ZoomIn className="w-3.5 h-3.5" />
+                        Mở rộng
+                      </a>
+                    )}
+                  </div>
+                  {/* Viewer content */}
+                  <div className="flex-1 overflow-hidden relative">
+                    {detailLoading ? (
+                      <div className="flex items-center justify-center h-full">
+                        <Loader2 className="w-8 h-8 text-gray-500 animate-spin" />
+                      </div>
+                    ) : activeFile?.mimeType?.startsWith('image/') ? (
+                      <div className="h-full overflow-auto flex items-start justify-center p-4">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={activeFile.url} alt={activeFile.fileName ?? 'document'} className="max-w-full object-contain rounded shadow-lg" />
+                      </div>
+                    ) : activeFile?.mimeType === 'application/pdf' ? (
+                      <iframe src={activeFile.url} className="w-full h-full border-0" title={activeFile.fileName ?? 'document'} />
+                    ) : activeFile ? (
+                      <div className="flex flex-col items-center justify-center h-full gap-3 text-gray-500">
+                        {(activeFile.mimeType?.includes('spreadsheetml') || activeFile.mimeType?.includes('ms-excel') || activeFile.mimeType === 'text/csv')
+                          ? <Table2 className="w-12 h-12 text-green-400" />
+                          : activeFile.mimeType?.includes('wordprocessingml')
+                          ? <FileText className="w-12 h-12 text-blue-400" />
+                          : <ImageIcon className="w-12 h-12 text-gray-600" />
+                        }
+                        <p className="text-sm text-center px-6">
+                          {(activeFile.mimeType?.includes('spreadsheetml') || activeFile.mimeType?.includes('ms-excel') || activeFile.mimeType === 'text/csv')
+                            ? 'File Excel/CSV — AI đã đọc nội dung bảng tính'
+                            : activeFile.mimeType?.includes('wordprocessingml')
+                            ? 'File Word — AI đã đọc nội dung văn bản'
+                            : 'Không thể xem trước định dạng này'}
+                        </p>
+                        <a href={activeFile.url} target="_blank" rel="noopener noreferrer"
+                          className="text-xs text-blue-400 hover:text-blue-300 underline flex items-center gap-1">
+                          <Download className="w-3.5 h-3.5" /> Tải file xuống
+                        </a>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center h-full">
+                        <p className="text-sm text-gray-500">Chọn chứng từ để xem</p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
           </div>
           {/* Right: detail panel */}
           <div className="w-[480px] shrink-0 bg-white shadow-2xl flex flex-col overflow-hidden">

@@ -32,10 +32,19 @@ async function bootstrap() {
 
   app.enableShutdownHooks();
 
-  const port = Number(process.env['OCR_SERVICE_PORT'] ?? 3003);
-  await app.listen(port, '0.0.0.0');
-  new Logger('OcrService').log(`🚀 OCR Service chạy tại http://localhost:${port}`);
-  new Logger('OcrService').log(`📖 Swagger: http://localhost:${port}/api/docs`);
+  const mode = process.env['APP_MODE'] ?? 'api';
+
+  if (mode === 'worker') {
+    await app.init();
+    new Logger('OcrService').log(
+      `🔧 Worker mode | concurrency: ${process.env['WORKER_CONCURRENCY'] ?? 3}`,
+    );
+  } else {
+    const port = Number(process.env['OCR_SERVICE_PORT'] ?? 3003);
+    await app.listen(port, '0.0.0.0');
+    new Logger('OcrService').log(`🚀 OCR Service chạy tại http://localhost:${port}`);
+    new Logger('OcrService').log(`📖 Swagger: http://localhost:${port}/api/docs`);
+  }
 }
 
 bootstrap().catch((err) => {

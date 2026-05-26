@@ -15,7 +15,9 @@ export class DocumentService {
   async createFromUpload(params: {
     schemaId: string; fileUrl: string; fileName?: string;
     fileSize?: number; mimeType?: string;
+    extraFiles?: Array<{ url: string; fileName?: string; mimeType?: string }>;
     language: 'vi' | 'en' | 'vi+en'; createdBy?: string;
+    ocrProvider?: 'gemini' | 'claude' | 'local-pdf' | 'mock';
   }) {
     const schema = await this.prisma.client.documentSchema.findUnique({ where: { id: params.schemaId } });
     if (!schema) throw new NotFoundException(`Không tìm thấy schema "${params.schemaId}".`);
@@ -26,6 +28,9 @@ export class DocumentService {
         schemaId: schema.id, schemaCode: schema.code,
         fileUrl: params.fileUrl, fileName: params.fileName,
         fileSize: params.fileSize, mimeType: params.mimeType,
+        extraFileUrls: params.extraFiles && params.extraFiles.length > 0
+          ? params.extraFiles as object[]
+          : undefined,
         status: DocumentStatus.DRAFT, ocrLanguage: params.language,
         createdBy: params.createdBy ?? 'system',
       },
@@ -34,7 +39,9 @@ export class DocumentService {
     const job = await this.ocrProducer.enqueue({
       documentId: document.id, schemaId: schema.id,
       fileUrl: params.fileUrl, mimeType: params.mimeType,
+      extraFileUrls: params.extraFiles?.map(f => ({ url: f.url, mimeType: f.mimeType })),
       language: params.language,
+      ocrProvider: params.ocrProvider,
     });
 
     await this.prisma.client.documentAuditLog.create({

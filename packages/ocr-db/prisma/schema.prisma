@@ -147,10 +147,11 @@ model Document {
   schemaId   String
   schemaCode String
 
-  fileUrl  String
-  fileName String?
-  fileSize Int?
-  mimeType String?
+  fileUrl       String
+  fileName      String?
+  fileSize      Int?
+  mimeType      String?
+  extraFileUrls Json?   @map("extra_file_urls")
 
   // Denormalized header fields for fast filter
   invoiceNumber String?

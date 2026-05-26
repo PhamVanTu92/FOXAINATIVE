@@ -61,4 +61,6 @@ export interface OcrRequest {
   schemaFields?: OcrSchemaField[];
   /** Định nghĩa các bảng tùy chỉnh — AI dùng để điền extraData thay vì name/unit/qty/price/amount */
   schemaTables?: OcrSchemaTable[];
+  /** Prompt chung do người dùng cấu hình cho loại chứng từ này */
+  promptTemplate?: string | null;
 }
