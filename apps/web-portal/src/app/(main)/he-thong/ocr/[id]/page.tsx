@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Plus, Trash2, X, AlertCircle, FileText, Grid3X3, Table2,
-  ArrowLeft, Save, ChevronDown, ChevronRight, Settings, ScanLine, Check, GripVertical,
+  ArrowLeft, Save, ChevronDown, ChevronRight, Settings, ScanLine, Check, GripVertical, Bot, Zap,
 } from 'lucide-react';
 import { ocrApi } from '@/lib/ocr-api';
 import type { SchemaDetail, SchemaField, SchemaTable, DataType, FieldPosition, DocType } from '@/lib/ocr-api';
@@ -22,27 +22,36 @@ const TYPE_OPTIONS: { value: DocType; label: string }[] = [
 ];
 
 const DATA_TYPE_OPTIONS: { value: DataType; label: string }[] = [
-  { value: 'TEXT',     label: 'Văn bản (Text)' },
-  { value: 'DATE',     label: 'Ngày tháng (Date)' },
-  { value: 'NUMBER',   label: 'Số (Number)' },
-  { value: 'CURRENCY', label: 'Tiền tệ (Currency)' },
-  { value: 'BOOLEAN',  label: 'Đúng/Sai (Boolean)' },
-  { value: 'LIST',     label: 'Danh sách (List)' },
+  { value: 'TEXT',     label: 'Văn bản' },
+  { value: 'DATE',     label: 'Ngày tháng' },
+  { value: 'NUMBER',   label: 'Số' },
+  { value: 'CURRENCY', label: 'Tiền tệ' },
+  { value: 'BOOLEAN',  label: 'Đúng/Sai' },
+  { value: 'LIST',     label: 'Danh sách' },
 ];
-
-const DATA_TYPE_BADGE: Record<DataType, string> = {
-  TEXT:     'bg-gray-100 text-gray-700',
-  DATE:     'bg-purple-50 text-purple-700',
-  NUMBER:   'bg-blue-50 text-blue-700',
-  CURRENCY: 'bg-green-50 text-green-700',
-  BOOLEAN:  'bg-amber-50 text-amber-700',
-  LIST:     'bg-orange-50 text-orange-700',
-};
 
 const POSITION_OPTIONS: { value: FieldPosition; label: string }[] = [
   { value: 'HEADER', label: 'Header' },
   { value: 'FOOTER', label: 'Footer' },
   { value: 'BODY',   label: 'Body' },
+];
+
+const PROMPT_TEMPLATES: { id: string; label: string; text: string }[] = [
+  {
+    id: 'merged-rows',
+    label: 'Bảng gộp dòng (Merged rows)',
+    text: 'Bảng dữ liệu có thể chứa các ô được gộp (merged cells). Khi gặp ô gộp theo chiều dọc, hãy lặp lại giá trị của ô đó cho tất cả các dòng thuộc ô gộp. Không để trống bất kỳ ô nào trong cột.',
+  },
+  {
+    id: 'skip-empty-rows',
+    label: 'Bỏ qua dòng trống / dòng rác',
+    text: 'Bỏ qua các dòng trống hoặc dòng chỉ chứa ký tự gạch ngang (---), dấu chấm (...) hoặc ký tự đặc biệt không mang thông tin. Chỉ lấy các dòng có dữ liệu thực sự.',
+  },
+  {
+    id: 'handwriting',
+    label: 'Bảng có chữ viết tay',
+    text: 'Tài liệu có thể chứa phần điền tay kết hợp với phần in sẵn. Hãy ưu tiên đọc chính xác phần chữ viết tay, kể cả khi nét chữ không rõ ràng. Nếu không đọc được, ghi nhận là null thay vì đoán sai.',
+  },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -53,11 +62,6 @@ function toKey(text: string): string {
     .replace(/[^a-zA-Z0-9\s]/g, '').trim().split(/\s+/).filter(Boolean)
     .map((w, i) => i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
     .join('');
-}
-
-function DataTypeBadge({ dt }: { dt: DataType }) {
-  const label = DATA_TYPE_OPTIONS.find(o => o.value === dt)?.label ?? dt;
-  return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${DATA_TYPE_BADGE[dt]}`}>{label}</span>;
 }
 
 // ─── Edit-state types ──────────────────────────────────────────────────────────
@@ -114,10 +118,15 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
   // ── Pending new columns (saved on Lưu cấu hình) ──────────────────────────
   const [pendingCols, setPendingCols] = useState<Record<string, PendingCol[]>>({});
 
+  // ── Field drag-and-drop ───────────────────────────────────────────────────
+  const [dragFieldId, setDragFieldId]         = useState<string | null>(null);
+  const [dragFieldOverId, setDragFieldOverId] = useState<string | null>(null);
+  const dragFieldFromHandle                   = useRef(false);
+
   // ── Column drag-and-drop ──────────────────────────────────────────────────
-  const [dragColId, setDragColId]       = useState<string | null>(null);
-  const [dragColOverId, setDragColOverId] = useState<string | null>(null);
-  const dragColFromHandle               = useRef(false);
+  const [dragColId, setDragColId]           = useState<string | null>(null);
+  const [dragColOverId, setDragColOverId]   = useState<string | null>(null);
+  const dragColFromHandle                   = useRef(false);
 
   // ── Load ──────────────────────────────────────────────────────────────────
 
@@ -150,14 +159,45 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
 
   useEffect(() => { loadSchema(); }, [loadSchema]);
 
-  // ── Dirty helpers ──────────────────────────────────────────────────────────
+  // ── Field reorder (local only) ────────────────────────────────────────────
 
-  const isFieldDirty = (f: SchemaField) => {
-    const e = fieldEdits[f.id];
-    return e && (e.label !== f.label || e.dataType !== f.dataType || e.position !== f.position || e.description !== (f.description ?? ''));
+  const reorderFieldsLocal = (fromId: string, toId: string) => {
+    if (fromId === toId) return;
+    setSchema(prev => {
+      if (!prev) return prev;
+      const fields = [...prev.fields];
+      const fromIdx = fields.findIndex(f => f.id === fromId);
+      const toIdx   = fields.findIndex(f => f.id === toId);
+      if (fromIdx === -1 || toIdx === -1) return prev;
+      const [item] = fields.splice(fromIdx, 1);
+      fields.splice(toIdx, 0, item!);
+      return { ...prev, fields };
+    });
   };
 
-  // ── Metadata save ──────────────────────────────────────────────────────────
+  // ── Column reorder (local only) ───────────────────────────────────────────
+
+  const reorderColumnsLocal = (tableId: string, fromId: string, toId: string) => {
+    if (fromId === toId) return;
+    setSchema(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        tables: prev.tables.map(t => {
+          if (t.id !== tableId) return t;
+          const cols = [...t.columns];
+          const fromIdx = cols.findIndex(c => c.id === fromId);
+          const toIdx   = cols.findIndex(c => c.id === toId);
+          if (fromIdx === -1 || toIdx === -1) return t;
+          const [item] = cols.splice(fromIdx, 1);
+          cols.splice(toIdx, 0, item!);
+          return { ...t, columns: cols };
+        }),
+      };
+    });
+  };
+
+  // ── Metadata save ─────────────────────────────────────────────────────────
 
   const handleSaveMeta = async () => {
     if (!name.trim()) { setSaveError('Vui lòng nhập tên chứng từ.'); return; }
@@ -165,7 +205,6 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
     try {
       await ocrApi.updateSchema(id, { name: name.trim(), type, description: description.trim() || undefined, isActive });
 
-      // Lưu tất cả trường và cột đang có thay đổi
       if (schema) {
         const saves: Promise<void>[] = [];
 
@@ -181,6 +220,12 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
         }
 
         for (const table of schema.tables) {
+          const te = tableEdits[table.id];
+          if (te && te.name.trim() && te.name !== table.name) {
+            saves.push(
+              ocrApi.updateTable(id, table.id, { name: te.name.trim() }).then(() => {})
+            );
+          }
           for (const col of table.columns) {
             const e = colEdits[col.id];
             if (!e || !e.label.trim()) continue;
@@ -207,20 +252,6 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
     finally { setMetaSaving(false); }
   };
 
-  // ── Field save ────────────────────────────────────────────────────────────
-
-  const handleSaveField = async (fieldId: string) => {
-    const e = fieldEdits[fieldId];
-    if (!e || !e.label.trim()) { setSaveError('Tên trường không được để trống.'); return; }
-    setFieldEdits(prev => ({ ...prev, [fieldId]: { ...prev[fieldId], saving: true } }));
-    setSaveError(null);
-    try {
-      const updated = await ocrApi.updateField(id, fieldId, { label: e.label.trim(), dataType: e.dataType, position: e.position, description: e.description.trim() || undefined });
-      setSchema(prev => prev ? { ...prev, fields: prev.fields.map(f => f.id === fieldId ? updated : f) } : prev);
-      setFieldEdits(prev => ({ ...prev, [fieldId]: { label: updated.label, dataType: updated.dataType, position: updated.position, description: updated.description ?? '', saving: false } }));
-    } catch (err: unknown) { setSaveError((err as Error).message); setFieldEdits(prev => ({ ...prev, [fieldId]: { ...prev[fieldId], saving: false } })); }
-  };
-
   // ── Field add ─────────────────────────────────────────────────────────────
 
   const handleAddField = async () => {
@@ -245,20 +276,6 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
       setSchema(prev => prev ? { ...prev, fields: prev.fields.filter(f => f.id !== field.id) } : prev);
       setFieldEdits(prev => { const next = { ...prev }; delete next[field.id]; return next; });
     } catch (e: unknown) { alert((e as Error).message); }
-  };
-
-  // ── Table name save ───────────────────────────────────────────────────────
-
-  const handleSaveTable = async (tableId: string) => {
-    const e = tableEdits[tableId];
-    if (!e || !e.name.trim()) { setSaveError('Tên bảng không được để trống.'); return; }
-    setTableEdits(prev => ({ ...prev, [tableId]: { ...prev[tableId], saving: true } }));
-    setSaveError(null);
-    try {
-      const updated = await ocrApi.updateTable(id, tableId, { name: e.name.trim() });
-      setSchema(prev => prev ? { ...prev, tables: prev.tables.map(t => t.id === tableId ? { ...t, name: updated.name } : t) } : prev);
-      setTableEdits(prev => ({ ...prev, [tableId]: { name: updated.name, saving: false } }));
-    } catch (err: unknown) { setSaveError((err as Error).message); setTableEdits(prev => ({ ...prev, [tableId]: { ...prev[tableId], saving: false } })); }
   };
 
   // ── Table add ─────────────────────────────────────────────────────────────
@@ -289,43 +306,6 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
 
   const toggleExpand = (tableId: string) =>
     setExpandedTables(prev => { const next = new Set(prev); next.has(tableId) ? next.delete(tableId) : next.add(tableId); return next; });
-
-  const reorderColumnsLocal = (tableId: string, fromId: string, toId: string) => {
-    if (fromId === toId) return;
-    setSchema(prev => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        tables: prev.tables.map(t => {
-          if (t.id !== tableId) return t;
-          const cols = [...t.columns];
-          const fromIdx = cols.findIndex(c => c.id === fromId);
-          const toIdx   = cols.findIndex(c => c.id === toId);
-          if (fromIdx === -1 || toIdx === -1) return t;
-          const [item] = cols.splice(fromIdx, 1);
-          cols.splice(toIdx, 0, item!);
-          return { ...t, columns: cols };
-        }),
-      };
-    });
-  };
-
-  // ── Column save ───────────────────────────────────────────────────────────
-
-  const handleSaveCol = async (tableId: string, columnId: string, override?: Partial<ColEdit>) => {
-    const e = { ...colEdits[columnId], ...override };
-    if (!e || !e.label.trim()) { setSaveError('Tên cột không được để trống.'); return; }
-    setColEdits(prev => ({ ...prev, [columnId]: { ...prev[columnId], saving: true } }));
-    setSaveError(null);
-    try {
-      const updated = await ocrApi.updateTableColumn(id, tableId, columnId, { label: e.label.trim(), dataType: e.dataType, description: e.description || undefined });
-      setSchema(prev => {
-        if (!prev) return prev;
-        return { ...prev, tables: prev.tables.map(t => t.id === tableId ? { ...t, columns: t.columns.map(c => c.id === columnId ? updated : c) } : t) };
-      });
-      setColEdits(prev => ({ ...prev, [columnId]: { label: updated.label, dataType: updated.dataType, description: updated.description ?? '', saving: false } }));
-    } catch (err: unknown) { setSaveError((err as Error).message); setColEdits(prev => ({ ...prev, [columnId]: { ...prev[columnId], saving: false } })); }
-  };
 
   // ── Pending column helpers ────────────────────────────────────────────────
 
@@ -380,8 +360,10 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
       {/* ── Sticky header ── */}
       <div className="sticky top-0 z-10 bg-white border-b px-6 py-3">
         <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <Settings className="w-3.5 h-3.5" /><span>Cấu hình hệ thống</span>
-          <ChevronRight className="w-3 h-3" /><ScanLine className="w-3.5 h-3.5" />
+          <Settings className="w-3.5 h-3.5" />
+          <span>Cấu hình hệ thống</span>
+          <ChevronRight className="w-3 h-3" />
+          <ScanLine className="w-3.5 h-3.5" />
           <button onClick={() => router.push('/he-thong/ocr')} className="hover:text-blue-500 hover:underline">Cấu hình OCR</button>
           <ChevronRight className="w-3 h-3" />
           <span className="text-gray-600 font-medium truncate max-w-[200px]">{schema?.code}</span>
@@ -420,14 +402,14 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
           </div>
         )}
 
-        {/* ── Card 1: Thông tin ── */}
+        {/* ── Card 1: Thông tin chứng từ ── */}
         <div className="bg-white rounded-xl border overflow-hidden">
           <div className="flex items-center gap-2 px-5 py-3.5 border-b bg-blue-50">
             <FileText className="w-4 h-4 text-blue-500" />
             <h2 className="text-sm font-semibold text-gray-800">Thông tin chứng từ</h2>
           </div>
           <div className="p-5">
-            <div className="grid grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">Mã chứng từ</label>
                 <input disabled value={schema?.code ?? ''} className="w-full px-3 py-2 text-sm border rounded-lg bg-gray-50 font-mono text-gray-500 cursor-not-allowed" />
@@ -444,20 +426,14 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
                 </select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">Mô tả</label>
-                <input type="text" value={description} onChange={e => setDescription(e.target.value)} placeholder="Mô tả ngắn về loại chứng từ..." className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">Trạng thái</label>
-                <button onClick={() => setIsActive(v => !v)} className="flex items-center gap-2 px-3 py-2 border rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${isActive ? 'bg-green-500' : 'bg-gray-200'}`}>
-                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${isActive ? 'translate-x-4' : 'translate-x-1'}`} />
-                  </div>
-                  <span className={`text-sm font-medium ${isActive ? 'text-green-600' : 'text-gray-500'}`}>{isActive ? 'Đang áp dụng' : 'Tắt'}</span>
-                </button>
-              </div>
+            <div className="mt-4 flex items-center gap-2">
+              <label className="text-xs font-medium text-gray-600">Trạng thái:</label>
+              <button onClick={() => setIsActive(v => !v)} className="flex items-center gap-2 px-3 py-1.5 border rounded-lg hover:bg-gray-50 transition-colors">
+                <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${isActive ? 'bg-green-500' : 'bg-gray-200'}`}>
+                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${isActive ? 'translate-x-4' : 'translate-x-1'}`} />
+                </div>
+                <span className={`text-sm font-medium ${isActive ? 'text-green-600' : 'text-gray-500'}`}>{isActive ? 'Đang áp dụng' : 'Tắt'}</span>
+              </button>
             </div>
           </div>
         </div>
@@ -481,68 +457,80 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-green-50 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                  <th className="px-4 py-2.5 text-left w-12">STT</th>
+                  <th className="px-4 py-2.5 text-left w-12"></th>
                   <th className="px-4 py-2.5 text-left">Tên trường</th>
-                  <th className="px-4 py-2.5 text-left w-40">Kiểu dữ liệu</th>
+                  <th className="px-4 py-2.5 text-left w-48">Field Key</th>
+                  <th className="px-4 py-2.5 text-left w-36">Kiểu dữ liệu</th>
                   <th className="px-4 py-2.5 text-left w-28">Vị trí</th>
-                  <th className="px-4 py-2.5 text-left">Mô tả cho AI</th>
-                  <th className="px-4 py-2.5 text-center w-20">Thao tác</th>
+                  <th className="px-4 py-2.5 text-center w-12"></th>
                 </tr>
               </thead>
               <tbody>
                 {schema?.fields.map((f, idx) => {
                   const e = fieldEdits[f.id];
-                  const dirty = isFieldDirty(f);
                   if (!e) return null;
                   return (
-                    <tr key={f.id} className={`border-b last:border-0 transition-colors ${dirty ? 'bg-amber-50/30' : 'hover:bg-gray-50'}`}>
-                      <td className="px-4 py-2.5 text-gray-400 text-xs">{idx + 1}</td>
-                      <td className="px-4 py-2.5">
+                    <tr
+                      key={f.id}
+                      draggable
+                      onDragStart={ev => { if (!dragFieldFromHandle.current) { ev.preventDefault(); return; } setDragFieldId(f.id); dragFieldFromHandle.current = false; }}
+                      onDragOver={ev => { ev.preventDefault(); setDragFieldOverId(f.id); }}
+                      onDrop={ev => { ev.preventDefault(); if (dragFieldId) reorderFieldsLocal(dragFieldId, f.id); setDragFieldId(null); setDragFieldOverId(null); }}
+                      onDragEnd={() => { setDragFieldId(null); setDragFieldOverId(null); dragFieldFromHandle.current = false; }}
+                      className={`border-b last:border-0 transition-colors ${dragFieldOverId === f.id && dragFieldId !== f.id ? 'border-t-2 border-blue-400' : ''} ${dragFieldId === f.id ? 'opacity-40' : 'hover:bg-gray-50/50'}`}
+                    >
+                      <td className="px-3 py-3">
+                        <div className="flex items-center gap-1">
+                          <GripVertical
+                            className="w-3.5 h-3.5 text-gray-300 cursor-grab active:cursor-grabbing"
+                            onMouseDown={() => { dragFieldFromHandle.current = true; }}
+                          />
+                          <span className="text-gray-300 text-xs">{idx + 1}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
                         <input
                           type="text"
                           value={e.label}
-                          onChange={ev => setFieldEdits(prev => ({ ...prev, [f.id]: { ...prev[f.id], label: ev.target.value } }))}
-                          className="w-full px-2.5 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                          onChange={ev => setFieldEdits(prev => ({ ...prev, [f.id]: { ...prev[f.id]!, label: ev.target.value } }))}
+                          placeholder="Tên trường *"
+                          className="w-full px-2.5 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
                         />
-                        <code className="text-[10px] text-gray-400 font-mono pl-0.5 mt-0.5 block">{f.fieldKey}</code>
                       </td>
-                      <td className="px-4 py-2.5">
+                      <td className="px-4 py-3">
+                        <input
+                          disabled
+                          value={f.fieldKey}
+                          className="w-full px-2.5 py-1.5 text-xs border border-dashed rounded-lg font-mono text-gray-500 bg-gray-50 cursor-not-allowed"
+                        />
+                      </td>
+                      <td className="px-4 py-3">
                         <select
                           value={e.dataType}
-                          onChange={ev => setFieldEdits(prev => ({ ...prev, [f.id]: { ...prev[f.id], dataType: ev.target.value as DataType } }))}
+                          onChange={ev => setFieldEdits(prev => ({ ...prev, [f.id]: { ...prev[f.id]!, dataType: ev.target.value as DataType } }))}
                           className="w-full px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
                         >
                           {DATA_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
                       </td>
-                      <td className="px-4 py-2.5">
+                      <td className="px-4 py-3">
                         <select
                           value={e.position}
-                          onChange={ev => setFieldEdits(prev => ({ ...prev, [f.id]: { ...prev[f.id], position: ev.target.value as FieldPosition } }))}
+                          onChange={ev => setFieldEdits(prev => ({ ...prev, [f.id]: { ...prev[f.id]!, position: ev.target.value as FieldPosition } }))}
                           className="w-full px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
                         >
                           {POSITION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
                       </td>
-                      <td className="px-4 py-2.5">
-                        <input
-                          type="text"
-                          value={e.description}
-                          onChange={ev => setFieldEdits(prev => ({ ...prev, [f.id]: { ...prev[f.id], description: ev.target.value } }))}
-                          placeholder="Gợi ý vị trí cho AI (VD: khu vực trên, sau dòng người mua...)"
-                          className="w-full px-2.5 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
-                        />
-                      </td>
-                      <td className="px-4 py-2.5 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => handleRemoveField(f)}
-                            className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Xóa trường"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+                      <td className="px-4 py-3 text-center">
+                        <button
+                          onClick={() => handleRemoveField(f)}
+                          disabled={(schema?.fields.length ?? 0) === 1}
+                          className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Xóa trường"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </td>
                     </tr>
                   );
@@ -551,8 +539,10 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
                 {/* Inline add row */}
                 {addingField && (
                   <tr className="border-b last:border-0 bg-blue-50/40">
-                    <td className="px-4 py-2.5 text-gray-400 text-xs align-top pt-3" />
-                    <td className="px-4 py-2.5">
+                    <td className="px-3 py-3">
+                      <span className="text-gray-300 text-xs">{(schema?.fields.length ?? 0) + 1}</span>
+                    </td>
+                    <td className="px-4 py-3">
                       <input
                         autoFocus
                         type="text"
@@ -564,34 +554,27 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
                         placeholder="Tên trường *"
                         className="w-full px-2.5 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
+                    </td>
+                    <td className="px-4 py-3">
                       <input
                         type="text"
                         value={newField.fieldKey}
                         onChange={e => setNewField(prev => ({ ...prev, fieldKey: e.target.value.replace(/[^a-zA-Z0-9_]/g, ''), _keyManuallySet: true }))}
-                        placeholder="field_key (tự tạo)"
-                        className="w-full mt-1 px-2.5 py-1 text-xs border border-dashed rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono text-gray-500 bg-gray-50"
+                        placeholder="field_key"
+                        className="w-full px-2.5 py-1.5 text-xs border border-dashed rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono text-gray-500 bg-gray-50"
                       />
                     </td>
-                    <td className="px-4 py-2.5 align-top">
+                    <td className="px-4 py-3">
                       <select value={newField.dataType} onChange={e => setNewField(prev => ({ ...prev, dataType: e.target.value as DataType }))} className="w-full px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
                         {DATA_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select>
                     </td>
-                    <td className="px-4 py-2.5 align-top">
+                    <td className="px-4 py-3">
                       <select value={newField.position} onChange={e => setNewField(prev => ({ ...prev, position: e.target.value as FieldPosition }))} className="w-full px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
                         {POSITION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select>
                     </td>
-                    <td className="px-4 py-2.5 align-top">
-                      <input
-                        type="text"
-                        value={newField.description}
-                        onChange={e => setNewField(prev => ({ ...prev, description: e.target.value }))}
-                        placeholder="Gợi ý vị trí cho AI..."
-                        className="w-full px-2.5 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      />
-                    </td>
-                    <td className="px-4 py-2.5 align-top">
+                    <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
                         <button onClick={handleAddField} disabled={fieldAdding} className="p-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg disabled:opacity-50" title="Xác nhận"><Check className="w-3.5 h-3.5" /></button>
                         <button onClick={() => { setAddingField(false); setNewField(emptyField()); }} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg" title="Hủy"><X className="w-3.5 h-3.5" /></button>
@@ -645,7 +628,6 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
               {schema?.tables.map(t => {
                 const expanded = expandedTables.has(t.id);
                 const te = tableEdits[t.id];
-                const tableNameDirty = te && te.name !== t.name;
                 return (
                   <div key={t.id}>
                     {/* Table header */}
@@ -654,32 +636,21 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
                         {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                       </button>
                       <Table2 className="w-4 h-4 text-orange-400 shrink-0" />
-                      {te ? (
-                        <div className="flex-1 flex items-center gap-2">
-                          <input
-                            value={te.name}
-                            onChange={ev => setTableEdits(prev => ({ ...prev, [t.id]: { ...prev[t.id], name: ev.target.value } }))}
-                            className={`flex-1 px-2.5 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 ${tableNameDirty ? 'bg-amber-50/50' : 'bg-white'}`}
-                          />
-                          <code className="text-xs text-gray-400 font-mono shrink-0">{t.tableKey}</code>
-                          <span className="text-xs text-gray-400 shrink-0">· {t.columns.length} cột</span>
-                          <button
-                            onClick={() => handleSaveTable(t.id)}
-                            disabled={te.saving || !tableNameDirty}
-                            title={tableNameDirty ? 'Lưu tên bảng' : 'Chưa có thay đổi'}
-                            className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 ${tableNameDirty ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-gray-100 text-gray-400 cursor-default'}`}
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex-1">
-                          <span className="font-medium text-gray-800 text-sm">{t.name}</span>
-                          <code className="ml-2 text-xs text-gray-400 font-mono">{t.tableKey}</code>
-                          <span className="ml-2 text-xs text-gray-400">· {t.columns.length} cột</span>
-                        </div>
-                      )}
-                      <button onClick={() => handleRemoveTable(t)} className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Xóa bảng">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <input
+                          value={te?.name ?? t.name}
+                          onChange={ev => setTableEdits(prev => ({ ...prev, [t.id]: { ...prev[t.id]!, name: ev.target.value } }))}
+                          placeholder="Tên bảng"
+                          className="flex-1 min-w-0 px-2.5 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                        <input
+                          disabled
+                          value={t.tableKey}
+                          className="w-40 px-2.5 py-1.5 text-xs border border-dashed rounded-lg font-mono text-gray-500 bg-gray-50 cursor-not-allowed"
+                        />
+                        <span className="text-xs text-gray-400 shrink-0">{t.columns.length} cột</span>
+                      </div>
+                      <button onClick={() => handleRemoveTable(t)} className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0" title="Xóa bảng">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -691,29 +662,28 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
                           <thead>
                             <tr className="bg-green-50 border-b text-gray-500 uppercase tracking-wide font-semibold">
                               <th className="px-3 py-2 w-8"></th>
-                              <th className="px-3 py-2 text-left w-8">STT</th>
+                              <th className="px-3 py-2 text-left w-8">#</th>
                               <th className="px-3 py-2 text-left">Tên cột</th>
-                              <th className="px-3 py-2 text-left w-44">Kiểu dữ liệu</th>
-                              <th className="px-3 py-2 text-left">Mô tả cho AI</th>
-                              <th className="px-3 py-2 w-10"></th>
+                              <th className="px-3 py-2 text-left w-40">Column Key</th>
+                              <th className="px-3 py-2 text-left w-36">Kiểu dữ liệu</th>
+                              <th className="px-3 py-2 text-center w-10"></th>
                             </tr>
                           </thead>
                           <tbody>
                             {t.columns.map((c, cIdx) => {
                               const ce = colEdits[c.id];
-                              const colDirty = ce && (ce.label !== c.label || ce.dataType !== c.dataType || ce.description !== (c.description ?? ''));
                               if (!ce) return null;
                               return (
                                 <tr
                                   key={c.id}
                                   draggable
-                                  onDragStart={e => { if (!dragColFromHandle.current) { e.preventDefault(); return; } setDragColId(c.id); dragColFromHandle.current = false; }}
-                                  onDragOver={e => { e.preventDefault(); setDragColOverId(c.id); }}
-                                  onDrop={e => { e.preventDefault(); if (dragColId) reorderColumnsLocal(t.id, dragColId, c.id); setDragColId(null); setDragColOverId(null); }}
+                                  onDragStart={ev => { if (!dragColFromHandle.current) { ev.preventDefault(); return; } setDragColId(c.id); dragColFromHandle.current = false; }}
+                                  onDragOver={ev => { ev.preventDefault(); setDragColOverId(c.id); }}
+                                  onDrop={ev => { ev.preventDefault(); if (dragColId) reorderColumnsLocal(t.id, dragColId, c.id); setDragColId(null); setDragColOverId(null); }}
                                   onDragEnd={() => { setDragColId(null); setDragColOverId(null); dragColFromHandle.current = false; }}
                                   className={`border-b last:border-0 transition-colors ${
                                     dragColOverId === c.id && dragColId !== c.id ? 'border-t-2 border-blue-400' : ''
-                                  } ${dragColId === c.id ? 'opacity-40' : 'hover:bg-gray-50'}`}
+                                  } ${dragColId === c.id ? 'opacity-40' : 'hover:bg-gray-50/50'}`}
                                 >
                                   <td className="px-3 py-2">
                                     <GripVertical
@@ -725,30 +695,33 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
                                   <td className="px-3 py-2">
                                     <input
                                       value={ce.label}
-                                      onChange={ev => setColEdits(prev => ({ ...prev, [c.id]: { ...prev[c.id], label: ev.target.value } }))}
-                                      className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                                      onChange={ev => setColEdits(prev => ({ ...prev, [c.id]: { ...prev[c.id]!, label: ev.target.value } }))}
+                                      className="w-full px-2 py-1.5 border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
                                     />
-                                    <code className="text-[10px] text-gray-400 font-mono pl-0.5 mt-0.5 block">{c.columnKey}</code>
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    <input
+                                      disabled
+                                      value={c.columnKey}
+                                      className="w-full px-2 py-1.5 text-[11px] border border-dashed rounded font-mono text-gray-500 bg-gray-50 cursor-not-allowed"
+                                    />
                                   </td>
                                   <td className="px-3 py-2">
                                     <select
                                       value={ce.dataType}
-                                      onChange={ev => setColEdits(prev => ({ ...prev, [c.id]: { ...prev[c.id], dataType: ev.target.value as DataType } }))}
-                                      className="w-full px-2 py-1 border rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                      onChange={ev => setColEdits(prev => ({ ...prev, [c.id]: { ...prev[c.id]!, dataType: ev.target.value as DataType } }))}
+                                      className="w-full px-2 py-1.5 border rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                                     >
                                       {DATA_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                                     </select>
                                   </td>
-                                  <td className="px-3 py-2">
-                                    <input
-                                      value={ce.description}
-                                      onChange={ev => setColEdits(prev => ({ ...prev, [c.id]: { ...prev[c.id], description: ev.target.value } }))}
-                                      placeholder="VD: cột giá trị trước thuế..."
-                                      className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-600"
-                                    />
-                                  </td>
                                   <td className="px-3 py-2 text-center">
-                                    <button onClick={() => handleRemoveColumn(t.id, c.id, c.label)} className="p-1 text-gray-300 hover:text-red-400 rounded transition-colors" title="Xóa cột">
+                                    <button
+                                      onClick={() => handleRemoveColumn(t.id, c.id, c.label)}
+                                      disabled={t.columns.length === 1}
+                                      className="p-1 text-gray-300 hover:text-red-400 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                      title="Xóa cột"
+                                    >
                                       <Trash2 className="w-3 h-3" />
                                     </button>
                                   </td>
@@ -767,25 +740,25 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
                                     value={pc.label}
                                     onChange={e => updatePendingCol(t.id, pc.tempId, { label: e.target.value })}
                                     placeholder="Tên cột *"
-                                    className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    className="w-full px-2 py-1.5 border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                  />
+                                </td>
+                                <td className="px-3 py-2">
+                                  <input
+                                    disabled
+                                    value={toKey(pc.label)}
+                                    placeholder="auto"
+                                    className="w-full px-2 py-1.5 text-[11px] border border-dashed rounded font-mono text-gray-400 bg-gray-50 cursor-not-allowed"
                                   />
                                 </td>
                                 <td className="px-3 py-2">
                                   <select
                                     value={pc.dataType}
                                     onChange={e => updatePendingCol(t.id, pc.tempId, { dataType: e.target.value as DataType })}
-                                    className="w-full px-2 py-1 border rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    className="w-full px-2 py-1.5 border rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                                   >
                                     {DATA_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                                   </select>
-                                </td>
-                                <td className="px-3 py-2">
-                                  <input
-                                    value={pc.description}
-                                    onChange={e => updatePendingCol(t.id, pc.tempId, { description: e.target.value })}
-                                    placeholder="VD: cột giá trị trước thuế..."
-                                    className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-600"
-                                  />
                                 </td>
                                 <td className="px-3 py-2 text-center">
                                   <button
@@ -843,6 +816,46 @@ export default function EditSchemaPage({ params }: { params: { id: string } }) {
               )}
             </div>
           )}
+        </div>
+
+        {/* ── Card 4: Prompt cho AI ── */}
+        <div className="bg-white rounded-xl border overflow-hidden">
+          <div className="flex items-center gap-2 px-5 py-3.5 border-b bg-purple-50">
+            <Bot className="w-4 h-4 text-purple-500" />
+            <h2 className="text-sm font-semibold text-gray-800">Prompt cho AI</h2>
+            <span className="ml-1 text-xs text-gray-400 font-normal">(áp dụng chung cho toàn bộ chứng từ này)</span>
+          </div>
+          <div className="p-5">
+            <div className="mb-3">
+              <p className="text-xs font-medium text-gray-500 mb-2 flex items-center gap-1.5">
+                <Zap className="w-3 h-3 text-yellow-500" />
+                Prompt mẫu cho case khó:
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {PROMPT_TEMPLATES.map(tpl => (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    onClick={() => setDescription(prev => prev.trim() ? `${prev.trim()}\n\n${tpl.text}` : tpl.text)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg transition-colors"
+                  >
+                    <Zap className="w-3 h-3 text-purple-400" />
+                    {tpl.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              rows={5}
+              placeholder={`Nhập hướng dẫn chung cho AI khi nhận dạng loại chứng từ này.\n\nVD: Đây là phiếu nhập kho nội bộ, không phải hóa đơn VAT. Cột "Cộng" là tổng tiền chưa VAT. Trường "Số" là số phiếu nhập, không phải số hóa đơn. Nếu có nhiều bảng hàng hóa, chỉ lấy bảng đầu tiên.`}
+              className="w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none text-gray-700 placeholder:text-gray-300 leading-relaxed"
+            />
+            <p className="text-xs text-gray-400 mt-2">
+              Prompt này được đưa vào câu hỏi gửi AI mỗi lần quét tài liệu thuộc loại chứng từ này. Dùng để làm rõ các trường hợp đặc biệt hoặc cách đọc tài liệu.
+            </p>
+          </div>
         </div>
       </div>
     </div>

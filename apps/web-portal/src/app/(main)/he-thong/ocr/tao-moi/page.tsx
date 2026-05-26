@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Plus, Trash2, X, AlertCircle, FileText, Grid3X3,
   Table2, ArrowLeft, Save, ChevronDown, ChevronRight,
-  Settings, ScanLine, GripVertical, Bot,
+  Settings, ScanLine, GripVertical, Bot, Zap,
 } from 'lucide-react';
 import { ocrApi } from '@/lib/ocr-api';
 import type { DataType, FieldPosition, DocType } from '@/lib/ocr-api';
@@ -35,6 +35,24 @@ const POSITION_OPTIONS: { value: FieldPosition; label: string }[] = [
   { value: 'HEADER', label: 'Header' },
   { value: 'FOOTER', label: 'Footer' },
   { value: 'BODY',   label: 'Body' },
+];
+
+const PROMPT_TEMPLATES: { id: string; label: string; text: string }[] = [
+  {
+    id: 'merged-rows',
+    label: 'Bảng gộp dòng (Merged rows)',
+    text: 'Bảng dữ liệu có thể chứa các ô được gộp (merged cells). Khi gặp ô gộp theo chiều dọc, hãy lặp lại giá trị của ô đó cho tất cả các dòng thuộc ô gộp. Không để trống bất kỳ ô nào trong cột.',
+  },
+  {
+    id: 'skip-empty-rows',
+    label: 'Bỏ qua dòng trống / dòng rác',
+    text: 'Bỏ qua các dòng trống hoặc dòng chỉ chứa ký tự gạch ngang (---), dấu chấm (...) hoặc ký tự đặc biệt không mang thông tin. Chỉ lấy các dòng có dữ liệu thực sự.',
+  },
+  {
+    id: 'handwriting',
+    label: 'Bảng có chữ viết tay',
+    text: 'Tài liệu có thể chứa phần điền tay kết hợp với phần in sẵn. Hãy ưu tiên đọc chính xác phần chữ viết tay, kể cả khi nét chữ không rõ ràng. Nếu không đọc được, ghi nhận là null thay vì đoán sai.',
+  },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -621,6 +639,25 @@ export default function TaoMoiOcrPage() {
             <span className="ml-1 text-xs text-gray-400 font-normal">(áp dụng chung cho toàn bộ chứng từ này)</span>
           </div>
           <div className="p-5">
+            <div className="mb-3">
+              <p className="text-xs font-medium text-gray-500 mb-2 flex items-center gap-1.5">
+                <Zap className="w-3 h-3 text-yellow-500" />
+                Prompt mẫu cho case khó:
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {PROMPT_TEMPLATES.map(tpl => (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    onClick={() => setAiPrompt(prev => prev.trim() ? `${prev.trim()}\n\n${tpl.text}` : tpl.text)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg transition-colors"
+                  >
+                    <Zap className="w-3 h-3 text-purple-400" />
+                    {tpl.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <textarea
               value={aiPrompt}
               onChange={e => setAiPrompt(e.target.value)}
