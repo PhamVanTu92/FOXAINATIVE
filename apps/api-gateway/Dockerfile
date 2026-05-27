@@ -8,7 +8,7 @@ RUN corepack enable && corepack prepare pnpm@8.15.4 --activate
 WORKDIR /app
 
 # Layer 1: workspace manifests (cache-friendly)
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json ./
 COPY apps/api-gateway/package.json apps/api-gateway/
 COPY packages/shared-types/package.json packages/shared-types/
 COPY packages/shared-proto/package.json packages/shared-proto/
@@ -22,6 +22,9 @@ COPY packages/shared-types packages/shared-types
 COPY packages/shared-proto packages/shared-proto
 
 # Layer 4: build in dependency order
+# shared-types/tsconfig.json extends ../../tsconfig.base.json — the
+# base must exist or TS silently falls back to defaults (losing
+# experimentalDecorators → class-validator/transformer crash).
 RUN pnpm -C packages/shared-types run build
 RUN pnpm -C apps/api-gateway run build
 

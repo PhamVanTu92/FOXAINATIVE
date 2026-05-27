@@ -165,29 +165,26 @@ async def get_current_user(
         )
 
 
+# system-service emits roles in UPPER_SNAKE_CASE (SUPER_ADMIN, ADMIN, MANAGER).
+# The legacy Keycloak-era code checked lowercase ('admin'/'manager'). Normalise
+# everything to lowercase + strip the SUPER_ prefix so both naming conventions
+# work transparently.
+_ADMIN_ROLES = {'admin', 'super_admin', 'superadmin'}
+_MANAGER_ROLES = _ADMIN_ROLES | {'manager'}
+
+
+def _has_any_role(user_roles: List[str], allowed: set[str]) -> bool:
+    return any(r.lower() in allowed for r in user_roles)
+
+
 async def get_admin_user(
     current_user: CurrentUser = Depends(get_current_user),
 ) -> CurrentUser:
-    """
-    Validate that current user has admin role.
-
-    Usage in routers:
-        @router.delete("/admin/conversations/{id}")
-        async def delete_conversation(admin: CurrentUser = Depends(get_admin_user)):
-            ...
-
-    Args:
-        current_user: Current authenticated user
-
-    Returns:
-        CurrentUser if user is admin
-
-    Raises:
-        HTTPException: If user doesn't have admin role
-    """
-    if 'admin' not in current_user.roles:
+    """Require ADMIN or SUPER_ADMIN role."""
+    if not _has_any_role(current_user.roles, _ADMIN_ROLES):
         logger.warning(
-            f"Admin access denied for user: {current_user.username}",
+            f"Admin access denied for user: {current_user.username} "
+            f"(roles={current_user.roles})",
         )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -199,26 +196,11 @@ async def get_admin_user(
 async def get_manager_user(
     current_user: CurrentUser = Depends(get_current_user),
 ) -> CurrentUser:
-    """
-    Validate that current user has admin or manager role.
-
-    Usage in routers:
-        @router.put("/conversations/{id}")
-        async def update_conversation(manager: CurrentUser = Depends(get_manager_user)):
-            ...
-
-    Args:
-        current_user: Current authenticated user
-
-    Returns:
-        CurrentUser if user is admin or manager
-
-    Raises:
-        HTTPException: If user doesn't have required role
-    """
-    if 'admin' not in current_user.roles and 'manager' not in current_user.roles:
+    """Require MANAGER, ADMIN, or SUPER_ADMIN role."""
+    if not _has_any_role(current_user.roles, _MANAGER_ROLES):
         logger.warning(
-            f"Manager/Admin access denied for user: {current_user.username}",
+            f"Manager/Admin access denied for user: {current_user.username} "
+            f"(roles={current_user.roles})",
         )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
