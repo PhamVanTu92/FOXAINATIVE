@@ -5,6 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
+import { PermissionGuard } from './common/auth/permission.guard';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './system/auth/auth.module';
 import { UsersModule } from './system/users/users.module';
@@ -53,6 +54,7 @@ import { KnowledgeModule } from './knowledge/knowledge.module';
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: PermissionGuard },
   ],
 })
 export class AppModule {}

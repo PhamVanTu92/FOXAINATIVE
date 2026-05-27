@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { AccessToken, CurrentUser } from '../../common/auth/current-user.decorator';
 import { AuthenticatedRequestUser } from '../../common/auth/jwt-auth.guard';
+import { RequirePermission } from '../../common/auth/require-permission.decorator';
 import { buildForwardMetadata } from '../../common/grpc/grpc-metadata.helper';
 import {
   CreateModuleGroupDto,
@@ -26,6 +27,7 @@ export class ModuleGroupsController {
   constructor(private readonly svc: ModuleGroupsService) {}
 
   @Get()
+  @RequirePermission('ROLE_CONFIG', 'READ')
   list(
     @Query() q: ListModuleGroupsQueryDto,
     @AccessToken() token: string,
@@ -35,6 +37,7 @@ export class ModuleGroupsController {
   }
 
   @Get(':id')
+  @RequirePermission('ROLE_CONFIG', 'READ')
   get(
     @Param('id', new ParseUUIDPipe()) id: string,
     @AccessToken() token: string,
@@ -44,6 +47,7 @@ export class ModuleGroupsController {
   }
 
   @Post()
+  @RequirePermission('ROLE_CONFIG', 'CREATE')
   create(
     @Body() dto: CreateModuleGroupDto,
     @AccessToken() token: string,
@@ -53,6 +57,7 @@ export class ModuleGroupsController {
   }
 
   @Patch(':id')
+  @RequirePermission('ROLE_CONFIG', 'UPDATE')
   update(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: UpdateModuleGroupDto,
@@ -64,6 +69,7 @@ export class ModuleGroupsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermission('ROLE_CONFIG', 'DELETE')
   async remove(
     @Param('id', new ParseUUIDPipe()) id: string,
     @AccessToken() token: string,

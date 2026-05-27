@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { AccessToken, CurrentUser } from '../common/auth/current-user.decorator';
 import { AuthenticatedRequestUser } from '../common/auth/jwt-auth.guard';
+import { RequirePermission } from '../common/auth/require-permission.decorator';
 import { buildForwardMetadata } from '../common/grpc/grpc-metadata.helper';
 import {
   CreateKnowledgeBaseDto,
@@ -26,6 +27,7 @@ export class KnowledgeBasesController {
   constructor(private readonly knowledge: KnowledgeService) {}
 
   @Get('stats')
+  @RequirePermission('KNOWLEDGE_MGMT', 'READ')
   getStats(
     @AccessToken() token: string,
     @CurrentUser() user: AuthenticatedRequestUser,
@@ -34,6 +36,7 @@ export class KnowledgeBasesController {
   }
 
   @Get()
+  @RequirePermission('KNOWLEDGE_MGMT', 'READ')
   list(
     @Query() q: ListKnowledgeBasesQueryDto,
     @AccessToken() token: string,
@@ -51,6 +54,7 @@ export class KnowledgeBasesController {
   }
 
   @Get(':id')
+  @RequirePermission('KNOWLEDGE_MGMT', 'READ')
   get(
     @Param('id', new ParseUUIDPipe()) id: string,
     @AccessToken() token: string,
@@ -60,6 +64,7 @@ export class KnowledgeBasesController {
   }
 
   @Post()
+  @RequirePermission('KNOWLEDGE_MGMT', 'CREATE')
   create(
     @Body() dto: CreateKnowledgeBaseDto,
     @AccessToken() token: string,
@@ -80,6 +85,7 @@ export class KnowledgeBasesController {
   }
 
   @Put(':id')
+  @RequirePermission('KNOWLEDGE_MGMT', 'UPDATE')
   update(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: UpdateKnowledgeBaseDto,
@@ -101,6 +107,7 @@ export class KnowledgeBasesController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermission('KNOWLEDGE_MGMT', 'DELETE')
   async remove(
     @Param('id', new ParseUUIDPipe()) id: string,
     @AccessToken() token: string,
