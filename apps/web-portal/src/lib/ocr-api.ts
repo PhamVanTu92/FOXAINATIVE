@@ -1,7 +1,16 @@
-const BASE = process.env.NEXT_PUBLIC_OCR_API_URL ?? 'http://localhost:3003';
+const BASE = `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'}/api/ocr`;
+
+function authHeader(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  const token = localStorage.getItem('access_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, init);
+  const res = await fetch(`${BASE}${path}`, {
+    ...init,
+    headers: { ...authHeader(), ...(init?.headers as Record<string, string> | undefined) },
+  });
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((json as { message?: string }).message ?? `HTTP ${res.status}`);
   return json as T;
