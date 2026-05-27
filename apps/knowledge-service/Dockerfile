@@ -4,7 +4,8 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0-bookworm-slim AS build
 WORKDIR /src
 
-COPY apps/knowledge-service/KnowledgeService.sln apps/knowledge-service/
+COPY apps/knowledge-service/KnowledgeService.sln        apps/knowledge-service/
+COPY apps/knowledge-service/Directory.Build.props      apps/knowledge-service/
 
 COPY apps/knowledge-service/src/KnowledgeService.Domain/*.csproj         apps/knowledge-service/src/KnowledgeService.Domain/
 COPY apps/knowledge-service/src/KnowledgeService.Application/*.csproj    apps/knowledge-service/src/KnowledgeService.Application/
