@@ -69,6 +69,26 @@ services:
       start_period: 30s
       retries: 5
 
+  # ─── OCR DB (pgvector) ──────────────────────────────────────────────────────
+  ocr-db:
+    image: pgvector/pgvector:pg16
+    container_name: foxai-ocr-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${OCR_DB_USER:-ocr_user}
+      POSTGRES_PASSWORD: ${OCR_DB_PASSWORD:-ocr_pass}
+      POSTGRES_DB: ${OCR_DB_NAME:-ocr_db}
+    ports:
+      - '5434:5432'
+    volumes:
+      - ocr_db_data:/var/lib/postgresql/data
+      - ./scripts/init-ocr-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${OCR_DB_USER:-ocr_user} -d ${OCR_DB_NAME:-ocr_db}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # ─── OCR API (HTTP server + job producer) ───────────────────────────────────
   ocr-api:
     build:
@@ -80,7 +100,7 @@ services:
       APP_MODE: api
       NODE_ENV: production
       OCR_SERVICE_PORT: 3003
-      OCR_DATABASE_URL: ${OCR_DATABASE_URL}
+      OCR_DATABASE_URL: postgresql://${OCR_DB_USER:-ocr_user}:${OCR_DB_PASSWORD:-ocr_pass}@ocr-db:5432/${OCR_DB_NAME:-ocr_db}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ''
@@ -96,6 +116,8 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      ocr-db:
+        condition: service_healthy
 
   # ─── OCR Workers (job consumers, no HTTP) ────────────────────────────────────
   ocr-worker:
@@ -106,7 +128,7 @@ services:
     environment:
       APP_MODE: worker
       NODE_ENV: production
-      OCR_DATABASE_URL: ${OCR_DATABASE_URL}
+      OCR_DATABASE_URL: postgresql://${OCR_DB_USER:-ocr_user}:${OCR_DB_PASSWORD:-ocr_pass}@ocr-db:5432/${OCR_DB_NAME:-ocr_db}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ''
@@ -119,6 +141,8 @@ services:
       - ocr_uploads:/app/apps/ocr-service/uploads
     depends_on:
       redis:
+        condition: service_healthy
+      ocr-db:
         condition: service_healthy
     deploy:
       replicas: 2
@@ -175,4 +199,5 @@ services:
 
 volumes:
   redis_data:
+  ocr_db_data:
   ocr_uploads:
