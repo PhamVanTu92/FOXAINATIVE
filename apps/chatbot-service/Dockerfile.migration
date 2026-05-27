@@ -1,0 +1,55 @@
+# Dockerfile for running database migrations
+FROM python:3.12-slim-bookworm
+
+# Install system dependencies for PostgreSQL
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libpq5 \
+        postgresql-client \
+        curl \
+        gcc \
+        libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create app user
+RUN groupadd --gid 1000 app \
+    && useradd --uid 1000 --gid app --shell /bin/bash --create-home app
+
+# Set working directory to match alembic.ini script_location
+WORKDIR /app
+
+# Install only migration-required dependencies
+# This keeps the image small and build fast
+RUN pip install --no-cache-dir \
+    alembic==1.16.4 \
+    sqlalchemy==2.0.42 \
+    psycopg2-binary==2.9.10 \
+    psycopg==3.2.5 \
+    python-dotenv==1.1.1 \
+    pytz==2022.7.1 \
+    python-dateutil==2.8.2 \
+    pyyaml==6.0.2 \
+    pydantic==2.11.7 \
+    pydantic-settings==2.10.1
+
+# Copy alembic.ini (now in service folder)
+COPY --chown=app:app alembic.ini /app/alembic.ini
+
+# Copy migration files and models
+COPY --chown=app:app joint ./joint
+
+# Copy migration script
+COPY --chown=app:app scripts/run_migration.sh /app/run_migration.sh
+
+# Make script executable
+RUN chmod +x /app/run_migration.sh
+
+# Set environment variables
+ENV PYTHONPATH="/app"
+ENV PYTHONUNBUFFERED=1
+
+# Switch to non-root user
+USER app
+
+# Run migration script
+ENTRYPOINT ["/app/run_migration.sh"]
