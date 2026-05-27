@@ -21,6 +21,7 @@ import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { AccessToken, CurrentUser } from '../common/auth/current-user.decorator';
 import { AuthenticatedRequestUser } from '../common/auth/jwt-auth.guard';
+import { RequirePermission } from '../common/auth/require-permission.decorator';
 import { buildForwardMetadata } from '../common/grpc/grpc-metadata.helper';
 import {
   AddKnowledgeFileDto,
@@ -66,6 +67,7 @@ export class KnowledgeFilesController {
   constructor(private readonly knowledge: KnowledgeService) {}
 
   @Get()
+  @RequirePermission('KNOWLEDGE_UPLOAD', 'READ')
   list(
     @Param('kbId', new ParseUUIDPipe()) kbId: string,
     @Query() q: ListKnowledgeFilesQueryDto,
@@ -86,6 +88,7 @@ export class KnowledgeFilesController {
 
   @Post()
   @UseInterceptors(FileInterceptor('file', multerOptions))
+  @RequirePermission('KNOWLEDGE_UPLOAD', 'CREATE')
   add(
     @Param('kbId', new ParseUUIDPipe()) kbId: string,
     @UploadedFile() file: Express.Multer.File | undefined,
@@ -114,6 +117,7 @@ export class KnowledgeFilesController {
   }
 
   @Get(':fileId')
+  @RequirePermission('KNOWLEDGE_UPLOAD', 'READ')
   getOne(
     @Param('kbId', new ParseUUIDPipe()) kbId: string,
     @Param('fileId', new ParseUUIDPipe()) fileId: string,
@@ -127,6 +131,7 @@ export class KnowledgeFilesController {
   }
 
   @Get(':fileId/file')
+  @RequirePermission('KNOWLEDGE_UPLOAD', 'READ')
   async downloadFile(
     @Param('kbId', new ParseUUIDPipe()) kbId: string,
     @Param('fileId', new ParseUUIDPipe()) fileId: string,
@@ -145,6 +150,7 @@ export class KnowledgeFilesController {
   }
 
   @Put(':fileId')
+  @RequirePermission('KNOWLEDGE_UPLOAD', 'UPDATE')
   update(
     @Param('kbId', new ParseUUIDPipe()) kbId: string,
     @Param('fileId', new ParseUUIDPipe()) fileId: string,
@@ -166,6 +172,7 @@ export class KnowledgeFilesController {
 
   @Delete(':fileId')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermission('KNOWLEDGE_UPLOAD', 'DELETE')
   async remove(
     @Param('kbId', new ParseUUIDPipe()) kbId: string,
     @Param('fileId', new ParseUUIDPipe()) fileId: string,
@@ -179,6 +186,7 @@ export class KnowledgeFilesController {
   }
 
   @Put(':fileId/permissions')
+  @RequirePermission('KNOWLEDGE_UPLOAD', 'UPDATE')
   updatePermissions(
     @Param('kbId', new ParseUUIDPipe()) kbId: string,
     @Param('fileId', new ParseUUIDPipe()) fileId: string,

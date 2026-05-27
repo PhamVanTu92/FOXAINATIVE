@@ -1,0 +1,318 @@
+services:
+  # ─── System DB ──────────────────────────────────────────────────────────────
+  system-db:
+    image: postgres:16-alpine
+    container_name: foxai-system-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${SYSTEM_DB_USER}
+      POSTGRES_PASSWORD: ${SYSTEM_DB_PASSWORD}
+      POSTGRES_DB: ${SYSTEM_DB_NAME}
+    volumes:
+      - system_db_data:/var/lib/postgresql/data
+    networks:
+      - foxai-internal
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${SYSTEM_DB_USER} -d ${SYSTEM_DB_NAME}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── OCR DB (pgvector) ──────────────────────────────────────────────────────
+  ocr-db:
+    image: pgvector/pgvector:pg16
+    container_name: foxai-ocr-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${OCR_DB_USER}
+      POSTGRES_PASSWORD: ${OCR_DB_PASSWORD}
+      POSTGRES_DB: ${OCR_DB_NAME}
+    volumes:
+      - ocr_db_data:/var/lib/postgresql/data
+      - ./scripts/init-ocr-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    networks:
+      - foxai-internal
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${OCR_DB_USER} -d ${OCR_DB_NAME}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Chatbot DB (pgvector) ──────────────────────────────────────────────────
+  chatbot-db:
+    image: pgvector/pgvector:pg16
+    container_name: foxai-chatbot-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${CHATBOT_DB_USER}
+      POSTGRES_PASSWORD: ${CHATBOT_DB_PASSWORD}
+      POSTGRES_DB: ${CHATBOT_DB_NAME}
+    volumes:
+      - chatbot_db_data:/var/lib/postgresql/data
+      - ./scripts/init-chatbot-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    networks:
+      - foxai-internal
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${CHATBOT_DB_USER} -d ${CHATBOT_DB_NAME}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Knowledge DB ───────────────────────────────────────────────────────────
+  knowledge-db:
+    image: postgres:16-alpine
+    container_name: foxai-knowledge-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${KNOWLEDGE_DB_USER}
+      POSTGRES_PASSWORD: ${KNOWLEDGE_DB_PASSWORD}
+      POSTGRES_DB: ${KNOWLEDGE_DB_NAME}
+    volumes:
+      - knowledge_db_data:/var/lib/postgresql/data
+    networks:
+      - foxai-internal
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${KNOWLEDGE_DB_USER} -d ${KNOWLEDGE_DB_NAME}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── System Service (.NET 9 + gRPC) ─────────────────────────────────────────
+  system-service:
+    build:
+      context: .
+      dockerfile: apps/system-service/Dockerfile
+    image: foxai-system-service:latest
+    container_name: foxai-system-service
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      SYSTEM_DATABASE_URL: postgresql://${SYSTEM_DB_USER}:${SYSTEM_DB_PASSWORD}@system-db:5432/${SYSTEM_DB_NAME}
+      Jwt__Secret: ${JWT_SECRET}
+      Jwt__Issuer: foxai-system-service
+      Jwt__Audience: foxai-platform
+      Jwt__ExpiresIn: ${JWT_EXPIRES_IN:-7d}
+      GRPC_PORT: '50051'
+      HTTP_PORT: '3002'
+      SYSTEM_SERVICE_AUTOMIGRATE: 'true'
+      SYSTEM_SERVICE_SEED: 'true'
+    networks:
+      - foxai-internal
+    depends_on:
+      system-db:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://127.0.0.1:3002/health']
+      interval: 20s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  # ─── Knowledge Service (.NET 9 + gRPC) ──────────────────────────────────────
+  knowledge-service:
+    build:
+      context: .
+      dockerfile: apps/knowledge-service/Dockerfile
+    image: foxai-knowledge-service:latest
+    container_name: foxai-knowledge-service
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      KNOWLEDGE_DATABASE_URL: postgresql://${KNOWLEDGE_DB_USER}:${KNOWLEDGE_DB_PASSWORD}@knowledge-db:5432/${KNOWLEDGE_DB_NAME}
+      GRPC_PORT: '50052'
+      HTTP_PORT: '3005'
+      KNOWLEDGE_SERVICE_AUTOMIGRATE: 'true'
+      KNOWLEDGE_SERVICE_SEED: 'true'
+    networks:
+      - foxai-internal
+    depends_on:
+      knowledge-db:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://127.0.0.1:3005/health']
+      interval: 20s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  # ─── OCR API (HTTP server + job producer) ───────────────────────────────────
+  ocr-api:
+    build:
+      context: .
+      dockerfile: apps/ocr-service/Dockerfile
+    image: foxai-ocr-service:latest
+    container_name: foxai-ocr-api
+    restart: unless-stopped
+    environment:
+      APP_MODE: api
+      NODE_ENV: production
+      OCR_SERVICE_PORT: 3003
+      OCR_DATABASE_URL: postgresql://${OCR_DB_USER}:${OCR_DB_PASSWORD}@ocr-db:5432/${OCR_DB_NAME}
+      REDIS_HOST: ${REDIS_HOST:-host.docker.internal}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      BULLMQ_PREFIX: ocr
+      OCR_PROVIDER: ${OCR_PROVIDER:-gemini}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      WORKER_CONCURRENCY: 3
+      UPLOAD_DIR: ./uploads
+    volumes:
+      - ocr_uploads:/app/apps/ocr-service/uploads
+    networks:
+      - foxai-internal
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    depends_on:
+      ocr-db:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://127.0.0.1:3003/health']
+      interval: 20s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  # ─── OCR Workers (job consumers, no HTTP) ────────────────────────────────────
+  ocr-worker:
+    build:
+      context: .
+      dockerfile: apps/ocr-service/Dockerfile
+    image: foxai-ocr-service:latest
+    restart: unless-stopped
+    environment:
+      APP_MODE: worker
+      NODE_ENV: production
+      OCR_DATABASE_URL: postgresql://${OCR_DB_USER}:${OCR_DB_PASSWORD}@ocr-db:5432/${OCR_DB_NAME}
+      REDIS_HOST: ${REDIS_HOST:-host.docker.internal}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      BULLMQ_PREFIX: ocr
+      OCR_PROVIDER: ${OCR_PROVIDER:-gemini}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      WORKER_CONCURRENCY: 15
+      UPLOAD_DIR: ./uploads
+    volumes:
+      - ocr_uploads:/app/apps/ocr-service/uploads
+    networks:
+      - foxai-internal
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    depends_on:
+      ocr-db:
+        condition: service_healthy
+    deploy:
+      replicas: 2
+
+  # ─── Chatbot Service (NestJS + BullMQ) ──────────────────────────────────────
+  chatbot-service:
+    build:
+      context: .
+      dockerfile: apps/chatbot-service/Dockerfile
+    image: foxai-chatbot-service:latest
+    container_name: foxai-chatbot-service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      CHATBOT_DATABASE_URL: postgresql://${CHATBOT_DB_USER}:${CHATBOT_DB_PASSWORD}@chatbot-db:5432/${CHATBOT_DB_NAME}
+      REDIS_HOST: ${REDIS_HOST:-host.docker.internal}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      BULLMQ_PREFIX: ${BULLMQ_PREFIX:-foxai}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1536}
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-30}
+    networks:
+      - foxai-internal
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    depends_on:
+      chatbot-db:
+        condition: service_healthy
+
+  # ─── API Gateway (NestJS) ────────────────────────────────────────────────────
+  api-gateway:
+    build:
+      context: .
+      dockerfile: apps/api-gateway/Dockerfile
+    image: foxai-api-gateway:latest
+    container_name: foxai-api-gateway
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      API_GATEWAY_PORT: 3001
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      # gRPC: use compose service DNS + internal ports
+      SYSTEM_SERVICE_GRPC_URL: system-service:50051
+      OCR_SERVICE_GRPC_URL: ocr-api:3003
+      KNOWLEDGE_SERVICE_GRPC_URL: knowledge-service:50052
+      CHATBOT_SERVICE_GRPC_URL: chatbot-service:3004
+      REDIS_HOST: ${REDIS_HOST:-host.docker.internal}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    networks:
+      - foxai-internal
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    depends_on:
+      system-service:
+        condition: service_healthy
+      knowledge-service:
+        condition: service_healthy
+      ocr-api:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://127.0.0.1:3001/health']
+      interval: 20s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  # ─── Web Portal (Next.js) ────────────────────────────────────────────────────
+  web-portal:
+    build:
+      context: .
+      dockerfile: apps/web-portal/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    image: foxai-web-portal:latest
+    container_name: foxai-web-portal
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+    networks:
+      - foxai-internal
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+
+  # ─── Nginx (Reverse Proxy) ───────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: foxai-nginx
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    networks:
+      - foxai-internal
+    depends_on:
+      - api-gateway
+      - web-portal
+
+volumes:
+  system_db_data:
+  ocr_db_data:
+  chatbot_db_data:
+  knowledge_db_data:
+  ocr_uploads:
+  nginx_logs:
+
+networks:
+  foxai-internal:
+    driver: bridge
