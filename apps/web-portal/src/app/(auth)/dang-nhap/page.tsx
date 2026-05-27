@@ -76,8 +76,8 @@ export default function LoginPage() {
               type="text"
               autoComplete="username"
               placeholder="admin hoặc admin@foxai.vn"
-              className={`w-full bg-white/8 border rounded-lg px-4 py-2.5 text-white placeholder-slate-500 text-sm outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors ${
-                errors.username ? 'border-red-500/60' : 'border-white/15'
+              className={`w-full bg-[#0d1f3c] border rounded-lg px-4 py-2.5 text-white placeholder-slate-600 text-sm outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/40 transition-colors autofill:bg-[#0d1f3c] autofill:text-white [&:-webkit-autofill]:bg-[#0d1f3c] [&:-webkit-autofill]:[box-shadow:0_0_0_1000px_#0d1f3c_inset] [&:-webkit-autofill]:text-white ${
+                errors.username ? 'border-red-500/50' : 'border-white/10 hover:border-white/20'
               }`}
             />
             {errors.username && (
@@ -94,8 +94,8 @@ export default function LoginPage() {
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"
                 placeholder="••••••••"
-                className={`w-full bg-white/8 border rounded-lg px-4 py-2.5 pr-11 text-white placeholder-slate-500 text-sm outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors ${
-                  errors.password ? 'border-red-500/60' : 'border-white/15'
+                className={`w-full bg-[#0d1f3c] border rounded-lg px-4 py-2.5 pr-11 text-white placeholder-slate-600 text-sm outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/40 transition-colors [&:-webkit-autofill]:[box-shadow:0_0_0_1000px_#0d1f3c_inset] [&:-webkit-autofill]:text-white ${
+                  errors.password ? 'border-red-500/50' : 'border-white/10 hover:border-white/20'
                 }`}
               />
               <button
