@@ -10,9 +10,11 @@
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"
   },
-  "devDependencies": {
+  "dependencies": {
     "class-transformer": "^0.5.1",
-    "class-validator": "^0.14.1",
+    "class-validator": "^0.14.1"
+  },
+  "devDependencies": {
     "rimraf": "^5.0.5",
     "typescript": "^5.3.3"
   }

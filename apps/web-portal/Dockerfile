@@ -30,6 +30,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN pnpm -C apps/web-portal run build
 
+# Đảm bảo thư mục public tồn tại (Next.js không bắt buộc có thư mục này)
+RUN mkdir -p apps/web-portal/public
+
 # ─── Runner ─────────────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
 

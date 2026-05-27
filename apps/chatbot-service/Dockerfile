@@ -34,6 +34,8 @@ RUN pnpm -C apps/chatbot-service run build \
 # ─── Runner ─────────────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
 
+RUN apk add --no-cache openssl
+
 RUN corepack enable && corepack prepare pnpm@8.15.4 --activate
 
 WORKDIR /app
@@ -51,7 +53,10 @@ COPY --from=builder /app/packages/chatbot-db/dist packages/chatbot-db/dist
 COPY --from=builder /app/packages/shared-types/dist packages/shared-types/dist
 COPY --from=builder /app/packages/chatbot-db/prisma packages/chatbot-db/prisma
 
-# pnpm virtual store for runtime deps
+# Copy Prisma generated client — nằm ở packages/chatbot-db/node_modules/.prisma/chatbot-client
+COPY --from=builder /app/packages/chatbot-db/node_modules/.prisma packages/chatbot-db/node_modules/.prisma
+
+# pnpm virtual store
 COPY --from=builder /app/node_modules/.pnpm node_modules/.pnpm
 COPY --from=builder /app/node_modules/.modules.yaml node_modules/.modules.yaml
 

@@ -14,7 +14,7 @@
 # ==============================================================
 set -euo pipefail
 
-APP_DIR="${APP_DIR:-/opt/foxai}"
+APP_DIR="${APP_DIR:-$HOME/FOXNATIVE}"
 COMPOSE_FILE="docker-compose.prod.yml"
 GIT_BRANCH="${GIT_BRANCH:-main}"
 

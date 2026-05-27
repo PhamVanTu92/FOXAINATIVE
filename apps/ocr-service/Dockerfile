@@ -34,6 +34,8 @@ RUN pnpm -C apps/ocr-service run build \
 # ─── Runner ─────────────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
 
+RUN apk add --no-cache openssl
+
 RUN corepack enable && corepack prepare pnpm@8.15.4 --activate
 
 WORKDIR /app
@@ -51,7 +53,10 @@ COPY --from=builder /app/packages/ocr-db/dist packages/ocr-db/dist
 COPY --from=builder /app/packages/shared-types/dist packages/shared-types/dist
 COPY --from=builder /app/packages/ocr-db/prisma packages/ocr-db/prisma
 
-# Copy Prisma generated client (pnpm virtual store)
+# Copy Prisma generated client — nằm ở packages/ocr-db/node_modules/.prisma/ocr-client
+COPY --from=builder /app/packages/ocr-db/node_modules/.prisma packages/ocr-db/node_modules/.prisma
+
+# pnpm virtual store
 COPY --from=builder /app/node_modules/.pnpm node_modules/.pnpm
 COPY --from=builder /app/node_modules/.modules.yaml node_modules/.modules.yaml
 
