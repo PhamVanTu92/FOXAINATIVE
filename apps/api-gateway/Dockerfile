@@ -11,7 +11,7 @@ RUN corepack enable && corepack prepare pnpm@8.15.4 --activate
 WORKDIR /app
 
 # Layer 1: workspace manifests (cache-friendly)
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json ./
 COPY apps/api-gateway/package.json apps/api-gateway/
 COPY packages/shared-proto/package.json packages/shared-proto/
 COPY packages/shared-types/package.json packages/shared-types/
@@ -25,9 +25,13 @@ COPY packages/shared-proto packages/shared-proto
 COPY packages/shared-types packages/shared-types
 
 # Layer 4: build in dependency order
+# Xóa .tsbuildinfo để tránh TypeScript incremental bỏ qua compile trong Docker
+RUN find . -name "*.tsbuildinfo" -delete
 RUN pnpm -C packages/shared-proto run gen:ts
 RUN pnpm -C packages/shared-types run build
-RUN pnpm -C apps/api-gateway run build
+RUN pnpm -C apps/api-gateway run build \
+    && ls /app/apps/api-gateway/dist/main.js \
+    || (echo "ERROR: nest build did not produce dist/" && exit 1)
 
 # ─── Runner ─────────────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner

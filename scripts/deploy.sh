@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
 # ==============================================================
 # FOXAI Deploy Script – Ubuntu Server
-# Chạy lần đầu: bash scripts/deploy.sh --setup
-# Build image:  bash scripts/deploy.sh --build
-# Cập nhật:     bash scripts/deploy.sh          (không build lại)
+#
+# Luồng upload trực tiếp (không dùng git trên server):
+#   1. Máy local: bash scripts/upload.sh user@server-ip
+#   2. Server:    bash scripts/deploy.sh --build
+#   3. Server:    bash scripts/deploy.sh
+#
+# Luồng git (server tự pull):
+#   1. Lần đầu:   bash scripts/deploy.sh --setup
+#   2. Cập nhật:  bash scripts/deploy.sh --build   (khi đổi code)
+#                 bash scripts/deploy.sh            (restart nhanh)
 # ==============================================================
 set -euo pipefail
 
@@ -19,7 +26,7 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
 # ── Kiểm tra công cụ bắt buộc ─────────────────────────────────────────────────
 check_deps() {
-    for cmd in docker git curl; do
+    for cmd in docker curl; do
         command -v "$cmd" >/dev/null 2>&1 || error "Thiếu: $cmd. Hãy cài đặt trước."
     done
     docker compose version >/dev/null 2>&1 || error "Cần Docker Compose v2 (plugin). Hãy cài đặt: https://docs.docker.com/compose/install/"
@@ -30,7 +37,6 @@ check_deps() {
 setup() {
     log "=== FOXAI First-Time Setup ==="
 
-    # Cài Docker nếu chưa có
     if ! command -v docker >/dev/null 2>&1; then
         info "Cài đặt Docker..."
         curl -fsSL https://get.docker.com | sh
@@ -39,42 +45,39 @@ setup() {
         exit 0
     fi
 
-    # Tạo thư mục ứng dụng
     sudo mkdir -p "$APP_DIR"
     sudo chown "$USER":"$USER" "$APP_DIR"
 
-    # Clone repo nếu chưa có
-    if [ ! -d "$APP_DIR/.git" ]; then
-        read -rp "Nhập Git repository URL (SSH hoặc HTTPS): " REPO_URL
-        git clone "$REPO_URL" "$APP_DIR"
+    # Clone repo nếu dùng luồng git (tùy chọn)
+    if [ ! -d "$APP_DIR/.git" ] && command -v git >/dev/null 2>&1; then
+        read -rp "Nhập Git repo URL (Enter để bỏ qua nếu dùng upload trực tiếp): " REPO_URL
+        [ -n "$REPO_URL" ] && git clone "$REPO_URL" "$APP_DIR"
     fi
 
-    cd "$APP_DIR"
-
-    # Tạo .env từ template nếu chưa có
     if [ ! -f "$APP_DIR/.env" ]; then
-        cp .env.production.example .env
-        warn "File .env đã được tạo tại $APP_DIR/.env"
-        warn "Hãy chỉnh sửa file .env với các giá trị thực tế trước khi tiếp tục!"
-        warn "  nano $APP_DIR/.env"
+        [ -f "$APP_DIR/.env.production.example" ] && cp "$APP_DIR/.env.production.example" "$APP_DIR/.env"
+        warn "Hãy chỉnh sửa file .env trước khi tiếp tục: nano $APP_DIR/.env"
         exit 0
     fi
 
-    log "Setup hoàn tất. Chạy lại script để deploy."
+    log "Setup hoàn tất."
 }
 
-# ── Pull code mới nhất ────────────────────────────────────────────────────────
+# ── Pull code qua git (tùy chọn) ─────────────────────────────────────────────
 pull_code() {
-    log "Pull code từ branch $GIT_BRANCH..."
-    git fetch origin
-    git checkout "$GIT_BRANCH"
-    git pull origin "$GIT_BRANCH"
+    if [ -d "$APP_DIR/.git" ] && command -v git >/dev/null 2>&1; then
+        log "Pull code từ branch $GIT_BRANCH..."
+        git fetch origin
+        git checkout "$GIT_BRANCH"
+        git pull origin "$GIT_BRANCH"
+    else
+        info "Bỏ qua git pull (dùng files đã upload sẵn)."
+    fi
 }
 
 # ── Build Docker images ───────────────────────────────────────────────────────
 build_images() {
     log "Build Docker images..."
-    # source .env để NEXT_PUBLIC_API_URL có sẵn cho web-portal build arg
     # shellcheck disable=SC1091
     set -a; source .env; set +a
     docker compose -f "$COMPOSE_FILE" build
@@ -103,18 +106,11 @@ deploy() {
     docker compose -f "$COMPOSE_FILE" ps
 }
 
-# ── Dọn dẹp image cũ ─────────────────────────────────────────────────────────
-cleanup() {
-    log "Dọn dẹp Docker images cũ..."
-    docker image prune -f
-}
-
 # ── Kiểm tra health ───────────────────────────────────────────────────────────
 healthcheck() {
     log "Kiểm tra health..."
     local host="${HEALTHCHECK_HOST:-localhost}"
-
-    local services=( "http://$host/nginx-health:Nginx" "http://$host/api/health:API-Gateway" )
+    local services=("http://$host/nginx-health:Nginx" "http://$host/api/health:API-Gateway")
     for entry in "${services[@]}"; do
         local url="${entry%%:*}"
         local name="${entry##*:}"
@@ -126,11 +122,6 @@ healthcheck() {
     done
 }
 
-# ── Xem logs ─────────────────────────────────────────────────────────────────
-show_logs() {
-    docker compose -f "$COMPOSE_FILE" logs --tail=50 -f
-}
-
 # ─────────────────────────────────────────────────────────────────────────────
 main() {
     local cmd="${1:-deploy}"
@@ -140,9 +131,25 @@ main() {
             check_deps
             setup
             ;;
+        --build|build)
+            check_deps
+            [ -f "$APP_DIR/.env" ] || error "Thiếu $APP_DIR/.env"
+            cd "$APP_DIR"
+            build_images
+            log "Build hoàn tất. Chạy 'bash scripts/deploy.sh' để khởi động."
+            ;;
+        deploy|"")
+            check_deps
+            [ -f "$APP_DIR/.env" ] || error "Thiếu $APP_DIR/.env. Chạy: bash scripts/deploy.sh --setup"
+            cd "$APP_DIR"
+            pull_code
+            deploy
+            healthcheck
+            log "Deploy hoàn tất!"
+            ;;
         --logs|logs)
             cd "$APP_DIR"
-            show_logs
+            docker compose -f "$COMPOSE_FILE" logs --tail=50 -f
             ;;
         --health|health)
             cd "$APP_DIR"
@@ -155,23 +162,6 @@ main() {
         --down|down)
             cd "$APP_DIR"
             docker compose -f "$COMPOSE_FILE" down
-            ;;
-        --build|build)
-            check_deps
-            [ -f "$APP_DIR/.env" ] || error "File .env chưa tồn tại tại $APP_DIR."
-            cd "$APP_DIR"
-            build_images
-            log "Build hoàn tất. Chạy 'bash scripts/deploy.sh' để khởi động."
-            ;;
-        deploy|"")
-            check_deps
-            [ -d "$APP_DIR/.git" ] || error "Repo chưa được clone tại $APP_DIR. Chạy: bash scripts/deploy.sh --setup"
-            [ -f "$APP_DIR/.env" ] || error "File .env chưa tồn tại tại $APP_DIR. Chạy: bash scripts/deploy.sh --setup"
-            cd "$APP_DIR"
-            pull_code
-            deploy
-            healthcheck
-            log "Deploy hoàn tất!"
             ;;
         *)
             echo "Usage: $0 [deploy|--build|--setup|--logs|--health|--status|--down]"

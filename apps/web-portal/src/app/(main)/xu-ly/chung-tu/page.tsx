@@ -26,7 +26,7 @@ const STANDARD_COLUMNS = [
   { key: 'amount',    numeric: true  },
 ] as const;
 
-const STANDARD_FIELD_KEYS = new Set(STANDARD_COLUMNS.map(c => c.key));
+const STANDARD_FIELD_KEYS = new Set<string>(STANDARD_COLUMNS.map(c => c.key));
 
 const TYPE_CONFIG: Record<string, { label: string; cls: string }> = {
   INVOICE:           { label: 'Hóa đơn VAT',    cls: 'bg-blue-50  text-blue-600  border-blue-200' },

@@ -9,7 +9,7 @@ RUN corepack enable && corepack prepare pnpm@8.15.4 --activate
 WORKDIR /app
 
 # Layer 1: workspace manifests (cache-friendly)
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json ./
 COPY apps/web-portal/package.json apps/web-portal/
 COPY packages/shared-types/package.json packages/shared-types/
 
