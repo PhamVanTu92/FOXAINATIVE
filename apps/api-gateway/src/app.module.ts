@@ -15,6 +15,7 @@ import { ModulesModule } from './system/modules/modules.module';
 import { PermissionActionsModule } from './system/permission-actions/permission-actions.module';
 import { OrganizationsModule } from './system/organizations/organizations.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
+import { OcrModule } from './ocr/ocr.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { KnowledgeModule } from './knowledge/knowledge.module';
     PermissionActionsModule,
     OrganizationsModule,
     KnowledgeModule,
+    OcrModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
