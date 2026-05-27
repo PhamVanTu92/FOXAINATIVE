@@ -9,8 +9,10 @@ public class OrganizationNode : BaseEntity, IAggregateRoot
     public int Level { get; set; }
     public string Path { get; set; } = default!;
     public Guid? ParentId { get; set; }
+    public Guid? ManagerId { get; set; }
 
     public OrganizationNode? Parent { get; set; }
+    public User? Manager { get; set; }
     public ICollection<OrganizationNode> Children { get; set; } = new List<OrganizationNode>();
     public ICollection<User> Users { get; set; } = new List<User>();
 

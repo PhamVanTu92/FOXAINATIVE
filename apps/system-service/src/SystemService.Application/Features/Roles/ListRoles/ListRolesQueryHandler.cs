@@ -15,7 +15,7 @@ public sealed class ListRolesQueryHandler(IRoleRepository roles) : IRequestHandl
             p.Page,
             p.PageSize,
             p.Search,
-            request.IncludePermissions,
+            request.IncludeGrants,
             p.SortBy,
             p.SortOrder,
             cancellationToken);

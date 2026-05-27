@@ -6,7 +6,9 @@ using SystemService.Domain.Exceptions;
 
 namespace SystemService.Application.Features.Organizations.UpdateNode;
 
-public sealed class UpdateNodeCommandHandler(IOrganizationRepository organizations)
+public sealed class UpdateNodeCommandHandler(
+    IOrganizationRepository organizations,
+    IUserRepository users)
     : IRequestHandler<UpdateNodeCommand, OrganizationNodeDto>
 {
     public async Task<OrganizationNodeDto> Handle(UpdateNodeCommand request, CancellationToken cancellationToken)
@@ -15,8 +17,17 @@ public sealed class UpdateNodeCommandHandler(IOrganizationRepository organizatio
                    ?? throw new NotFoundException("OrganizationNode", request.Id);
 
         if (request.Name is not null)
-        {
             node.Name = request.Name.Trim();
+
+        if (request.ClearManager)
+        {
+            node.ManagerId = null;
+        }
+        else if (request.ManagerId is { } managerId)
+        {
+            if (!await users.ExistsAsync(managerId, cancellationToken))
+                throw new NotFoundException("User", managerId);
+            node.ManagerId = managerId;
         }
 
         return node.ToDto();

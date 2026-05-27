@@ -48,7 +48,6 @@ minio_data/
 uploads/
 tmp/
 
-
 # .NET build
 bin/
 obj/

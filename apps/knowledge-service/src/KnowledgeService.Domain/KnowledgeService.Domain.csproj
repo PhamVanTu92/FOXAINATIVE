@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>KnowledgeService.Domain</RootNamespace>
+    <AssemblyName>KnowledgeService.Domain</AssemblyName>
+  </PropertyGroup>
+
+</Project>

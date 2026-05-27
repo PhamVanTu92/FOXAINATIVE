@@ -4,7 +4,6 @@ using SystemService.Application.Features.Roles.Dtos;
 namespace SystemService.Application.Features.Roles.CreateRole;
 
 public sealed record CreateRoleCommand(
-    string Code,
+    string? Code,
     string Name,
-    string? Description,
-    IReadOnlyCollection<string> PermissionCodes) : ITransactionalRequest<RoleDto>;
+    string? Description) : ITransactionalRequest<RoleDto>;

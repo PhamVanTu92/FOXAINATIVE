@@ -16,6 +16,12 @@ public interface IOrganizationRepository
 
     Task<IReadOnlyList<OrganizationNode>> GetTreeAsync(Guid? rootId, CancellationToken ct = default);
 
+    Task<(IReadOnlyList<OrganizationNode> Items, long Total)> SearchAsync(
+        int page,
+        int pageSize,
+        string? search,
+        CancellationToken ct = default);
+
     Task<IReadOnlyList<OrganizationNode>> GetDescendantsAsync(string pathPrefix, CancellationToken ct = default);
 
     void Add(OrganizationNode node);

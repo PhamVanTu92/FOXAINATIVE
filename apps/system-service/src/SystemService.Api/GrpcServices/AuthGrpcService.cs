@@ -14,7 +14,7 @@ public sealed class AuthGrpcService(ISender sender) : AuthService.AuthServiceBas
 {
     public override async Task<LoginResponse> Login(LoginRequest request, ServerCallContext context)
     {
-        var result = await sender.Send(new LoginCommand(request.Email, request.Password), context.CancellationToken);
+        var result = await sender.Send(new LoginCommand(request.Login, request.Password), context.CancellationToken);
         return result.ToProto();
     }
 

@@ -7,9 +7,12 @@ public class SystemDbContext(DbContextOptions<SystemDbContext> options) : DbCont
 {
     public DbSet<User> Users => Set<User>();
     public DbSet<Role> Roles => Set<Role>();
-    public DbSet<Permission> Permissions => Set<Permission>();
+    public DbSet<ModuleGroup> ModuleGroups => Set<ModuleGroup>();
+    public DbSet<Module> Modules => Set<Module>();
+    public DbSet<PermissionAction> PermissionActions => Set<PermissionAction>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+    public DbSet<UserPermissionOverride> UserPermissionOverrides => Set<UserPermissionOverride>();
     public DbSet<OrganizationNode> OrganizationNodes => Set<OrganizationNode>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 

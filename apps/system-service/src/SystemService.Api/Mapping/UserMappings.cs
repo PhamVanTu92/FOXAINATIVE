@@ -1,4 +1,5 @@
 using SystemService.Application.Features.Users.Dtos;
+using SystemService.Application.Features.Users.Permissions.Dtos;
 using SystemService.Domain.Enums;
 using UsersProto = Foxai.System.V1;
 
@@ -11,6 +12,7 @@ internal static class UserMappings
         var msg = new UsersProto.UserDto
         {
             Id = dto.Id.ToString(),
+            Username = dto.Username,
             Email = dto.Email,
             FullName = dto.FullName,
             Status = dto.Status.ToString().ToUpperInvariant(),
@@ -24,6 +26,45 @@ internal static class UserMappings
         if (dto.LastLoginAt is not null) msg.LastLoginAt = dto.LastLoginAt.Value.ToIso8601();
 
         msg.Roles.AddRange(dto.Roles);
+        return msg;
+    }
+
+    public static UsersProto.UserPermissionsResponse ToProto(this UserEffectivePermissionsDto dto)
+    {
+        var msg = new UsersProto.UserPermissionsResponse
+        {
+            UserId = dto.UserId.ToString(),
+        };
+
+        msg.RoleGrants.AddRange(dto.RoleGrants.Select(c => new UsersProto.UserPermissionCell
+        {
+            ModuleId = c.ModuleId.ToString(),
+            ModuleCode = c.ModuleCode,
+            ModuleName = c.ModuleName,
+            ActionId = c.ActionId.ToString(),
+            ActionCode = c.ActionCode,
+            ActionName = c.ActionName,
+        }));
+
+        msg.Overrides.AddRange(dto.Overrides.Select(o => new UsersProto.UserPermissionOverrideCell
+        {
+            ModuleId = o.ModuleId.ToString(),
+            ModuleCode = o.ModuleCode,
+            ActionId = o.ActionId.ToString(),
+            ActionCode = o.ActionCode,
+            Effect = o.Effect,
+        }));
+
+        msg.Effective.AddRange(dto.Effective.Select(c => new UsersProto.UserPermissionCell
+        {
+            ModuleId = c.ModuleId.ToString(),
+            ModuleCode = c.ModuleCode,
+            ModuleName = c.ModuleName,
+            ActionId = c.ActionId.ToString(),
+            ActionCode = c.ActionCode,
+            ActionName = c.ActionName,
+        }));
+
         return msg;
     }
 

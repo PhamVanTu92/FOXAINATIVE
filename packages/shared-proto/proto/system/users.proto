@@ -16,6 +16,10 @@ service UsersService {
   rpc ChangeStatus(ChangeStatusRequest) returns (UserDto);
   rpc AssignRole(AssignRoleRequest) returns (foxai.common.EmptyResponse);
   rpc UnassignRole(UnassignRoleRequest) returns (foxai.common.EmptyResponse);
+
+  // Permission overrides per user (UI grid "Phân quyền: <user>")
+  rpc GetUserPermissions(GetUserPermissionsRequest) returns (UserPermissionsResponse);
+  rpc SetUserPermissions(SetUserPermissionsRequest) returns (UserPermissionsResponse);
 }
 
 message UserDto {
@@ -30,15 +34,17 @@ message UserDto {
   string created_at = 9;
   string updated_at = 10;
   optional string last_login_at = 11;
+  string username = 12;
 }
 
 message CreateUserRequest {
-  string email = 1;
-  string password = 2;
-  string full_name = 3;
-  optional string phone = 4;
-  optional string organization_id = 5;
-  repeated string role_codes = 6;
+  string username = 1;
+  string email = 2;
+  string password = 3;
+  string full_name = 4;
+  optional string phone = 5;
+  optional string organization_id = 6;
+  repeated string role_codes = 7;
 }
 
 message GetUserRequest {
@@ -87,4 +93,48 @@ message AssignRoleRequest {
 message UnassignRoleRequest {
   string user_id = 1;
   string role_code = 2;
+}
+
+// ===== User permission overrides =====
+
+message GetUserPermissionsRequest {
+  string user_id = 1;
+}
+
+// FE gửi state cuối cùng của grid: tập (module_id, action_id) user muốn ACTIVE.
+// Server diff vs role grants → tính GRANT/DENY overrides, lưu replace toàn bộ.
+message SetUserPermissionsRequest {
+  string user_id = 1;
+  repeated UserPermissionPair effective_grants = 2;
+}
+
+message UserPermissionPair {
+  string module_id = 1;
+  string action_id = 2;
+}
+
+// 1 ô grid (default từ role).
+message UserPermissionCell {
+  string module_id = 1;
+  string module_code = 2;
+  string module_name = 3;
+  string action_id = 4;
+  string action_code = 5;
+  string action_name = 6;
+}
+
+// 1 override row (user-level).
+message UserPermissionOverrideCell {
+  string module_id = 1;
+  string module_code = 2;
+  string action_id = 3;
+  string action_code = 4;
+  string effect = 5; // "GRANT" | "DENY"
+}
+
+message UserPermissionsResponse {
+  string user_id = 1;
+  repeated UserPermissionCell role_grants = 2;
+  repeated UserPermissionOverrideCell overrides = 3;
+  repeated UserPermissionCell effective = 4;
 }

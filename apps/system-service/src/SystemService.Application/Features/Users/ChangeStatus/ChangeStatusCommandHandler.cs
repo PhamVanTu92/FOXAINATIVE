@@ -15,7 +15,7 @@ public sealed class ChangeStatusCommandHandler(
 {
     public async Task<UserDto> Handle(ChangeStatusCommand request, CancellationToken cancellationToken)
     {
-        var user = await users.FindByIdWithRolesAndPermissionsAsync(request.UserId, cancellationToken)
+        var user = await users.FindByIdWithGrantsAsync(request.UserId, cancellationToken)
                    ?? throw new NotFoundException("User", request.UserId);
 
         user.Status = request.Status;

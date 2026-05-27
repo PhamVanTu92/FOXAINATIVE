@@ -10,9 +10,12 @@ using SystemService.Application.Features.Users.CreateUser;
 using SystemService.Application.Features.Users.DeleteUser;
 using SystemService.Application.Features.Users.GetUserById;
 using SystemService.Application.Features.Users.ListUsers;
+using SystemService.Application.Features.Users.Permissions.GetUserPermissions;
+using SystemService.Application.Features.Users.Permissions.SetUserPermissions;
 using SystemService.Application.Features.Users.UnassignRole;
 using SystemService.Application.Features.Users.UpdateUser;
 using SystemService.Domain.Exceptions;
+using AppUserPermissionPair = SystemService.Application.Features.Users.Permissions.SetUserPermissions.UserPermissionPair;
 
 namespace SystemService.Api.GrpcServices;
 
@@ -21,6 +24,7 @@ public sealed class UsersGrpcService(ISender sender) : UsersService.UsersService
     public override async Task<UserDto> CreateUser(CreateUserRequest request, ServerCallContext context)
     {
         var command = new CreateUserCommand(
+            Username: request.Username,
             Email: request.Email,
             Password: request.Password,
             FullName: request.FullName,
@@ -109,6 +113,28 @@ public sealed class UsersGrpcService(ISender sender) : UsersService.UsersService
             new UnassignRoleCommand(ParseGuid(request.UserId, "user_id"), request.RoleCode),
             context.CancellationToken);
         return new EmptyResponse();
+    }
+
+    public override async Task<UserPermissionsResponse> GetUserPermissions(GetUserPermissionsRequest request, ServerCallContext context)
+    {
+        var result = await sender.Send(
+            new GetUserPermissionsQuery(ParseGuid(request.UserId, "user_id")),
+            context.CancellationToken);
+        return result.ToProto();
+    }
+
+    public override async Task<UserPermissionsResponse> SetUserPermissions(SetUserPermissionsRequest request, ServerCallContext context)
+    {
+        var pairs = request.EffectiveGrants
+            .Select(p => new AppUserPermissionPair(
+                ParseGuid(p.ModuleId, "module_id"),
+                ParseGuid(p.ActionId, "action_id")))
+            .ToList();
+
+        var result = await sender.Send(
+            new SetUserPermissionsCommand(ParseGuid(request.UserId, "user_id"), pairs),
+            context.CancellationToken);
+        return result.ToProto();
     }
 
     private static Guid ParseGuid(string value, string field)

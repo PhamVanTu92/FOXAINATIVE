@@ -9,6 +9,11 @@ using SystemService.Infrastructure.Helpers;
 using SystemService.Infrastructure.Persistence;
 using SystemService.Infrastructure.Persistence.Seeding;
 
+// Load .env từ repo root (đi ngược lên từ CWD đến khi tìm thấy .env hoặc tới drive root).
+// Cho phép cả monorepo (System Service .NET + API Gateway NestJS + docker-compose) dùng
+// chung 1 file .env duy nhất. Env var sẵn có trong process sẽ KHÔNG bị override (--false).
+DotNetEnv.Env.TraversePath().Load();
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Configuration.AddEnvironmentVariables();
@@ -75,7 +80,9 @@ if (autoMigrate)
 app.MapGrpcService<AuthGrpcService>();
 app.MapGrpcService<UsersGrpcService>();
 app.MapGrpcService<RolesGrpcService>();
-app.MapGrpcService<PermissionsGrpcService>();
+app.MapGrpcService<ModuleGroupsGrpcService>();
+app.MapGrpcService<ModulesGrpcService>();
+app.MapGrpcService<PermissionActionsGrpcService>();
 app.MapGrpcService<OrganizationsGrpcService>();
 
 // gRPC reflection exposes service metadata (method signatures), không leak business data.

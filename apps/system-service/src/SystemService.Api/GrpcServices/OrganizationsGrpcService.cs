@@ -7,6 +7,7 @@ using SystemService.Application.Features.Organizations.CreateNode;
 using SystemService.Application.Features.Organizations.DeleteNode;
 using SystemService.Application.Features.Organizations.GetNode;
 using SystemService.Application.Features.Organizations.GetTree;
+using SystemService.Application.Features.Organizations.ListNodes;
 using SystemService.Application.Features.Organizations.ListUsersByOrg;
 using SystemService.Application.Features.Organizations.MoveNode;
 using SystemService.Application.Features.Organizations.UpdateNode;
@@ -22,7 +23,8 @@ public sealed class OrganizationsGrpcService(ISender sender) : OrganizationsServ
             new CreateNodeCommand(
                 Code: request.Code,
                 Name: request.Name,
-                ParentId: request.HasParentId ? ParseGuid(request.ParentId, "parent_id") : null),
+                ParentId: request.HasParentId ? ParseGuid(request.ParentId, "parent_id") : null,
+                ManagerId: request.HasManagerId ? ParseGuid(request.ManagerId, "manager_id") : null),
             context.CancellationToken);
         return result.ToProto();
     }
@@ -43,12 +45,28 @@ public sealed class OrganizationsGrpcService(ISender sender) : OrganizationsServ
         return response;
     }
 
+    public override async Task<ListNodesResponse> ListNodes(ListNodesRequest request, ServerCallContext context)
+    {
+        var page = await sender.Send(
+            new ListNodesQuery(request.Pagination.ToAppPageRequest()),
+            context.CancellationToken);
+
+        var response = new ListNodesResponse
+        {
+            Page = CommonMappings.ToProtoPage(page),
+        };
+        response.Items.AddRange(page.Items.Select(n => n.ToProto()));
+        return response;
+    }
+
     public override async Task<OrganizationNodeDto> UpdateNode(UpdateNodeRequest request, ServerCallContext context)
     {
         var result = await sender.Send(
             new UpdateNodeCommand(
                 Id: ParseGuid(request.Id, "id"),
-                Name: request.HasName ? request.Name : null),
+                Name: request.HasName ? request.Name : null,
+                ManagerId: request.HasManagerId ? ParseGuid(request.ManagerId, "manager_id") : null,
+                ClearManager: request.ClearManager),
             context.CancellationToken);
         return result.ToProto();
     }

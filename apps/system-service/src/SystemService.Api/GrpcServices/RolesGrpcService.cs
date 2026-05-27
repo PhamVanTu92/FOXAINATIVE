@@ -4,6 +4,7 @@ using Grpc.Core;
 using MediatR;
 using SystemService.Api.Mapping;
 using SystemService.Application.Features.Roles.AssignPermissions;
+using AppRolePermissionPair = SystemService.Application.Features.Roles.AssignPermissions.RolePermissionPair;
 using SystemService.Application.Features.Roles.CreateRole;
 using SystemService.Application.Features.Roles.DeleteRole;
 using SystemService.Application.Features.Roles.GetRole;
@@ -20,10 +21,9 @@ public sealed class RolesGrpcService(ISender sender) : RolesService.RolesService
     {
         var result = await sender.Send(
             new CreateRoleCommand(
-                Code: request.Code,
+                Code: request.HasCode ? request.Code : null,
                 Name: request.Name,
-                Description: request.HasDescription ? request.Description : null,
-                PermissionCodes: request.PermissionCodes),
+                Description: request.HasDescription ? request.Description : null),
             context.CancellationToken);
         return result.ToProto();
     }
@@ -38,7 +38,7 @@ public sealed class RolesGrpcService(ISender sender) : RolesService.RolesService
     {
         var query = new ListRolesQuery(
             Pagination: request.Pagination.ToAppPageRequest(),
-            IncludePermissions: request.IncludePermissions);
+            IncludeGrants: request.IncludeGrants);
         var page = await sender.Send(query, context.CancellationToken);
 
         var response = new ListRolesResponse
@@ -68,16 +68,28 @@ public sealed class RolesGrpcService(ISender sender) : RolesService.RolesService
 
     public override async Task<RoleDto> AssignPermissions(AssignPermissionsRequest request, ServerCallContext context)
     {
+        var pairs = request.Grants
+            .Select(g => new AppRolePermissionPair(
+                ParseGuid(g.ModuleId, "module_id"),
+                ParseGuid(g.ActionId, "action_id")))
+            .ToList();
+
         var result = await sender.Send(
-            new AssignPermissionsCommand(ParseGuid(request.RoleId, "role_id"), request.PermissionCodes),
+            new AssignPermissionsCommand(ParseGuid(request.RoleId, "role_id"), pairs),
             context.CancellationToken);
         return result.ToProto();
     }
 
     public override async Task<RoleDto> RevokePermissions(RevokePermissionsRequest request, ServerCallContext context)
     {
+        var pairs = request.Grants
+            .Select(g => new AppRolePermissionPair(
+                ParseGuid(g.ModuleId, "module_id"),
+                ParseGuid(g.ActionId, "action_id")))
+            .ToList();
+
         var result = await sender.Send(
-            new RevokePermissionsCommand(ParseGuid(request.RoleId, "role_id"), request.PermissionCodes),
+            new RevokePermissionsCommand(ParseGuid(request.RoleId, "role_id"), pairs),
             context.CancellationToken);
         return result.ToProto();
     }
