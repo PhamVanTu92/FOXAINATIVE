@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
-import { ChevronDown, ScanLine } from 'lucide-react';
+import { ChevronDown, ScanLine, LogOut } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { navConfig } from './nav-config';
 import type { NavItem, NavSection } from './nav-config';
 import { ocrApi } from '@/lib/ocr-api';
+import { useAuthStore } from '@/stores/auth';
 
 function SidebarChildItem({ href, label, icon: Icon }: { href: string; label: string; icon: LucideIcon }) {
   const pathname = usePathname();
@@ -88,7 +89,11 @@ function SidebarNavItem({ item }: { item: NavItem }) {
 }
 
 export default function Sidebar() {
+  const router = useRouter();
+  const { user, logout, init } = useAuthStore();
   const [schemaChildren, setSchemaChildren] = useState<{ label: string; href: string; icon: LucideIcon }[]>([]);
+
+  useEffect(() => { init(); }, [init]);
 
   useEffect(() => {
     ocrApi.getSchemas().then(list => {
@@ -138,13 +143,20 @@ export default function Sidebar() {
 
       {/* User */}
       <div className="border-t border-white/10 px-4 py-3 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full bg-cyan-600 flex items-center justify-center text-white text-xs font-bold">
-          NN
+        <div className="w-8 h-8 rounded-full bg-cyan-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+          {user?.fullName ? user.fullName.charAt(0).toUpperCase() : '?'}
         </div>
-        <div className="min-w-0">
-          <p className="text-white text-sm font-medium truncate">Nghĩa Nguyễn</p>
-          <p className="text-slate-400 text-[11px] truncate">Quản trị viên</p>
+        <div className="min-w-0 flex-1">
+          <p className="text-white text-sm font-medium truncate">{user?.fullName ?? 'Người dùng'}</p>
+          <p className="text-slate-400 text-[11px] truncate">{user?.roles?.[0] ?? 'Chưa xác định'}</p>
         </div>
+        <button
+          onClick={async () => { await logout(); router.replace('/dang-nhap'); }}
+          title="Đăng xuất"
+          className="shrink-0 text-slate-400 hover:text-red-400 transition-colors"
+        >
+          <LogOut size={16} />
+        </button>
       </div>
     </aside>
   );
