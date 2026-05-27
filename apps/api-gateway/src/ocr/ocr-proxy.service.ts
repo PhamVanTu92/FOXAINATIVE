@@ -9,7 +9,7 @@ export class OcrProxyService {
   constructor(private readonly config: ConfigService) {}
 
   private get ocrBaseUrl(): string {
-    return this.config.get<string>('OCR_SERVICE_URL', 'http://localhost:3003');
+    return this.config.get<string>('OCR_SERVICE_URL', 'http://192.168.100.55');
   }
 
   proxy(req: Request, res: Response, upstreamPath: string): void {

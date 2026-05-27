@@ -14,17 +14,17 @@ import { STATUS_CONFIG_FULL, TYPE_CONFIG, STANDARD_FIELD_KEYS, fmtDate, fmtNum }
 function getFileIconDetail(mimeType: string | null | undefined, fileName: string) {
   const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
   if (mimeType?.startsWith('image/') || ['png','jpg','jpeg','gif','webp','tiff','tif'].includes(ext))
-    return { Icon: ImageIcon, color: 'text-purple-400' };
+    return { Icon: ImageIcon, color: 'text-violet-400' };
   if (mimeType?.includes('spreadsheetml') || mimeType?.includes('ms-excel') || ['xlsx','xls','csv'].includes(ext))
-    return { Icon: Table2, color: 'text-green-400' };
+    return { Icon: Table2, color: 'text-success-400' };
   if (mimeType?.includes('wordprocessingml') || ext === 'docx')
-    return { Icon: FileText, color: 'text-blue-400' };
-  return { Icon: FileText, color: 'text-red-400' };
+    return { Icon: FileText, color: 'text-primary-400' };
+  return { Icon: FileText, color: 'text-danger-400' };
 }
 
 function StatusBadge({ status }: { status: string }) {
   const s = STATUS_CONFIG_FULL[status as keyof typeof STATUS_CONFIG_FULL]
-    ?? { label: status, cls: 'bg-gray-100 text-gray-600 border-gray-200' };
+    ?? { label: status, cls: 'bg-dark-100 text-dark-600 border-dark-200' };
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${s.cls}`}>
       {s.label}
@@ -33,7 +33,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function TypeBadge({ type }: { type: string }) {
-  const t = TYPE_CONFIG[type] ?? { label: type, cls: 'bg-gray-50 text-gray-500 border-gray-200' };
+  const t = TYPE_CONFIG[type] ?? { label: type, cls: 'bg-dark-50 text-dark-500 border-dark-200' };
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${t.cls}`}>
       {t.label}
@@ -42,14 +42,14 @@ function TypeBadge({ type }: { type: string }) {
 }
 
 function StatCard({
-  label, value, colorClass, accentCls = 'border-gray-200', onClick,
+  label, value, colorClass, accentCls = 'border-dark-200', onClick,
 }: { label: string; value: number; colorClass: string; accentCls?: string; onClick?: () => void }) {
   return (
     <div
       onClick={onClick}
-      className={`bg-white rounded-xl border-l-4 border border-gray-100 px-5 py-4 transition-shadow hover:shadow-md ${accentCls} ${onClick ? 'cursor-pointer' : ''}`}
+      className={`bg-white rounded-xl border-l-4 border border-dark-100 shadow-sm px-5 py-4 transition-shadow hover:shadow-md ${accentCls} ${onClick ? 'cursor-pointer' : ''}`}
     >
-      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
+      <p className="text-xs font-medium text-dark-500 uppercase tracking-wide">{label}</p>
       <p className={`text-3xl font-bold mt-1.5 tabular-nums ${colorClass}`}>{value.toLocaleString('vi-VN')}</p>
     </div>
   );
@@ -78,9 +78,9 @@ function DetailDrawer({
 
   return (
     <div className="fixed inset-0 z-50 flex">
-      <div className={`flex-1 bg-gray-900 flex flex-col overflow-hidden${isDragging ? ' pointer-events-none' : ''}`}>
+      <div className={`flex-1 bg-dark-900 flex flex-col overflow-hidden${isDragging ? ' pointer-events-none' : ''}`}>
         {allFiles.length > 1 && (
-          <div className="flex items-center gap-0.5 px-2 py-1.5 bg-gray-800 border-b border-gray-700 overflow-x-auto shrink-0">
+          <div className="flex items-center gap-0.5 px-2 py-1.5 bg-dark-800 border-b border-dark-700 overflow-x-auto shrink-0">
             {allFiles.map((f, idx) => {
               const { Icon: FI, color: fc } = getFileIconDetail(f.mimeType, f.fileName ?? '');
               return (
@@ -88,7 +88,7 @@ function DetailDrawer({
                   key={idx}
                   onClick={() => setActiveFileIdx(idx)}
                   className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs whitespace-nowrap transition-colors shrink-0 ${
-                    activeFileIdx === idx ? 'bg-gray-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                    activeFileIdx === idx ? 'bg-dark-600 text-white' : 'text-dark-400 hover:text-white hover:bg-dark-700'
                   }`}
                 >
                   <FI className={`w-3 h-3 ${fc}`} />
@@ -98,8 +98,8 @@ function DetailDrawer({
             })}
           </div>
         )}
-        <div className="flex items-center justify-between px-4 py-2.5 bg-gray-800 shrink-0">
-          <span className="text-xs text-gray-300 truncate max-w-xs">
+        <div className="flex items-center justify-between px-4 py-2.5 bg-dark-800 shrink-0">
+          <span className="text-xs text-dark-300 truncate max-w-xs">
             {activeFile?.fileName ?? 'Chứng từ gốc'}
           </span>
           {activeFile?.mimeType && (
@@ -107,7 +107,7 @@ function DetailDrawer({
               href={activeFile.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-xs text-gray-300 hover:text-white bg-gray-700 hover:bg-gray-600 px-2.5 py-1 rounded-md transition-colors shrink-0 ml-3"
+              className="flex items-center gap-1.5 text-xs text-dark-300 hover:text-white bg-dark-700 hover:bg-dark-600 px-2.5 py-1 rounded-md transition-colors shrink-0 ml-3"
             >
               <ZoomIn className="w-3.5 h-3.5" />
               Mở rộng
@@ -117,7 +117,7 @@ function DetailDrawer({
         <div className="flex-1 overflow-hidden relative">
           {detailLoading ? (
             <div className="flex items-center justify-center h-full">
-              <Loader2 className="w-8 h-8 text-gray-500 animate-spin" />
+              <Loader2 className="w-8 h-8 text-dark-500 animate-spin" />
             </div>
           ) : activeFile?.mimeType?.startsWith('image/') ? (
             <div className="h-full overflow-auto flex items-start justify-center p-4">
@@ -127,12 +127,12 @@ function DetailDrawer({
           ) : activeFile?.mimeType === 'application/pdf' ? (
             <iframe src={activeFile.url} className="w-full h-full border-0" title={activeFile.fileName ?? 'document'} />
           ) : activeFile ? (
-            <div className="flex flex-col items-center justify-center h-full gap-3 text-gray-500">
+            <div className="flex flex-col items-center justify-center h-full gap-3 text-dark-500">
               {(activeFile.mimeType?.includes('spreadsheetml') || activeFile.mimeType?.includes('ms-excel') || activeFile.mimeType === 'text/csv')
-                ? <Table2 className="w-12 h-12 text-green-400" />
+                ? <Table2 className="w-12 h-12 text-success-400" />
                 : activeFile.mimeType?.includes('wordprocessingml')
-                ? <FileText className="w-12 h-12 text-blue-400" />
-                : <ImageIcon className="w-12 h-12 text-gray-600" />
+                ? <FileText className="w-12 h-12 text-primary-400" />
+                : <ImageIcon className="w-12 h-12 text-dark-600" />
               }
               <p className="text-sm text-center px-6">
                 {(activeFile.mimeType?.includes('spreadsheetml') || activeFile.mimeType?.includes('ms-excel') || activeFile.mimeType === 'text/csv')
@@ -142,20 +142,20 @@ function DetailDrawer({
                   : 'Không thể xem trước định dạng này'}
               </p>
               <a href={activeFile.url} target="_blank" rel="noopener noreferrer"
-                className="text-xs text-blue-400 hover:text-blue-300 underline flex items-center gap-1">
+                className="text-xs text-primary-400 hover:text-primary-300 underline flex items-center gap-1">
                 <Download className="w-3.5 h-3.5" /> Tải file xuống
               </a>
             </div>
           ) : (
             <div className="flex items-center justify-center h-full">
-              <p className="text-sm text-gray-500">Chọn chứng từ để xem</p>
+              <p className="text-sm text-dark-500">Chọn chứng từ để xem</p>
             </div>
           )}
         </div>
       </div>
       <div
         onMouseDown={handleDividerMouseDown}
-        className="w-1 shrink-0 bg-gray-700 hover:bg-blue-400 active:bg-blue-500 cursor-col-resize transition-colors relative"
+        className="w-1 shrink-0 bg-dark-700 hover:bg-primary-400 active:bg-primary-500 cursor-col-resize transition-colors relative"
       >
         <div className="absolute inset-y-0 -left-1 -right-1" />
       </div>
@@ -163,29 +163,29 @@ function DetailDrawer({
         <div className="px-6 py-4 border-b flex items-start justify-between shrink-0 bg-white">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-base font-semibold text-gray-900 truncate">
+              <h2 className="text-base font-semibold text-dark-900 truncate">
                 {detailDoc?.fileName ?? 'Chi tiết chứng từ'}
               </h2>
               {detailDoc && <StatusBadge status={detailDoc.status} />}
             </div>
             {detailDoc && (
               <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <span className="text-xs text-gray-500">{detailDoc.schema.name}</span>
+                <span className="text-xs text-dark-500">{detailDoc.schema.name}</span>
                 <TypeBadge type={detailDoc.schema.type} />
               </div>
             )}
           </div>
           <button
             onClick={() => setDetailOpen(false)}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 shrink-0 ml-3"
+            className="p-1.5 rounded-lg text-dark-400 hover:text-dark-700 hover:bg-dark-100 shrink-0 ml-3"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto bg-gray-50">
+        <div className="flex-1 overflow-y-auto bg-dark-50">
           {detailLoading ? (
             <div className="flex items-center justify-center h-48">
-              <div className="w-7 h-7 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-7 h-7 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : detailDoc ? (
             <DetailPanelBody doc={detailDoc} />
@@ -200,43 +200,43 @@ function DetailPanelBody({ doc }: { doc: DocDetail }) {
   return (
     <div className="p-6 space-y-5">
       {doc.ocrConfidence != null && (
-        <div className="bg-white border rounded-xl px-4 py-3 flex items-center gap-3">
-          <span className="text-xs text-gray-500 shrink-0">Độ tin cậy OCR</span>
-          <div className="flex-1 bg-gray-200 rounded-full h-2">
+        <div className="bg-white border rounded-xl shadow-sm px-4 py-3 flex items-center gap-3">
+          <span className="text-xs text-dark-500 shrink-0">Độ tin cậy OCR</span>
+          <div className="flex-1 bg-dark-200 rounded-full h-2">
             <div
-              className={`h-2 rounded-full transition-all ${doc.ocrConfidence > 0.85 ? 'bg-green-500' : doc.ocrConfidence > 0.6 ? 'bg-amber-400' : 'bg-red-400'}`}
+              className={`h-2 rounded-full transition-all ${doc.ocrConfidence > 0.85 ? 'bg-success-500' : doc.ocrConfidence > 0.6 ? 'bg-amber-400' : 'bg-danger-400'}`}
               style={{ width: `${Math.round(doc.ocrConfidence * 100)}%` }}
             />
           </div>
-          <span className={`text-sm font-bold shrink-0 ${doc.ocrConfidence > 0.85 ? 'text-green-600' : doc.ocrConfidence > 0.6 ? 'text-amber-600' : 'text-red-600'}`}>
+          <span className={`text-sm font-bold shrink-0 ${doc.ocrConfidence > 0.85 ? 'text-success-600' : doc.ocrConfidence > 0.6 ? 'text-amber-600' : 'text-danger-600'}`}>
             {Math.round(doc.ocrConfidence * 100)}%
           </span>
         </div>
       )}
       {doc.status === 'ERROR' && doc.ocrError && (
-        <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">
+        <div className="flex items-start gap-2 bg-danger-50 border border-danger-200 text-danger-700 rounded-lg px-4 py-3 text-sm">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
           <span>{doc.ocrError}</span>
         </div>
       )}
       {doc.values.length > 0 && (
-        <div className="bg-white border rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b bg-blue-50 flex items-center gap-2">
-            <ClipboardList className="w-4 h-4 text-blue-500" />
-            <h3 className="text-sm font-semibold text-blue-800">Trường dữ liệu</h3>
-            <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+        <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
+          <div className="px-4 py-3 border-b bg-primary-50 flex items-center gap-2">
+            <ClipboardList className="w-4 h-4 text-primary-500" />
+            <h3 className="text-sm font-semibold text-primary-800">Trường dữ liệu</h3>
+            <span className="text-xs text-primary-600 bg-primary-100 px-2 py-0.5 rounded-full">
               {doc.values.length} trường
             </span>
           </div>
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-dark-50">
             {doc.values.map(v => (
               <div key={v.fieldId} className="flex items-center px-4 py-2.5 gap-3">
-                <span className="text-xs text-gray-500 w-36 shrink-0">{v.field.label}</span>
-                <span className={`text-sm flex-1 truncate ${v.stringValue ? 'text-gray-800' : 'text-gray-300 italic'}${v.field.dataType === 'CURRENCY' && v.stringValue ? ' font-mono' : ''}`}>
+                <span className="text-xs text-dark-500 w-36 shrink-0">{v.field.label}</span>
+                <span className={`text-sm flex-1 truncate ${v.stringValue ? 'text-dark-800' : 'text-dark-300 italic'}${v.field.dataType === 'CURRENCY' && v.stringValue ? ' font-mono' : ''}`}>
                   {v.field.dataType === 'CURRENCY' && v.stringValue ? fmtNum(v.stringValue) : (v.stringValue || '—')}
                 </span>
                 {v.confidence != null && v.stringValue && (
-                  <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${v.confidence > 0.85 ? 'text-green-600 bg-green-50' : v.confidence > 0.6 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50'}`}>
+                  <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${v.confidence > 0.85 ? 'text-success-600 bg-success-50' : v.confidence > 0.6 ? 'text-amber-600 bg-amber-50' : 'text-danger-600 bg-danger-50'}`}>
                     {Math.round(v.confidence * 100)}%
                   </span>
                 )}
@@ -250,19 +250,19 @@ function DetailPanelBody({ doc }: { doc: DocDetail }) {
         if (items.length === 0) return null;
         const useSchemaColumns = table.columns.length > 0;
         return (
-          <div key={table.id} className="bg-white border rounded-xl overflow-hidden">
+          <div key={table.id} className="bg-white border rounded-xl shadow-sm overflow-hidden">
             <div className="px-4 py-3 border-b bg-orange-50 flex items-center gap-2">
               <Table2 className="w-4 h-4 text-orange-500" />
               <h3 className="text-sm font-semibold text-orange-800">{table.name}</h3>
               <span className="text-xs text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">{items.length} dòng</span>
             </div>
             {!useSchemaColumns ? (
-              <p className="px-4 py-3 text-sm text-gray-500">Bảng chưa được cấu hình cột.</p>
+              <p className="px-4 py-3 text-sm text-dark-500">Bảng chưa được cấu hình cột.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-gray-50 border-b text-xs text-gray-500 uppercase tracking-wide">
+                    <tr className="bg-dark-50 border-b text-xs text-dark-500 uppercase tracking-wide">
                       <th className="px-3 py-2.5 text-center w-10">STT</th>
                       {table.columns.map(col => (
                         <th key={col.id} className={`px-3 py-2.5 ${col.dataType === 'NUMBER' || col.dataType === 'CURRENCY' ? 'text-right' : 'text-left'}`}>{col.label}</th>
@@ -271,15 +271,15 @@ function DetailPanelBody({ doc }: { doc: DocDetail }) {
                   </thead>
                   <tbody>
                     {items.map((li, i) => (
-                      <tr key={li.stt} className={`border-b last:border-0 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
-                        <td className="px-3 py-2.5 text-center text-gray-500 text-xs">{li.stt}</td>
+                      <tr key={li.stt} className={`border-b last:border-0 ${i % 2 === 1 ? 'bg-dark-50/50' : ''}`}>
+                        <td className="px-3 py-2.5 text-center text-dark-500 text-xs">{li.stt}</td>
                         {table.columns.map(col => {
                           const isNum = col.dataType === 'NUMBER' || col.dataType === 'CURRENCY';
                           const raw = STANDARD_FIELD_KEYS.has(col.columnKey)
                             ? li[col.columnKey as keyof typeof li]
                             : li.extraData?.[col.columnKey];
                           return (
-                            <td key={col.columnKey} className={`px-3 py-2.5 text-gray-800 text-xs${isNum ? ' text-right font-mono' : ''}`}>
+                            <td key={col.columnKey} className={`px-3 py-2.5 text-dark-800 text-xs${isNum ? ' text-right font-mono' : ''}`}>
                               {isNum ? fmtNum(raw as number | null | undefined) : String(raw ?? '—')}
                             </td>
                           );
@@ -294,30 +294,30 @@ function DetailPanelBody({ doc }: { doc: DocDetail }) {
         );
       })}
       {doc.auditLogs.length > 0 && (
-        <div className="bg-white border rounded-xl overflow-hidden">
+        <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
           <div className="px-4 py-3 border-b flex items-center gap-2">
-            <Clock className="w-4 h-4 text-gray-400" />
-            <h3 className="text-sm font-semibold text-gray-700">Lịch sử thay đổi</h3>
+            <Clock className="w-4 h-4 text-dark-400" />
+            <h3 className="text-sm font-semibold text-dark-700">Lịch sử thay đổi</h3>
           </div>
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-dark-50">
             {doc.auditLogs.slice(0, 15).map((log, i) => (
               <div key={i} className="px-4 py-3 flex items-start gap-3">
-                <span className="text-xs text-gray-400 shrink-0 whitespace-nowrap mt-0.5 w-20">
+                <span className="text-xs text-dark-400 shrink-0 whitespace-nowrap mt-0.5 w-20">
                   {fmtDate(log.changedAt)}
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-medium text-gray-600">{log.changedBy}</span>
+                    <span className="text-xs font-medium text-dark-600">{log.changedBy}</span>
                     {log.oldStatus && log.newStatus && (
                       <div className="flex items-center gap-1">
                         <StatusBadge status={log.oldStatus} />
-                        <span className="text-gray-400 text-xs">→</span>
+                        <span className="text-dark-400 text-xs">→</span>
                         <StatusBadge status={log.newStatus} />
                       </div>
                     )}
                   </div>
                   {log.note && (
-                    <p className="text-xs text-gray-400 mt-0.5 italic truncate">{log.note}</p>
+                    <p className="text-xs text-dark-400 mt-0.5 italic truncate">{log.note}</p>
                   )}
                 </div>
               </div>
@@ -348,18 +348,21 @@ export function ChungTuView() {
   const { openDetailPanel } = detail;
 
   return (
-    <div className="min-h-full bg-gray-50">
+    <div className="min-h-full bg-dark-50">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white border-b px-6 py-4 flex items-center justify-between shadow-sm">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">Quản lý Chứng từ</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Danh sách tất cả chứng từ đã xử lý OCR</p>
+      <div className="sticky top-0 z-10 bg-white border-b shadow-sm px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-1 h-8 rounded-full bg-gradient-primary shrink-0" />
+          <div>
+            <h1 className="text-xl font-semibold text-dark-900">Quản lý Chứng từ</h1>
+            <p className="text-sm text-dark-500 mt-0.5">Danh sách tất cả chứng từ đã xử lý OCR</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleExportExcel}
             disabled={exporting}
-            className="flex items-center gap-2 border border-gray-200 bg-white text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            className="flex items-center gap-2 border border-dark-200 bg-white text-dark-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-dark-50 disabled:opacity-50 transition-colors"
           >
             <Download className="w-4 h-4" />
             {exporting ? 'Đang xuất...' : (selectedIds.size > 0 ? `Xuất Excel (${selectedIds.size})` : 'Xuất Excel')}
@@ -374,7 +377,7 @@ export function ChungTuView() {
                 onClick={() => selectedIds.size > 0 ? openTransferModal([...selectedIds]) : openTransferAllConfirmed()}
                 disabled={isDisabled}
                 title={confirmedCount === 0 ? 'Không có chứng từ "Đã xác nhận" nào để chuyển' : undefined}
-                className="flex items-center gap-2 bg-[#0d4f4f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#0a3d3d] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center gap-2 bg-teal-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 <Database className="w-4 h-4" />
                 {loadingTransfer ? 'Đang tải...' : (
@@ -390,33 +393,33 @@ export function ChungTuView() {
         {/* Stat cards */}
         {stats && (
           <div className="grid grid-cols-5 gap-4">
-            <StatCard label="Tổng chứng từ"  value={stats.total}       colorClass="text-gray-800"   accentCls="border-l-gray-300"   onClick={() => { setStatusFilter(''); setPage(1); }} />
-            <StatCard label="Chờ xác nhận"   value={stats.processed}   colorClass="text-orange-500" accentCls="border-l-orange-400" onClick={() => { setStatusFilter('PROCESSED'); setPage(1); }} />
-            <StatCard label="Đã xác nhận"    value={stats.confirmed}   colorClass="text-green-600"  accentCls="border-l-green-400"  onClick={() => { setStatusFilter('CONFIRMED'); setPage(1); }} />
-            <StatCard label="Đã chuyển kho"  value={stats.transferred} colorClass="text-purple-600" accentCls="border-l-purple-400" onClick={() => { setStatusFilter('TRANSFERRED'); setPage(1); }} />
-            <StatCard label="Lỗi OCR"        value={stats.error}       colorClass="text-red-500"    accentCls="border-l-red-400"    onClick={() => { setStatusFilter('ERROR'); setPage(1); }} />
+            <StatCard label="Tổng chứng từ"  value={stats.total}       colorClass="text-dark-800"    accentCls="border-l-dark-300"    onClick={() => { setStatusFilter(''); setPage(1); }} />
+            <StatCard label="Chờ xác nhận"   value={stats.processed}   colorClass="text-orange-500"  accentCls="border-l-orange-400"  onClick={() => { setStatusFilter('PROCESSED'); setPage(1); }} />
+            <StatCard label="Đã xác nhận"    value={stats.confirmed}   colorClass="text-success-600" accentCls="border-l-success-400" onClick={() => { setStatusFilter('CONFIRMED'); setPage(1); }} />
+            <StatCard label="Đã chuyển kho"  value={stats.transferred} colorClass="text-violet-600"  accentCls="border-l-violet-400"  onClick={() => { setStatusFilter('TRANSFERRED'); setPage(1); }} />
+            <StatCard label="Lỗi OCR"        value={stats.error}       colorClass="text-danger-500"  accentCls="border-l-danger-400"  onClick={() => { setStatusFilter('ERROR'); setPage(1); }} />
           </div>
         )}
 
         {/* Filter bar */}
-        <div className="bg-white rounded-xl border px-4 py-3 flex flex-wrap gap-2.5 items-center">
+        <div className="bg-white rounded-xl border border-dark-100 shadow-sm px-4 py-3 flex flex-wrap gap-2.5 items-center">
           <div className="flex-1 min-w-[200px]">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-400" />
               <input
                 type="text"
                 value={search}
                 onChange={e => { setSearch(e.target.value); setPage(1); }}
                 placeholder="Tìm theo số HĐ, tên file, người bán..."
-                className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 focus:bg-white transition-colors"
+                className="w-full pl-9 pr-3 py-2 text-sm border border-dark-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-dark-50 focus:bg-white transition-colors"
               />
             </div>
           </div>
-          <div className="w-px h-6 bg-gray-200 shrink-0" />
+          <div className="w-px h-6 bg-dark-200 shrink-0" />
           <select
             value={statusFilter}
             onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
-            className="h-9 px-3 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            className="h-9 px-3 text-sm border border-dark-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-dark-700"
           >
             <option value="">Tất cả trạng thái</option>
             <option value="DRAFT">Đang xử lý</option>
@@ -428,22 +431,22 @@ export function ChungTuView() {
           <select
             value={typeFilter}
             onChange={e => { setTypeFilter(e.target.value); setPage(1); }}
-            className="h-9 px-3 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            className="h-9 px-3 text-sm border border-dark-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-dark-700"
           >
             <option value="">Tất cả loại</option>
             {Object.entries(TYPE_CONFIG).map(([k, v]) => (
               <option key={k} value={k}>{v.label}</option>
             ))}
           </select>
-          <div className="flex items-center h-9 border rounded-lg overflow-hidden bg-white shrink-0 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-400">
-            <span className="pl-2.5 pr-1.5 text-[11px] font-medium text-gray-400 whitespace-nowrap select-none">Từ ngày</span>
+          <div className="flex items-center h-9 border border-dark-200 rounded-lg overflow-hidden bg-white shrink-0 focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-primary-400">
+            <span className="pl-2.5 pr-1.5 text-[11px] font-medium text-dark-400 whitespace-nowrap select-none">Từ ngày</span>
             <input
               type="date"
               value={dateFrom}
               onChange={e => { setDateFrom(e.target.value); setPage(1); }}
               className="h-full text-sm bg-transparent border-0 focus:outline-none w-[128px]"
             />
-            <span className="px-1.5 text-gray-300 select-none text-sm">–</span>
+            <span className="px-1.5 text-dark-300 select-none text-sm">–</span>
             <input
               type="date"
               value={dateTo}
@@ -453,10 +456,10 @@ export function ChungTuView() {
           </div>
           {(search || statusFilter || typeFilter || dateFrom || dateTo) && (
             <>
-              <div className="w-px h-6 bg-gray-200 shrink-0" />
+              <div className="w-px h-6 bg-dark-200 shrink-0" />
               <button
                 onClick={() => { setSearch(''); setStatusFilter(''); setTypeFilter(''); setDateFrom(''); setDateTo(''); setPage(1); }}
-                className="h-9 px-3 text-sm text-gray-500 hover:text-red-600 border rounded-lg hover:bg-red-50 hover:border-red-200 transition-colors flex items-center gap-1.5"
+                className="h-9 px-3 text-sm text-dark-500 hover:text-danger-600 border border-dark-200 rounded-lg hover:bg-danger-50 hover:border-danger-200 transition-colors flex items-center gap-1.5"
               >
                 <X className="w-3.5 h-3.5" /> Xóa bộ lọc
               </button>
@@ -466,36 +469,36 @@ export function ChungTuView() {
 
         {/* Bulk action bar */}
         {selectedIds.size > 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center gap-4">
-            <span className="text-sm font-medium text-blue-700">Đã chọn {selectedIds.size} chứng từ</span>
-            <button onClick={handleBulkConfirm} className="flex items-center gap-1.5 text-sm text-green-700 hover:text-green-800 font-medium">
+          <div className="bg-primary-50 border border-primary-200 rounded-xl shadow-sm px-4 py-3 flex items-center gap-4">
+            <span className="text-sm font-medium text-primary-700">Đã chọn {selectedIds.size} chứng từ</span>
+            <button onClick={handleBulkConfirm} className="flex items-center gap-1.5 text-sm text-success-700 hover:text-success-800 font-medium">
               <Check className="w-4 h-4" /> Xác nhận hàng loạt
             </button>
             <button onClick={() => openTransferModal([...selectedIds])} className="flex items-center gap-1.5 text-sm text-teal-700 hover:text-teal-800 font-medium">
               <Database className="w-4 h-4" /> Chuyển vào kho tri thức
             </button>
-            <button onClick={handleBulkDelete} className="flex items-center gap-1.5 text-sm text-red-600 hover:text-red-700 font-medium">
+            <button onClick={handleBulkDelete} className="flex items-center gap-1.5 text-sm text-danger-600 hover:text-danger-700 font-medium">
               <Trash2 className="w-4 h-4" /> Xóa hàng loạt
             </button>
-            <button onClick={() => list.setSelectedIds(new Set())} className="ml-auto flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+            <button onClick={() => list.setSelectedIds(new Set())} className="ml-auto flex items-center gap-1 text-sm text-dark-500 hover:text-dark-700">
               <X className="w-3.5 h-3.5" /> Bỏ chọn
             </button>
           </div>
         )}
 
         {pageError && (
-          <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">
+          <div className="flex items-center gap-2 bg-danger-50 border border-danger-200 text-danger-700 rounded-lg px-4 py-3 text-sm">
             <AlertCircle className="w-4 h-4 shrink-0" />
             {pageError}
           </div>
         )}
 
         {/* Table */}
-        <div className="bg-white rounded-xl border overflow-hidden">
+        <div className="bg-white rounded-xl border border-dark-100 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[820px]">
               <thead>
-                <tr className="border-b bg-gray-50/80 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                <tr className="border-b bg-dark-50/80 text-xs font-semibold text-dark-500 uppercase tracking-wide">
                   <th className="w-10 px-4 py-3">
                     <input
                       type="checkbox"
@@ -517,50 +520,50 @@ export function ChungTuView() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-12 text-center text-gray-400">Đang tải...</td>
+                    <td colSpan={9} className="px-4 py-12 text-center text-dark-400">Đang tải...</td>
                   </tr>
                 ) : !docs?.items.length ? (
                   <tr>
                     <td colSpan={9} className="px-4 py-14 text-center">
-                      <FileText className="w-10 h-10 text-gray-200 mx-auto mb-2" />
-                      <p className="text-gray-400 text-sm">Không có chứng từ nào</p>
+                      <FileText className="w-10 h-10 text-dark-200 mx-auto mb-2" />
+                      <p className="text-dark-400 text-sm">Không có chứng từ nào</p>
                     </td>
                   </tr>
                 ) : docs.items.map((doc: DocListItem, idx: number) => (
                   <tr
                     key={doc.id}
-                    className={`border-b last:border-0 transition-colors ${selectedIds.has(doc.id) ? 'bg-blue-50/50' : 'hover:bg-gray-50'}`}
+                    className={`border-b last:border-0 transition-colors ${selectedIds.has(doc.id) ? 'bg-primary-50/50' : 'hover:bg-dark-50'}`}
                   >
                     <td className="px-4 py-3" onClick={e => { e.stopPropagation(); toggleSelect(doc.id); }}>
                       <input type="checkbox" checked={selectedIds.has(doc.id)} onChange={() => {}} className="rounded" />
                     </td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">{(page - 1) * 25 + idx + 1}</td>
-                    <td className="px-4 py-3 font-mono text-xs font-semibold text-gray-700">{doc.schemaCode}</td>
+                    <td className="px-4 py-3 text-dark-400 text-xs">{(page - 1) * 25 + idx + 1}</td>
+                    <td className="px-4 py-3 font-mono text-xs font-semibold text-dark-700">{doc.schemaCode}</td>
                     <td className="px-4 py-3 max-w-[220px]">
                       <button
                         onClick={() => openDetailPanel(doc.id)}
-                        className="flex items-start gap-2 hover:text-blue-600 transition-colors text-left w-full"
+                        className="flex items-start gap-2 hover:text-primary-600 transition-colors text-left w-full"
                       >
-                        <FileText className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
+                        <FileText className="w-3.5 h-3.5 text-dark-400 shrink-0 mt-0.5" />
                         <span className="flex flex-col min-w-0">
-                          <span className="truncate text-sm font-medium text-gray-800">{doc.schema.name}</span>
-                          {doc.fileName && <span className="truncate text-xs text-gray-400">{doc.fileName}</span>}
+                          <span className="truncate text-sm font-medium text-dark-800">{doc.schema.name}</span>
+                          {doc.fileName && <span className="truncate text-xs text-dark-400">{doc.fileName}</span>}
                         </span>
                       </button>
                     </td>
                     <td className="px-4 py-3"><TypeBadge type={doc.schema.type} /></td>
-                    <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{fmtDate(doc.createdAt)}</td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">—</td>
+                    <td className="px-4 py-3 text-dark-500 text-xs whitespace-nowrap">{fmtDate(doc.createdAt)}</td>
+                    <td className="px-4 py-3 text-dark-400 text-xs">—</td>
                     <td className="px-4 py-3"><StatusBadge status={doc.status} /></td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1">
-                        <button onClick={() => openDetailPanel(doc.id)} className="p-1.5 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors" title="Xem chi tiết">
+                        <button onClick={() => openDetailPanel(doc.id)} className="p-1.5 text-dark-400 hover:text-violet-500 hover:bg-violet-50 rounded-lg transition-colors" title="Xem chi tiết">
                           <Eye className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => openEditModal(doc)} className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors" title="Sửa chứng từ">
+                        <button onClick={() => openEditModal(doc)} className="p-1.5 text-dark-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-colors" title="Sửa chứng từ">
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => deleteDoc(doc.id)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Xóa chứng từ">
+                        <button onClick={() => deleteDoc(doc.id)} className="p-1.5 text-dark-400 hover:text-danger-500 hover:bg-danger-50 rounded-lg transition-colors" title="Xóa chứng từ">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -575,19 +578,19 @@ export function ChungTuView() {
         {/* Pagination */}
         {docs && docs.total > 0 && (
           <div className="flex items-center justify-between px-1">
-            <span className="text-sm text-gray-400">
-              Hiển thị <span className="font-medium text-gray-700">{(docs.page - 1) * 25 + 1}–{Math.min(docs.page * 25, docs.total)}</span> trong tổng số <span className="font-medium text-gray-700">{docs.total.toLocaleString('vi-VN')}</span> chứng từ
+            <span className="text-sm text-dark-400">
+              Hiển thị <span className="font-medium text-dark-700">{(docs.page - 1) * 25 + 1}–{Math.min(docs.page * 25, docs.total)}</span> trong tổng số <span className="font-medium text-dark-700">{docs.total.toLocaleString('vi-VN')}</span> chứng từ
             </span>
             {docs.totalPages > 1 && (
               <div className="flex items-center gap-1">
-                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={docs.page === 1} className="p-1.5 rounded-lg border border-gray-200 disabled:opacity-30 hover:bg-gray-100 transition-colors">
-                  <ChevronLeft className="w-4 h-4 text-gray-600" />
+                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={docs.page === 1} className="p-1.5 rounded-lg border border-dark-200 disabled:opacity-30 hover:bg-dark-100 transition-colors">
+                  <ChevronLeft className="w-4 h-4 text-dark-600" />
                 </button>
-                <span className="px-3 py-1 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg min-w-[72px] text-center">
+                <span className="px-3 py-1 text-sm font-medium text-dark-700 bg-white border border-dark-200 rounded-lg min-w-[72px] text-center">
                   {docs.page} / {docs.totalPages}
                 </span>
-                <button onClick={() => setPage(p => Math.min(docs.totalPages, p + 1))} disabled={docs.page === docs.totalPages} className="p-1.5 rounded-lg border border-gray-200 disabled:opacity-30 hover:bg-gray-100 transition-colors">
-                  <ChevronRight className="w-4 h-4 text-gray-600" />
+                <button onClick={() => setPage(p => Math.min(docs.totalPages, p + 1))} disabled={docs.page === docs.totalPages} className="p-1.5 rounded-lg border border-dark-200 disabled:opacity-30 hover:bg-dark-100 transition-colors">
+                  <ChevronRight className="w-4 h-4 text-dark-600" />
                 </button>
               </div>
             )}
@@ -597,55 +600,55 @@ export function ChungTuView() {
 
       {/* Edit modal */}
       {editDoc && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-            <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h2 className="text-base font-semibold text-gray-900">Sửa chứng từ OCR</h2>
-              <button onClick={() => setEditDoc(null)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-dark-200">
+              <h2 className="text-base font-semibold text-dark-900">Sửa chứng từ OCR</h2>
+              <button onClick={() => setEditDoc(null)} className="p-1.5 rounded-lg text-dark-400 hover:text-dark-700 hover:bg-dark-100">
                 <X className="w-4 h-4" />
               </button>
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">Mã chứng từ</label>
-                <input type="text" readOnly value={editDoc.schemaCode} className="w-full px-3 py-2 text-sm border rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed font-mono" />
+                <label className="block text-xs font-medium text-dark-600 mb-1.5">Mã chứng từ</label>
+                <input type="text" readOnly value={editDoc.schemaCode} className="w-full px-3 py-2 text-sm border border-dark-200 rounded-lg bg-dark-50 text-dark-500 cursor-not-allowed font-mono" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">Tên chứng từ</label>
-                <input type="text" readOnly value={editDoc.schema.name} className="w-full px-3 py-2 text-sm border rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed" />
+                <label className="block text-xs font-medium text-dark-600 mb-1.5">Tên chứng từ</label>
+                <input type="text" readOnly value={editDoc.schema.name} className="w-full px-3 py-2 text-sm border border-dark-200 rounded-lg bg-dark-50 text-dark-500 cursor-not-allowed" />
               </div>
               {editDoc.fileName && (
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Tên file</label>
-                  <input type="text" readOnly value={editDoc.fileName} className="w-full px-3 py-2 text-sm border rounded-lg bg-gray-50 text-gray-400 cursor-not-allowed" />
+                  <label className="block text-xs font-medium text-dark-600 mb-1.5">Tên file</label>
+                  <input type="text" readOnly value={editDoc.fileName} className="w-full px-3 py-2 text-sm border border-dark-200 rounded-lg bg-dark-50 text-dark-400 cursor-not-allowed" />
                 </div>
               )}
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">Loại chứng từ</label>
-                <input type="text" readOnly value={TYPE_CONFIG[editDoc.schema.type]?.label ?? editDoc.schema.type} className="w-full px-3 py-2 text-sm border rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed" />
+                <label className="block text-xs font-medium text-dark-600 mb-1.5">Loại chứng từ</label>
+                <input type="text" readOnly value={TYPE_CONFIG[editDoc.schema.type]?.label ?? editDoc.schema.type} className="w-full px-3 py-2 text-sm border border-dark-200 rounded-lg bg-dark-50 text-dark-500 cursor-not-allowed" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">Trạng thái</label>
+                <label className="block text-xs font-medium text-dark-600 mb-1.5">Trạng thái</label>
                 <select
                   value={editStatus}
                   onChange={e => setEditStatus(e.target.value)}
                   disabled={editDoc.status === 'CONFIRMED' || editDoc.status === 'TRANSFERRED'}
-                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${editDoc.status === 'CONFIRMED' || editDoc.status === 'TRANSFERRED' ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : 'bg-white'}`}
+                  className={`w-full px-3 py-2 text-sm border border-dark-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${editDoc.status === 'CONFIRMED' || editDoc.status === 'TRANSFERRED' ? 'bg-dark-50 text-dark-500 cursor-not-allowed' : 'bg-white text-dark-800'}`}
                 >
                   <option value="PROCESSED">Nháp</option>
                   <option value="CONFIRMED">Đã xác nhận</option>
                   {editDoc.status === 'TRANSFERRED' && <option value="TRANSFERRED">Đã chuyển kho</option>}
                 </select>
                 {(editDoc.status === 'CONFIRMED' || editDoc.status === 'TRANSFERRED') && (
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-xs text-dark-400 mt-1">
                     {editDoc.status === 'TRANSFERRED' ? 'Chứng từ đã chuyển kho không thể thay đổi trạng thái.' : 'Xác nhận rồi → không thể chỉnh sửa trạng thái.'}
                   </p>
                 )}
               </div>
             </div>
-            <div className="px-6 py-4 border-t flex justify-end gap-3">
-              <button onClick={() => setEditDoc(null)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border rounded-lg hover:bg-gray-50">Hủy</button>
-              <button onClick={handleSaveEdit} disabled={editSaving} className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+            <div className="px-6 py-4 border-t border-dark-100 flex justify-end gap-3">
+              <button onClick={() => setEditDoc(null)} className="px-4 py-2 text-sm text-dark-600 border border-dark-200 rounded-lg hover:bg-dark-50">Hủy</button>
+              <button onClick={handleSaveEdit} disabled={editSaving} className="px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50">
                 {editSaving ? 'Đang lưu...' : 'Lưu'}
               </button>
             </div>
@@ -658,31 +661,31 @@ export function ChungTuView() {
 
       {/* Transfer modal */}
       {transferOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm">
             <div className="p-6 text-center">
               <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 ${transferIds.length > 0 ? 'bg-teal-50' : 'bg-orange-50'}`}>
                 <Database className={`w-6 h-6 ${transferIds.length > 0 ? 'text-teal-600' : 'text-orange-400'}`} />
               </div>
-              <h2 className="text-base font-semibold text-gray-900 mb-2">Chuyển vào kho tri thức</h2>
+              <h2 className="text-base font-semibold text-dark-900 mb-2">Chuyển vào kho tri thức</h2>
               {transferIds.length > 0 ? (
-                <p className="text-sm text-gray-500">
-                  Chuyển <span className="font-semibold text-gray-800">{transferIds.length}</span> chứng từ <span className="text-green-600 font-medium">đã xác nhận</span> vào kho tri thức?
+                <p className="text-sm text-dark-500">
+                  Chuyển <span className="font-semibold text-dark-800">{transferIds.length}</span> chứng từ <span className="text-success-600 font-medium">đã xác nhận</span> vào kho tri thức?
                 </p>
               ) : (
-                <p className="text-sm text-gray-500">
-                  Không có chứng từ nào ở trạng thái <span className="font-medium text-green-600">"Đã xác nhận"</span> trong lựa chọn hiện tại.
+                <p className="text-sm text-dark-500">
+                  Không có chứng từ nào ở trạng thái <span className="font-medium text-success-600">"Đã xác nhận"</span> trong lựa chọn hiện tại.
                   <br />
-                  <span className="text-xs text-gray-400 mt-1 block">Vui lòng xác nhận chứng từ trước khi chuyển kho.</span>
+                  <span className="text-xs text-dark-400 mt-1 block">Vui lòng xác nhận chứng từ trước khi chuyển kho.</span>
                 </p>
               )}
             </div>
-            <div className="px-6 py-4 border-t flex justify-center gap-3">
-              <button onClick={() => setTransferOpen(false)} disabled={transferring} className="px-6 py-2 text-sm text-gray-600 hover:text-gray-800 border rounded-lg hover:bg-gray-50 disabled:opacity-50">
+            <div className="px-6 py-4 border-t border-dark-100 flex justify-center gap-3">
+              <button onClick={() => setTransferOpen(false)} disabled={transferring} className="px-6 py-2 text-sm text-dark-600 border border-dark-200 rounded-lg hover:bg-dark-50 disabled:opacity-50">
                 {transferIds.length > 0 ? 'Hủy' : 'Đóng'}
               </button>
               {transferIds.length > 0 && (
-                <button onClick={handleTransfer} disabled={transferring} className="px-6 py-2 text-sm font-medium bg-[#0d4f4f] text-white rounded-lg hover:bg-[#0a3d3d] disabled:opacity-50">
+                <button onClick={handleTransfer} disabled={transferring} className="px-6 py-2 text-sm font-medium bg-teal-800 text-white rounded-lg hover:bg-teal-900 disabled:opacity-50">
                   {transferring ? 'Đang chuyển...' : 'Chuyển'}
                 </button>
               )}
@@ -693,14 +696,14 @@ export function ChungTuView() {
 
       {/* Confirm dialog */}
       {confirmDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm">
             <div className="px-6 pt-6 pb-4">
-              <h3 className="text-base font-semibold text-gray-900 mb-2">{confirmDialog.title}</h3>
-              <p className="text-sm text-gray-500 leading-relaxed">{confirmDialog.message}</p>
+              <h3 className="text-base font-semibold text-dark-900 mb-2">{confirmDialog.title}</h3>
+              <p className="text-sm text-dark-500 leading-relaxed">{confirmDialog.message}</p>
             </div>
-            <div className="px-6 py-4 border-t flex justify-end gap-3">
-              <button onClick={() => setConfirmDialog(null)} className="px-4 py-2 text-sm text-gray-600 border rounded-lg hover:bg-gray-50 transition-colors">Hủy</button>
+            <div className="px-6 py-4 border-t border-dark-100 flex justify-end gap-3">
+              <button onClick={() => setConfirmDialog(null)} className="px-4 py-2 text-sm text-dark-600 border border-dark-200 rounded-lg hover:bg-dark-50 transition-colors">Hủy</button>
               <button
                 onClick={() => { const fn = confirmDialog.onConfirm; setConfirmDialog(null); fn(); }}
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${confirmDialog.confirmCls}`}
@@ -714,14 +717,16 @@ export function ChungTuView() {
 
       {/* Toast */}
       {toast && (
-        <div className={`fixed bottom-6 right-6 z-[70] flex items-center gap-3 px-4 py-3.5 rounded-xl shadow-2xl border max-w-sm text-sm font-medium animate-in slide-in-from-bottom-2 duration-200 ${
-          toast.type === 'error' ? 'bg-white text-red-700 border-red-200 shadow-red-100' : 'bg-white text-green-700 border-green-200 shadow-green-100'
+        <div className={`fixed bottom-6 right-6 z-[70] flex items-center gap-3 px-4 py-3.5 rounded-xl shadow-lg border max-w-sm text-sm font-medium animate-in slide-in-from-bottom-2 duration-200 ${
+          toast.type === 'error'
+            ? 'bg-white text-danger-700 border-danger-200'
+            : 'bg-white text-success-700 border-success-200'
         }`}>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${toast.type === 'error' ? 'bg-red-50' : 'bg-green-50'}`}>
-            {toast.type === 'error' ? <AlertCircle className="w-4 h-4 text-red-500" /> : <Check className="w-4 h-4 text-green-500" />}
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${toast.type === 'error' ? 'bg-danger-50' : 'bg-success-50'}`}>
+            {toast.type === 'error' ? <AlertCircle className="w-4 h-4 text-danger-500" /> : <Check className="w-4 h-4 text-success-500" />}
           </div>
           <span className="flex-1 leading-snug">{toast.message}</span>
-          <button onClick={() => setToast(null)} className="ml-1 text-gray-300 hover:text-gray-500 shrink-0 transition-colors">
+          <button onClick={() => setToast(null)} className="ml-1 text-dark-300 hover:text-dark-500 shrink-0 transition-colors">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
