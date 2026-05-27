@@ -1,10 +1,7 @@
 # Build context: monorepo root
-# docker build -f apps/api-gateway/Dockerfile -t foxai-api-gateway .
+# docker build -f apps/chatbot-service/Dockerfile -t foxai-chatbot-service .
 
 FROM node:20-alpine AS builder
-
-# protoc required for shared-proto gen:ts step
-RUN apk add --no-cache protobuf
 
 RUN corepack enable && corepack prepare pnpm@8.15.4 --activate
 
@@ -12,57 +9,61 @@ WORKDIR /app
 
 # Layer 1: workspace manifests (cache-friendly)
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json ./
-COPY apps/api-gateway/package.json apps/api-gateway/
-COPY packages/shared-proto/package.json packages/shared-proto/
+COPY apps/chatbot-service/package.json apps/chatbot-service/
+COPY packages/chatbot-db/package.json packages/chatbot-db/
 COPY packages/shared-types/package.json packages/shared-types/
 
 # Layer 2: install all deps
 RUN pnpm install --frozen-lockfile
 
 # Layer 3: source code
-COPY apps/api-gateway apps/api-gateway
-COPY packages/shared-proto packages/shared-proto
+COPY apps/chatbot-service apps/chatbot-service
+COPY packages/chatbot-db packages/chatbot-db
 COPY packages/shared-types packages/shared-types
 
 # Layer 4: build in dependency order
-# Xóa .tsbuildinfo để tránh TypeScript incremental bỏ qua compile trong Docker
 RUN find . -name "*.tsbuildinfo" -delete
-RUN pnpm -C packages/shared-proto run gen:ts
 RUN pnpm -C packages/shared-types run build
-RUN pnpm -C apps/api-gateway run build \
-    && ls /app/apps/api-gateway/dist/main.js \
+# prisma generate phải chạy trước khi build chatbot-db vì nó tạo ra .prisma/chatbot-client types
+RUN cd packages/chatbot-db && npx prisma generate
+RUN pnpm -C packages/chatbot-db run build
+RUN pnpm -C apps/chatbot-service run build \
+    && ls /app/apps/chatbot-service/dist/main.js \
     || (echo "ERROR: nest build did not produce dist/" && exit 1)
 
 # ─── Runner ─────────────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
+
+RUN apk add --no-cache openssl
 
 RUN corepack enable && corepack prepare pnpm@8.15.4 --activate
 
 WORKDIR /app
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
-COPY apps/api-gateway/package.json apps/api-gateway/
-COPY packages/shared-proto/package.json packages/shared-proto/
+COPY apps/chatbot-service/package.json apps/chatbot-service/
+COPY packages/chatbot-db/package.json packages/chatbot-db/
 COPY packages/shared-types/package.json packages/shared-types/
 
 RUN pnpm install --frozen-lockfile --prod
 
 # Built artifacts
-COPY --from=builder /app/apps/api-gateway/dist apps/api-gateway/dist
+COPY --from=builder /app/apps/chatbot-service/dist apps/chatbot-service/dist
+COPY --from=builder /app/packages/chatbot-db/dist packages/chatbot-db/dist
 COPY --from=builder /app/packages/shared-types/dist packages/shared-types/dist
+COPY --from=builder /app/packages/chatbot-db/prisma packages/chatbot-db/prisma
 
-# proto files may be loaded at runtime by @grpc/proto-loader
-COPY --from=builder /app/packages/shared-proto/proto packages/shared-proto/proto
-COPY --from=builder /app/packages/shared-proto/gen packages/shared-proto/gen
+# Copy Prisma generated client — nằm ở packages/chatbot-db/node_modules/.prisma/chatbot-client
+COPY --from=builder /app/packages/chatbot-db/node_modules/.prisma packages/chatbot-db/node_modules/.prisma
 
-# pnpm virtual store for runtime deps
+# pnpm virtual store
 COPY --from=builder /app/node_modules/.pnpm node_modules/.pnpm
 COPY --from=builder /app/node_modules/.modules.yaml node_modules/.modules.yaml
 
-WORKDIR /app/apps/api-gateway
+WORKDIR /app/apps/chatbot-service
 
 ENV NODE_ENV=production
 
-EXPOSE 3001
+EXPOSE 3004
 
 CMD ["node", "dist/main.js"]

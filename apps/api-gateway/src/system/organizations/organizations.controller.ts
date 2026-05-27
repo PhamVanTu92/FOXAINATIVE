@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { AccessToken, CurrentUser } from '../../common/auth/current-user.decorator';
 import { AuthenticatedRequestUser } from '../../common/auth/jwt-auth.guard';
+import { RequirePermission } from '../../common/auth/require-permission.decorator';
 import { buildForwardMetadata } from '../../common/grpc/grpc-metadata.helper';
 import {
   CreateNodeDto,
@@ -29,6 +30,7 @@ export class OrganizationsController {
   constructor(private readonly orgs: OrganizationsService) {}
 
   @Post()
+  @RequirePermission('ORG_STRUCTURE', 'CREATE')
   create(
     @Body() dto: CreateNodeDto,
     @AccessToken() token: string,
@@ -38,6 +40,7 @@ export class OrganizationsController {
   }
 
   @Get()
+  @RequirePermission('ORG_STRUCTURE', 'READ')
   list(
     @Query() q: ListNodesQueryDto,
     @AccessToken() token: string,
@@ -50,6 +53,7 @@ export class OrganizationsController {
   }
 
   @Get('tree')
+  @RequirePermission('ORG_STRUCTURE', 'READ')
   tree(
     @Query() q: GetTreeQueryDto,
     @AccessToken() token: string,
@@ -59,6 +63,7 @@ export class OrganizationsController {
   }
 
   @Get(':id')
+  @RequirePermission('ORG_STRUCTURE', 'READ')
   get(
     @Param('id', new ParseUUIDPipe()) id: string,
     @AccessToken() token: string,
@@ -68,6 +73,7 @@ export class OrganizationsController {
   }
 
   @Patch(':id')
+  @RequirePermission('ORG_STRUCTURE', 'UPDATE')
   update(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: UpdateNodeDto,
@@ -81,6 +87,7 @@ export class OrganizationsController {
   }
 
   @Post(':id/move')
+  @RequirePermission('ORG_STRUCTURE', 'UPDATE')
   move(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: MoveNodeDto,
@@ -95,6 +102,7 @@ export class OrganizationsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermission('ORG_STRUCTURE', 'DELETE')
   async remove(
     @Param('id', new ParseUUIDPipe()) id: string,
     @AccessToken() token: string,
@@ -104,6 +112,7 @@ export class OrganizationsController {
   }
 
   @Get(':id/users')
+  @RequirePermission('ORG_STRUCTURE', 'READ')
   listUsers(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Query() q: ListUsersByOrgQueryDto,
