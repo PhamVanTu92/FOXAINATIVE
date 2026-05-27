@@ -1,0 +1,227 @@
+"""
+Shared Security Dependencies - Chatbot service authentication
+
+The monorepo issues JWT tokens from the .NET ``system-service`` using HS256
+with a shared secret read from ``JWT_SECRET``. This module verifies those
+tokens — no Keycloak / JWKS fetch / asymmetric keys involved.
+
+Flow: API Dependency → HS256 JWT Verification → CurrentUser
+"""
+from __future__ import annotations
+
+import os
+import uuid
+from typing import Any
+from typing import Dict
+from typing import List
+
+from fastapi import Depends
+from fastapi import HTTPException
+from fastapi import status
+from fastapi.security import HTTPAuthorizationCredentials
+from fastapi.security import HTTPBearer
+from joint.logging import get_logger
+from jose import jwt
+from jose import JWTError
+from pydantic import BaseModel
+
+logger = get_logger(__name__)
+
+# Security scheme for FastAPI - extracts Bearer token from Authorization header
+security_bearer = HTTPBearer()
+
+# JWT verification config — populated lazily so missing env at import time
+# doesn't crash the whole app boot (only chat endpoints actually need auth).
+_JWT_ISSUER_DEFAULT = 'foxai-system-service'
+_JWT_AUDIENCE_DEFAULT = 'foxai-platform'
+
+
+def _get_jwt_config() -> Dict[str, str]:
+    """Return the symmetric JWT settings shared with system-service.
+
+    ``JWT_SECRET`` MUST match the value system-service uses to sign tokens
+    (config key ``Jwt:Secret`` in appsettings or env var ``JWT_SECRET``).
+    """
+    secret = os.environ.get('JWT_SECRET')
+    if not secret:
+        raise ValueError(
+            'JWT_SECRET is not configured — cannot verify tokens issued '
+            'by system-service.',
+        )
+    return {
+        'secret': secret,
+        'issuer': os.environ.get('JWT_ISSUER', _JWT_ISSUER_DEFAULT),
+        'audience': os.environ.get('JWT_AUDIENCE', _JWT_AUDIENCE_DEFAULT),
+    }
+
+
+class CurrentUser(BaseModel):
+    """Current authenticated user extracted from a verified system-service JWT.
+
+    Token claims mapping (set by ``SystemService.Infrastructure.Security.JwtTokenService``):
+        * ``sub``       → user_id (GUID)
+        * ``email``     → email
+        * ``name``      → username (display name)
+        * ``roles[]``   → roles (custom claim, not ``realm_access.roles`` — that's Keycloak)
+        * ``permissions[]`` → permissions
+    """
+    user_id: uuid.UUID
+    username: str | None = None
+    email: str | None = None
+    roles: List[str] = []
+    permissions: List[str] = []
+    token: str
+
+
+def _verify_token(token: str) -> Dict[str, Any]:
+    """Verify HS256 JWT against the shared system-service secret."""
+    cfg = _get_jwt_config()
+    try:
+        payload = jwt.decode(
+            token,
+            cfg['secret'],
+            algorithms=['HS256'],
+            audience=cfg['audience'],
+            issuer=cfg['issuer'],
+        )
+        logger.debug('Token verified successfully')
+        return payload
+    except JWTError as e:
+        logger.warning(f'JWT verification failed: {e}')
+        raise ValueError(f'Invalid token: {e}')
+    except Exception as e:
+        logger.error(f'Token verification error: {e}')
+        raise ValueError(f'Token verification failed: {e}')
+
+
+def _coerce_str_list(value: Any) -> List[str]:
+    """Normalize a claim that may be a single string, list, or missing."""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(v) for v in value]
+    return [str(value)]
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security_bearer),
+) -> CurrentUser:
+    """Verify a system-service HS256 JWT and return the authenticated user.
+
+    Flow: HTTP Bearer → HS256 verify → claims → CurrentUser
+    """
+    token = credentials.credentials
+
+    try:
+        payload = _verify_token(token)
+
+        # Extract user_id from 'sub' claim — system-service issues GUIDs.
+        user_id_str = payload.get('sub')
+        if not user_id_str:
+            logger.warning("Token missing 'sub' claim")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail='Invalid token: missing user_id',
+            )
+        try:
+            user_id = uuid.UUID(user_id_str)
+        except ValueError:
+            logger.warning(f'Invalid user_id format: {user_id_str}')
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail='Invalid token: malformed user_id',
+            )
+
+        # system-service puts display name in 'name' and email in 'email'.
+        username = payload.get('name')
+        email = payload.get('email')
+
+        # Custom claims (always lists in our setup, but coerce defensively).
+        roles = _coerce_str_list(payload.get('roles'))
+        permissions = _coerce_str_list(payload.get('permissions'))
+
+        return CurrentUser(
+            user_id=user_id,
+            username=username,
+            email=email,
+            roles=roles,
+            permissions=permissions,
+            token=token,
+        )
+
+    except HTTPException:
+        raise
+    except ValueError as e:
+        logger.warning(f'Token verification failed: {e}')
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f'Token verification failed: {str(e)}',
+        )
+    except Exception as e:
+        logger.error(f'Unexpected error in authentication: {str(e)}')
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail='Authentication failed',
+        )
+
+
+async def get_admin_user(
+    current_user: CurrentUser = Depends(get_current_user),
+) -> CurrentUser:
+    """
+    Validate that current user has admin role.
+
+    Usage in routers:
+        @router.delete("/admin/conversations/{id}")
+        async def delete_conversation(admin: CurrentUser = Depends(get_admin_user)):
+            ...
+
+    Args:
+        current_user: Current authenticated user
+
+    Returns:
+        CurrentUser if user is admin
+
+    Raises:
+        HTTPException: If user doesn't have admin role
+    """
+    if 'admin' not in current_user.roles:
+        logger.warning(
+            f"Admin access denied for user: {current_user.username}",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='Admin role required',
+        )
+    return current_user
+
+
+async def get_manager_user(
+    current_user: CurrentUser = Depends(get_current_user),
+) -> CurrentUser:
+    """
+    Validate that current user has admin or manager role.
+
+    Usage in routers:
+        @router.put("/conversations/{id}")
+        async def update_conversation(manager: CurrentUser = Depends(get_manager_user)):
+            ...
+
+    Args:
+        current_user: Current authenticated user
+
+    Returns:
+        CurrentUser if user is admin or manager
+
+    Raises:
+        HTTPException: If user doesn't have required role
+    """
+    if 'admin' not in current_user.roles and 'manager' not in current_user.roles:
+        logger.warning(
+            f"Manager/Admin access denied for user: {current_user.username}",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='Admin or Manager role required',
+        )
+    return current_user
