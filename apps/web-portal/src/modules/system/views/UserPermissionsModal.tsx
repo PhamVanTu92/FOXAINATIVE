@@ -57,22 +57,22 @@ export function UserPermissionsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl mx-4 flex flex-col max-h-[90vh]">
+      <div className="bg-surface rounded-xl shadow-2xl w-full max-w-3xl mx-4 flex flex-col max-h-[90vh]">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-dark-200 shrink-0">
-          <div className="flex items-center gap-2 text-dark-900 font-semibold">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-default shrink-0">
+          <div className="flex items-center gap-2 text-content-primary font-semibold">
             <Key size={16} className="text-primary-500" />
             Phân quyền: {user.fullName}
           </div>
-          <button onClick={onClose} className="text-dark-400 hover:text-dark-600">
+          <button onClick={onClose} className="text-content-muted hover:text-content-secondary">
             <X size={18} />
           </button>
         </div>
 
         {/* Role tabs + hint */}
         {user.roles.length > 0 && (
-          <div className="flex items-center gap-2 px-6 py-3 border-b border-dark-200 bg-dark-50 shrink-0">
+          <div className="flex items-center gap-2 px-6 py-3 border-b border-default bg-subtle shrink-0">
             <div className="flex items-center gap-1.5">
               {user.roles.map(role => (
                 <button
@@ -81,41 +81,41 @@ export function UserPermissionsModal({
                   className={`px-3 py-1 text-xs rounded-full font-medium transition-colors ${
                     activeRole === role
                       ? 'bg-primary-600 text-white'
-                      : 'bg-white border border-dark-200 text-dark-500 hover:bg-dark-50'
+                      : 'bg-surface border border-default text-content-muted hover:bg-subtle'
                   }`}
                 >
                   {role}
                 </button>
               ))}
             </div>
-            <span className="text-xs text-dark-400 ml-2">
+            <span className="text-xs text-content-muted ml-2">
               Phân quyền cá nhân sẽ ghi đè quyền mặc định của vai trò
             </span>
-            <span className="text-xs text-dark-400 ml-auto">Click ô để bật/tắt</span>
+            <span className="text-xs text-content-muted ml-auto">Click ô để bật/tắt</span>
           </div>
         )}
 
         {/* Body */}
         <div className="flex-1 overflow-auto">
           {loading ? (
-            <div className="flex items-center justify-center h-48 gap-2 text-dark-400 text-sm">
+            <div className="flex items-center justify-center h-48 gap-2 text-content-muted text-sm">
               <Loader2 size={18} className="animate-spin" /> Đang tải quyền hạn...
             </div>
           ) : moduleGroups.length === 0 ? (
-            <div className="flex items-center justify-center h-48 text-dark-400 text-sm">
+            <div className="flex items-center justify-center h-48 text-content-muted text-sm">
               Chưa có phân hệ nào được cấu hình.
             </div>
           ) : (
             <table className="w-full text-sm">
-              <thead className="sticky top-0 z-10">
-                <tr className="bg-dark-50 border-b border-dark-200">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-dark-500 uppercase tracking-wide w-56">
+              <thead className="sticky top-0 z-10 bg-subtle">
+                <tr className="border-b border-default">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide w-56">
                     Phân hệ / Module
                   </th>
                   {actions.map(action => {
                     const { checked: colChecked, indeterminate } = columnState(action.id);
                     return (
-                      <th key={action.id} className="px-3 py-3 text-center text-xs font-semibold text-dark-500 uppercase tracking-wide w-20">
+                      <th key={action.id} className="px-3 py-3 text-center text-xs font-semibold text-content-secondary uppercase tracking-wide w-20">
                         <div className="flex flex-col items-center gap-1.5">
                           <span>{action.name}</span>
                           <Checkbox
@@ -132,17 +132,17 @@ export function UserPermissionsModal({
               <tbody>
                 {moduleGroups.map(group => (
                   <React.Fragment key={group.id}>
-                    <tr className="bg-warning-50/60">
+                    <tr className="bg-warning-50/10 border-b border-warning-500/30">
                       <td
                         colSpan={actions.length + 1}
-                        className="px-4 py-2 text-xs font-semibold text-warning-700 uppercase tracking-wide"
+                        className="px-4 py-2 text-xs font-semibold text-warning-600 uppercase tracking-wide"
                       >
                         {group.name}
                       </td>
                     </tr>
                     {group.modules.map(module => (
-                      <tr key={module.id} className="border-b border-dark-100 hover:bg-dark-50 transition-colors">
-                        <td className="px-4 py-2.5 text-sm text-dark-600">{module.name}</td>
+                      <tr key={module.id} className="border-b border-strong hover:bg-subtle transition-colors">
+                        <td className="px-4 py-2.5 text-sm text-content-secondary">{module.name}</td>
                         {actions.map(action => {
                           const isChecked = checked.has(toKey(module.id, action.id));
                           return (
@@ -167,29 +167,29 @@ export function UserPermissionsModal({
 
         {/* Error */}
         {error && (
-          <div className="flex items-center gap-2 mx-6 my-2 text-sm bg-danger-50 border border-danger-200 text-danger-700 rounded-lg px-3 py-2 shrink-0">
+          <div className="flex items-center gap-2 mx-6 my-2 text-sm bg-danger-50/10 border border-danger-500/30 text-danger-700 rounded-lg px-3 py-2 shrink-0">
             <AlertCircle size={14} className="shrink-0" /> {error}
           </div>
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-dark-100 bg-dark-50 shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-t border-strong bg-subtle shrink-0">
           <button
             onClick={onClose}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm border border-dark-200 text-dark-600 rounded-lg hover:bg-white transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-surface transition-colors"
           >
             <X size={14} /> Hủy
           </button>
           <div className="flex items-center gap-2">
             <button
               onClick={selectAll}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm border border-dark-200 text-dark-600 rounded-lg hover:bg-dark-50 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors"
             >
               <CheckSquare size={14} /> Chọn tất cả
             </button>
             <button
               onClick={deselectAll}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm border border-dark-200 text-dark-500 rounded-lg hover:bg-dark-50 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm border border-default text-content-muted rounded-lg hover:bg-subtle transition-colors"
             >
               <Square size={14} /> Bỏ tất cả
             </button>

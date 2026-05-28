@@ -81,32 +81,32 @@ function RoleFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-dark-200">
-          <h2 className="font-semibold text-dark-800">
+      <div className="bg-surface rounded-xl shadow-2xl w-full max-w-md mx-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-default">
+          <h2 className="font-semibold text-content-primary">
             {role ? 'Sửa vai trò' : 'Thêm vai trò mới'}
           </h2>
-          <button onClick={onClose} className="text-dark-400 hover:text-dark-600">
+          <button onClick={onClose} className="text-content-muted hover:text-content-primary">
             <X size={18} />
           </button>
         </div>
         <form onSubmit={submit} className="p-6 space-y-4">
           {!role && (
             <div>
-              <label className="block text-sm font-medium text-dark-700 mb-1">
+              <label className="block text-sm font-medium text-content-primary mb-1">
                 Mã vai trò
-                <span className="text-dark-400 font-normal ml-1">(để trống để tự tạo)</span>
+                <span className="text-content-muted font-normal ml-1">(để trống để tự tạo)</span>
               </label>
               <input
                 value={form.code}
                 onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
                 placeholder="VD: KE_TOAN_TRUONG"
-                className="w-full border border-dark-200 rounded-lg px-3 py-2 text-sm text-dark-800 placeholder:text-dark-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white font-mono"
+                className="w-full border border-default rounded-lg px-3 py-2 text-sm text-content-primary placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-surface font-mono"
               />
             </div>
           )}
           <div>
-            <label className="block text-sm font-medium text-dark-700 mb-1">
+            <label className="block text-sm font-medium text-content-primary mb-1">
               Tên vai trò <span className="text-danger-600">*</span>
             </label>
             <input
@@ -114,21 +114,21 @@ function RoleFormModal({
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
               placeholder="VD: Quản trị hệ thống"
               required
-              className="w-full border border-dark-200 rounded-lg px-3 py-2 text-sm text-dark-800 placeholder:text-dark-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
+              className="w-full border border-default rounded-lg px-3 py-2 text-sm text-content-primary placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-surface"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-dark-700 mb-1">Mô tả</label>
+            <label className="block text-sm font-medium text-content-primary mb-1">Mô tả</label>
             <textarea
               value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               placeholder="Mô tả về vai trò này..."
               rows={3}
-              className="w-full border border-dark-200 rounded-lg px-3 py-2 text-sm text-dark-800 placeholder:text-dark-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white resize-none"
+              className="w-full border border-default rounded-lg px-3 py-2 text-sm text-content-primary placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-surface resize-none"
             />
           </div>
           {error && (
-            <div className="flex items-center gap-2 bg-danger-50 border border-danger-200 text-danger-700 rounded-lg px-3 py-2 text-sm">
+            <div className="flex items-center gap-2 bg-danger-50/10 border border-danger-500/30 text-danger-700 rounded-lg px-3 py-2 text-sm">
               <AlertCircle size={14} className="shrink-0" /> {error}
             </div>
           )}
@@ -136,7 +136,7 @@ function RoleFormModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm border border-dark-200 text-dark-600 rounded-lg hover:bg-dark-50 transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors"
             >
               Hủy
             </button>
@@ -180,33 +180,33 @@ function DeleteConfirmModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-dark-200">
-          <h2 className="font-semibold text-dark-800">Xóa vai trò</h2>
-          <button onClick={onClose} className="text-dark-400 hover:text-dark-600"><X size={18} /></button>
+      <div className="bg-surface rounded-xl shadow-2xl w-full max-w-sm mx-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-default">
+          <h2 className="font-semibold text-content-primary">Xóa vai trò</h2>
+          <button onClick={onClose} className="text-content-muted hover:text-content-primary"><X size={18} /></button>
         </div>
         <div className="px-6 py-5">
-          <p className="text-sm text-dark-600">
+          <p className="text-sm text-content-secondary">
             Bạn có chắc muốn xóa vai trò{' '}
-            <strong className="text-dark-900">{role.name}</strong>?
+            <strong className="text-content-primary">{role.name}</strong>?
             Hành động này không thể hoàn tác.
           </p>
           {role.isSystem && (
-            <div className="mt-3 flex items-center gap-2 bg-warning-50 border border-warning-200 text-warning-700 rounded-lg px-3 py-2 text-sm">
+            <div className="mt-3 flex items-center gap-2 bg-warning-50/10 border border-warning-500/30 text-warning-700 rounded-lg px-3 py-2 text-sm">
               <AlertCircle size={14} className="shrink-0" />
               Đây là vai trò hệ thống, không nên xóa.
             </div>
           )}
           {error && (
-            <div className="mt-3 flex items-center gap-2 bg-danger-50 border border-danger-200 text-danger-700 rounded-lg px-3 py-2 text-sm">
+            <div className="mt-3 flex items-center gap-2 bg-danger-50/10 border border-danger-500/30 text-danger-700 rounded-lg px-3 py-2 text-sm">
               <AlertCircle size={14} className="shrink-0" /> {error}
             </div>
           )}
         </div>
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-dark-100">
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-strong">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm border border-dark-200 text-dark-600 rounded-lg hover:bg-dark-50 transition-colors"
+            className="px-4 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors"
           >
             Hủy
           </button>
@@ -244,14 +244,14 @@ export function RoleConfigView() {
   } = useRoleConfig();
 
   return (
-    <div className="flex h-full bg-dark-50">
+    <div className="flex h-full bg-subtle">
 
       {/* ── Left Panel ───────────────────────────────────────────────── */}
-      <div className="w-72 shrink-0 flex flex-col border-r border-dark-200 bg-white">
+      <div className="w-72 shrink-0 flex flex-col border-r border-default bg-surface">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-dark-200">
-          <span className="text-sm font-semibold text-dark-800">Danh sách vai trò</span>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-default">
+          <span className="text-sm font-semibold text-content-primary">Danh sách vai trò</span>
           <button
             onClick={() => setShowCreate(true)}
             className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
@@ -261,14 +261,14 @@ export function RoleConfigView() {
         </div>
 
         {/* Search */}
-        <div className="px-3 py-2 border-b border-dark-100">
+        <div className="px-3 py-2 border-b border-strong">
           <div className="relative">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-dark-400" />
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-content-muted" />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Tìm vai trò..."
-              className="w-full pl-8 pr-3 py-1.5 text-sm border border-dark-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
+              className="w-full pl-8 pr-3 py-1.5 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-surface text-content-primary"
             />
           </div>
         </div>
@@ -277,10 +277,10 @@ export function RoleConfigView() {
         <div className="flex-1 overflow-y-auto py-1">
           {rolesLoading ? (
             <div className="flex justify-center py-10">
-              <Loader2 size={20} className="animate-spin text-dark-300" />
+              <Loader2 size={20} className="animate-spin text-content-muted" />
             </div>
           ) : roles.length === 0 ? (
-            <p className="text-center text-xs text-dark-400 py-10">Không có vai trò nào.</p>
+            <p className="text-center text-xs text-content-muted py-10">Không có vai trò nào.</p>
           ) : (
             roles.map(role => {
               const isActive = selectedRole?.id === role.id;
@@ -291,7 +291,7 @@ export function RoleConfigView() {
                   className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors group relative ${
                     isActive
                       ? 'bg-primary-50 border-r-2 border-primary-500'
-                      : 'hover:bg-dark-50'
+                      : 'hover:bg-subtle'
                   }`}
                 >
                   {/* Avatar */}
@@ -301,10 +301,10 @@ export function RoleConfigView() {
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium truncate ${isActive ? 'text-primary-700' : 'text-dark-800'}`}>
+                    <p className={`text-sm font-medium truncate ${isActive ? 'text-primary-700' : 'text-content-primary'}`}>
                       {role.name}
                     </p>
-                    <p className="text-xs text-dark-400 mt-0.5 font-mono">
+                    <p className="text-xs text-content-muted mt-0.5 font-mono">
                       {role.userCount !== undefined ? `${role.userCount} người dùng` : role.code}
                     </p>
                   </div>
@@ -313,7 +313,7 @@ export function RoleConfigView() {
                   <div className={`flex items-center gap-0.5 shrink-0 transition-opacity ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                     <button
                       onClick={e => { e.stopPropagation(); setEditRole(role); }}
-                      className="p-1 text-dark-400 hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors"
+                      className="p-1 text-content-muted hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors"
                       title="Sửa vai trò"
                     >
                       <Edit2 size={12} />
@@ -321,10 +321,10 @@ export function RoleConfigView() {
                     {!role.isSystem && (
                       <button
                         onClick={e => { e.stopPropagation(); setDeleteRole(role); }}
-                        className="p-1 text-dark-400 hover:text-danger-600 hover:bg-danger-50 rounded-md transition-colors"
+                        className="p-1 text-content-muted hover:text-danger-600 hover:bg-danger-50/10 rounded-md transition-colors"
                         title="Xóa vai trò"
                       >
-                        <Trash2 size={12} />
+                         <Trash2 size={12} />
                       </button>
                     )}
                   </div>
@@ -338,21 +338,21 @@ export function RoleConfigView() {
       {/* ── Right Panel ──────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {!selectedRole ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-dark-400 gap-3">
-            <Shield size={52} className="text-dark-200" />
+          <div className="flex-1 flex flex-col items-center justify-center text-content-muted gap-3">
+            <Shield size={52} className="text-content-muted opacity-50" />
             <p className="text-sm">Chọn một vai trò để xem và chỉnh sửa phân quyền</p>
           </div>
         ) : (
           <>
             {/* Role header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-dark-200 bg-white shrink-0">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-default bg-surface shrink-0">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0 ${roleColor(selectedRole.name)}`}>
                   <Key size={18} />
                 </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-base font-semibold text-dark-800">{selectedRole.name}</h2>
+                    <h2 className="text-base font-semibold text-content-primary">{selectedRole.name}</h2>
                     <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-warning-100 text-warning-700 font-mono">
                       {selectedRole.code}
                     </span>
@@ -363,14 +363,14 @@ export function RoleConfigView() {
                     )}
                   </div>
                   {selectedRole.description && (
-                    <p className="text-xs text-dark-500 mt-0.5">{selectedRole.description}</p>
+                    <p className="text-xs text-content-secondary mt-0.5">{selectedRole.description}</p>
                   )}
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <button
                   onClick={() => setEditRole(selectedRole)}
-                  className="flex items-center gap-1.5 px-3 py-2 text-sm border border-dark-200 text-dark-600 rounded-lg hover:bg-dark-50 transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors"
                 >
                   <Edit2 size={14} /> Sửa vai trò
                 </button>
@@ -386,21 +386,21 @@ export function RoleConfigView() {
             </div>
 
             {/* Toolbar */}
-            <div className="flex items-center justify-between px-6 py-2.5 bg-white border-b border-dark-100 shrink-0">
-              <div className="flex items-center gap-1.5 text-xs text-dark-500">
+            <div className="flex items-center justify-between px-6 py-2.5 bg-surface border-b border-strong shrink-0">
+              <div className="flex items-center gap-1.5 text-xs text-content-secondary">
                 <Shield size={13} className="text-primary-500" />
                 Thiết lập quyền truy cập cho vai trò. Click checkbox để bật/tắt từng quyền.
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={selectAll}
-                  className="flex items-center gap-1 px-3 py-1.5 text-xs border border-dark-200 text-dark-600 rounded-lg hover:bg-dark-50 transition-colors"
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors"
                 >
                   <CheckSquare size={12} /> Chọn tất cả
                 </button>
                 <button
                   onClick={deselectAll}
-                  className="flex items-center gap-1 px-3 py-1.5 text-xs border border-dark-200 text-dark-500 rounded-lg hover:bg-dark-50 transition-colors"
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs border border-default text-content-muted rounded-lg hover:bg-subtle transition-colors"
                 >
                   <Square size={12} /> Bỏ tất cả
                 </button>
@@ -409,12 +409,12 @@ export function RoleConfigView() {
 
             {/* Feedback */}
             {error && (
-              <div className="mx-6 mt-3 flex items-center gap-2 bg-danger-50 border border-danger-200 text-danger-700 rounded-lg px-4 py-2 text-sm shrink-0">
+              <div className="mx-6 mt-3 flex items-center gap-2 bg-danger-50/10 border border-danger-500/30 text-danger-700 rounded-lg px-4 py-2 text-sm shrink-0">
                 <AlertCircle size={14} className="shrink-0" /> {error}
               </div>
             )}
             {successMsg && (
-              <div className="mx-6 mt-3 flex items-center gap-2 bg-success-50 border border-success-200 text-success-700 rounded-lg px-4 py-2 text-sm shrink-0">
+              <div className="mx-6 mt-3 flex items-center gap-2 bg-success-50/10 border border-success-500/30 text-success-700 rounded-lg px-4 py-2 text-sm shrink-0">
                 <Check size={14} className="shrink-0" /> {successMsg}
               </div>
             )}
@@ -422,24 +422,24 @@ export function RoleConfigView() {
             {/* Permission Matrix */}
             <div className="flex-1 overflow-auto">
               {permLoading ? (
-                <div className="flex items-center justify-center h-48 gap-2 text-dark-400 text-sm">
+                <div className="flex items-center justify-center h-48 gap-2 text-content-muted text-sm">
                   <Loader2 size={18} className="animate-spin" /> Đang tải quyền hạn...
                 </div>
               ) : moduleGroups.length === 0 ? (
-                <div className="flex items-center justify-center h-48 text-dark-400 text-sm">
+                <div className="flex items-center justify-center h-48 text-content-muted text-sm">
                   Chưa có phân hệ nào được cấu hình.
                 </div>
               ) : (
                 <table className="w-full text-sm">
                   <thead className="sticky top-0 z-10">
-                    <tr className="bg-dark-50 border-b border-dark-200">
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-dark-500 uppercase tracking-wide w-64">
+                    <tr className="bg-subtle border-b border-default">
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide w-64">
                         Phân hệ / Module
                       </th>
                       {actions.map(action => {
                         const { checked: colChecked, indeterminate } = columnState(action.id);
                         return (
-                          <th key={action.id} className="px-4 py-3 text-center text-xs font-semibold text-dark-500 uppercase tracking-wide min-w-[80px]">
+                          <th key={action.id} className="px-4 py-3 text-center text-xs font-semibold text-content-secondary uppercase tracking-wide min-w-[80px]">
                             <div className="flex flex-col items-center gap-1.5">
                               <span>{action.name}</span>
                               <IndeterminateCheckbox
@@ -457,10 +457,10 @@ export function RoleConfigView() {
                     {moduleGroups.map(group => (
                       <React.Fragment key={group.id}>
                         {/* Group header */}
-                        <tr className="bg-warning-50/60">
+                        <tr className="bg-warning-50/10 border-b border-warning-500/30">
                           <td
                             colSpan={actions.length + 1}
-                            className="px-5 py-2 text-xs font-semibold text-warning-700 uppercase tracking-wide"
+                            className="px-5 py-2 text-xs font-semibold text-warning-600 uppercase tracking-wide"
                           >
                             {group.name}
                           </td>
@@ -469,9 +469,9 @@ export function RoleConfigView() {
                         {group.modules.map(module => (
                           <tr
                             key={module.id}
-                            className="border-b border-dark-100 hover:bg-dark-50 transition-colors"
+                            className="border-b border-strong hover:bg-subtle transition-colors"
                           >
-                            <td className="px-5 py-2.5 text-sm text-dark-600">{module.name}</td>
+                            <td className="px-5 py-2.5 text-sm text-content-secondary">{module.name}</td>
                             {actions.map(action => {
                               const isChecked = checked.has(toKey(module.id, action.id));
                               return (

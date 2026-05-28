@@ -14,18 +14,18 @@ function FileTypeIcon({ type, size = 16 }: { type: string; size?: number }) {
   if (type === 'PDF') return <FileText size={size} className="text-danger-500" />;
   if (type === 'Word') return <FileText size={size} className="text-primary-500" />;
   if (type === 'Excel') return <FileSpreadsheet size={size} className="text-success-500" />;
-  if (type === 'PowerPoint') return <FileText size={size} className="text-orange-500" />;
+  if (type === 'PowerPoint') return <FileText size={size} className="text-warning-500" />;
   if (type === 'Image') return <ImageIcon size={size} className="text-violet-500" />;
-  return <File size={size} className="text-dark-400" />;
+  return <File size={size} className="text-content-muted" />;
 }
 
 const FILE_TYPE_BADGES = [
-  { label: 'PDF',        color: 'bg-danger-100 text-danger-700' },
-  { label: 'Word',       color: 'bg-primary-100 text-primary-700' },
-  { label: 'Excel',      color: 'bg-success-100 text-success-700' },
-  { label: 'PowerPoint', color: 'bg-orange-100 text-orange-700' },
-  { label: 'TXT / CSV',  color: 'bg-dark-100 text-dark-600' },
-  { label: 'Ảnh scan',   color: 'bg-warning-100 text-warning-700' },
+  { label: 'PDF',        color: 'bg-danger-50/10 text-danger-700' },
+  { label: 'Word',       color: 'bg-primary-50/10 text-primary-700' },
+  { label: 'Excel',      color: 'bg-success-50/10 text-success-700' },
+  { label: 'PowerPoint', color: 'bg-warning-50/10 text-warning-700' },
+  { label: 'TXT / CSV',  color: 'bg-subtle text-content-secondary' },
+  { label: 'Ảnh scan',   color: 'bg-warning-50/10 text-warning-700' },
 ];
 
 const TABS = [
@@ -37,7 +37,7 @@ const TABS = [
 function StatusBadge({ status, errorMsg }: { status: UploadStatus; errorMsg?: string }) {
   if (status === 'pending')
     return (
-      <span className="text-xs px-2 py-0.5 rounded-full bg-dark-100 text-dark-500 font-medium">
+      <span className="text-xs px-2 py-0.5 rounded-full bg-subtle text-content-muted font-medium">
         Chờ xử lý
       </span>
     );
@@ -49,13 +49,13 @@ function StatusBadge({ status, errorMsg }: { status: UploadStatus; errorMsg?: st
     );
   if (status === 'done')
     return (
-      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-success-100 text-success-700 font-medium">
+      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-success-50/10 text-success-700 font-medium">
         <CheckCircle size={10} /> Hoàn thành
       </span>
     );
   return (
     <span
-      className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-danger-100 text-danger-700 font-medium"
+      className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-danger-50/10 text-danger-700 font-medium"
       title={errorMsg}
     >
       <AlertCircle size={10} /> Lỗi
@@ -75,10 +75,10 @@ function QueueItemRow({
   const locked = item.status === 'uploading' || item.status === 'done';
 
   return (
-    <div className={`border-b border-dark-100 last:border-0 px-5 py-4 transition-colors ${
-      item.status === 'done'      ? 'bg-success-50/30' :
-      item.status === 'error'     ? 'bg-danger-50/30'  :
-      item.status === 'uploading' ? 'bg-primary-50/20' : ''
+    <div className={`border-b border-default last:border-0 px-5 py-4 transition-colors ${
+      item.status === 'done'      ? 'bg-success-50/10' :
+      item.status === 'error'     ? 'bg-danger-50/10'  :
+      item.status === 'uploading' ? 'bg-primary-50/10' : ''
     }`}>
       <div className="flex items-start gap-3">
         <div className="mt-0.5 shrink-0">
@@ -88,8 +88,8 @@ function QueueItemRow({
         <div className="flex-1 min-w-0">
           {/* Row 1: filename + size + status badge */}
           <div className="flex items-center gap-2 mb-2.5 flex-wrap">
-            <span className="text-sm font-medium text-dark-800 truncate max-w-xs">{item.fileName}</span>
-            <span className="text-xs text-dark-400 shrink-0">{item.fileSizeMb} MB</span>
+            <span className="text-sm font-medium text-content-primary truncate max-w-xs">{item.fileName}</span>
+            <span className="text-xs text-content-muted shrink-0">{item.fileSizeMb} MB</span>
             <StatusBadge status={item.status} errorMsg={item.errorMsg} />
           </div>
 
@@ -101,14 +101,14 @@ function QueueItemRow({
           {!locked && (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-dark-600 mb-1">
+                <label className="block text-xs font-medium text-content-secondary mb-1">
                   Bộ tri thức <span className="text-danger-500">*</span>
                 </label>
                 <select
                   value={item.knowledgeBaseId}
                   onChange={e => onUpdate(item.id, { knowledgeBaseId: e.target.value })}
-                  className="w-full px-2.5 py-1.5 text-xs border border-dark-200 rounded-lg
-                    focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-dark-700"
+                  className="w-full px-2.5 py-1.5 text-xs border border-default rounded-lg
+                    focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary"
                 >
                   <option value="">-- Chọn bộ tri thức --</option>
                   {kbList.map(kb => (
@@ -117,7 +117,7 @@ function QueueItemRow({
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-dark-600 mb-1">
+                <label className="block text-xs font-medium text-content-secondary mb-1">
                   Tiêu đề <span className="text-danger-500">*</span>
                 </label>
                 <input
@@ -125,16 +125,16 @@ function QueueItemRow({
                   value={item.title}
                   onChange={e => onUpdate(item.id, { title: e.target.value })}
                   placeholder="Nhập tiêu đề tài liệu..."
-                  className="w-full px-2.5 py-1.5 text-xs border border-dark-200 rounded-lg
-                    focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white
-                    text-dark-800 placeholder:text-dark-400"
+                  className="w-full px-2.5 py-1.5 text-xs border border-default rounded-lg
+                    focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface
+                    text-content-primary placeholder:text-content-muted"
                 />
               </div>
             </div>
           )}
 
           {item.status === 'done' && (
-            <p className="text-xs text-dark-500">{item.title}</p>
+            <p className="text-xs text-content-secondary">{item.title}</p>
           )}
         </div>
 
@@ -143,7 +143,7 @@ function QueueItemRow({
           {(item.status === 'pending' || item.status === 'error') && (
             <button
               onClick={() => onProcessOne(item)}
-              className="p-1.5 text-dark-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+              className="p-1.5 text-content-muted hover:text-primary-600 hover:bg-primary-50/10 rounded-lg transition-colors"
               title="Tải lên ngay"
             >
               <Play size={13} />
@@ -152,7 +152,7 @@ function QueueItemRow({
           <button
             onClick={() => onRemove(item.id)}
             disabled={item.status === 'uploading'}
-            className="p-1.5 text-dark-400 hover:text-danger-600 hover:bg-danger-50 rounded-lg transition-colors disabled:opacity-40"
+            className="p-1.5 text-content-muted hover:text-danger-600 hover:bg-danger-50/10 rounded-lg transition-colors disabled:opacity-40"
             title="Xóa khỏi hàng đợi"
           >
             <X size={13} />
@@ -178,18 +178,18 @@ export function UploadTaiLieuView() {
   return (
     <div className="flex flex-col h-full">
       {/* ── Page Header ── */}
-      <div className="bg-white border-b border-dark-200">
+      <div className="bg-surface border-b border-default">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 px-6 py-3">
-          <span className="text-sm text-dark-400">Cấu hình đầu vào tri thức</span>
-          <ChevronRight size={14} className="text-dark-300" />
-          <span className="text-sm font-medium text-dark-700">Upload tài liệu</span>
+          <span className="text-sm text-content-muted">Cấu hình đầu vào tri thức</span>
+          <ChevronRight size={14} className="text-content-muted" />
+          <span className="text-sm font-medium text-content-secondary">Upload tài liệu</span>
         </div>
 
         {/* Title */}
         <div className="flex items-center gap-2 px-6 pb-3">
           <Upload size={20} className="text-primary-600" />
-          <h1 className="text-xl font-semibold text-dark-800">Upload tài liệu</h1>
+          <h1 className="text-xl font-semibold text-content-primary">Upload tài liệu</h1>
         </div>
 
         {/* Tabs */}
@@ -204,7 +204,7 @@ export function UploadTaiLieuView() {
                 className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                   isActive
                     ? 'border-primary-600 text-primary-600'
-                    : 'border-transparent text-dark-500 hover:text-dark-700 hover:border-dark-200'
+                    : 'border-transparent text-content-secondary hover:text-content-primary hover:border-strong'
                 }`}
               >
                 <Icon size={14} />
@@ -216,10 +216,10 @@ export function UploadTaiLieuView() {
       </div>
 
       {/* ── Content ── */}
-      <div className="flex-1 overflow-y-auto p-6 bg-dark-50 space-y-5">
+      <div className="flex-1 overflow-y-auto p-6 bg-subtle space-y-5">
         {/* Success banner */}
         {successMsg && (
-          <div className="flex items-center gap-2 bg-success-50 border border-success-200 text-success-700 rounded-lg px-4 py-3 text-sm">
+          <div className="flex items-center gap-2 bg-success-50/10 border border-success-500/30 text-success-700 rounded-lg px-4 py-3 text-sm">
             <CheckCircle size={15} className="shrink-0" />
             {successMsg}
           </div>
@@ -234,20 +234,20 @@ export function UploadTaiLieuView() {
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
-          className={`bg-white rounded-xl border-2 border-dashed transition-all cursor-pointer
+          className={`bg-surface rounded-xl border-2 border-dashed transition-all cursor-pointer
             flex flex-col items-center justify-center py-12 px-8 gap-3 outline-none
             focus-visible:ring-2 focus-visible:ring-primary-500
             ${isDragging
-              ? 'border-primary-400 bg-primary-50'
-              : 'border-dark-200 hover:border-primary-300 hover:bg-dark-50/60'
+              ? 'border-primary-400 bg-primary-50/10'
+              : 'border-default hover:border-primary-500 hover:bg-subtle/50'
             }`}
         >
-          <div className={`p-4 rounded-full transition-colors ${isDragging ? 'bg-primary-100' : 'bg-dark-100'}`}>
-            <UploadCloud size={32} className={isDragging ? 'text-primary-500' : 'text-dark-400'} />
+          <div className={`p-4 rounded-full transition-colors ${isDragging ? 'bg-primary-500/20' : 'bg-subtle'}`}>
+            <UploadCloud size={32} className={isDragging ? 'text-primary-500' : 'text-content-muted'} />
           </div>
           <div className="text-center">
-            <p className="text-sm font-medium text-dark-700">Kéo thả hoặc click để chọn tệp</p>
-            <p className="text-xs text-dark-400 mt-1">Hỗ trợ nhiều loại tài liệu phổ biến</p>
+            <p className="text-sm font-medium text-content-primary">Kéo thả hoặc click để chọn tệp</p>
+            <p className="text-xs text-content-muted mt-1">Hỗ trợ nhiều loại tài liệu phổ biến</p>
           </div>
           <div className="flex flex-wrap justify-center gap-2 mt-1">
             {FILE_TYPE_BADGES.map(b => (
@@ -267,20 +267,20 @@ export function UploadTaiLieuView() {
         </div>
 
         {/* ── Queue Section ── */}
-        <div className="bg-white rounded-xl border border-dark-200 shadow-sm overflow-hidden">
+        <div className="bg-surface rounded-xl border border-default shadow-sm overflow-hidden">
           {/* Queue header */}
-          <div className="flex items-center justify-between px-5 py-3.5 border-b border-dark-100">
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-default">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-dark-800">Hàng đợi tải lên</span>
+              <span className="text-sm font-semibold text-content-primary">Hàng đợi tải lên</span>
               <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
-                totalCount > 0 ? 'bg-primary-100 text-primary-700' : 'bg-dark-100 text-dark-500'
+                totalCount > 0 ? 'bg-primary-100 text-primary-700' : 'bg-subtle text-content-muted'
               }`}>
                 {totalCount}
               </span>
               {doneCount > 0 && (
                 <button
                   onClick={clearDone}
-                  className="flex items-center gap-1 text-xs text-dark-400 hover:text-danger-500 px-1.5 py-0.5 rounded hover:bg-danger-50 transition-colors ml-1"
+                  className="flex items-center gap-1 text-xs text-content-muted hover:text-danger-500 px-1.5 py-0.5 rounded hover:bg-danger-50/10 transition-colors ml-1"
                 >
                   <CheckCheck size={12} /> Xóa đã xong ({doneCount})
                 </button>
@@ -303,9 +303,9 @@ export function UploadTaiLieuView() {
           {/* Queue items / empty state */}
           {queue.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-14 text-center">
-              <Inbox size={40} className="text-dark-200 mb-3" />
-              <p className="text-sm text-dark-400">Chưa có tài liệu nào trong hàng đợi.</p>
-              <p className="text-xs text-dark-300 mt-1">Kéo thả hoặc click vào vùng trên để thêm tệp.</p>
+              <Inbox size={40} className="text-content-muted opacity-50 mb-3" />
+              <p className="text-sm text-content-muted">Chưa có tài liệu nào trong hàng đợi.</p>
+              <p className="text-xs text-content-muted mt-1 opacity-70">Kéo thả hoặc click vào vùng trên để thêm tệp.</p>
             </div>
           ) : (
             queue.map(item => (

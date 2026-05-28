@@ -14,10 +14,10 @@ import type { DocDetailTab } from '../hooks/useKiemDuyet';
 // ─── Status config ────────────────────────────────────────────────────────────
 
 const STATUS_CFG: Record<DocStatus, { label: string; color: string; dot: string; Icon: React.ElementType }> = {
-  Draft:    { label: 'Draft',    color: 'bg-dark-100 text-dark-500 border border-dark-200',         dot: 'bg-dark-400',    Icon: Edit2 },
-  Review:   { label: 'Review',   color: 'bg-warning-100 text-warning-700 border border-warning-200', dot: 'bg-warning-500', Icon: Eye },
-  Approved: { label: 'Approved', color: 'bg-success-100 text-success-700 border border-success-200', dot: 'bg-success-500', Icon: CheckCircle2 },
-  Archived: { label: 'Archived', color: 'bg-dark-100 text-dark-400 border border-dark-200',          dot: 'bg-dark-300',    Icon: Archive },
+  Draft:    { label: 'Draft',    color: 'bg-subtle text-content-secondary border border-default',         dot: 'bg-content-muted',    Icon: Edit2 },
+  Review:   { label: 'Review',   color: 'bg-warning-50/10 text-warning-700 border border-warning-500/30', dot: 'bg-warning-500', Icon: Eye },
+  Approved: { label: 'Approved', color: 'bg-success-50/10 text-success-700 border border-success-500/30', dot: 'bg-success-500', Icon: CheckCircle2 },
+  Archived: { label: 'Archived', color: 'bg-subtle text-content-muted border border-default',          dot: 'bg-content-muted',    Icon: Archive },
 };
 
 function StatusBadge({ status }: { status: DocStatus }) {
@@ -49,17 +49,17 @@ function ApprovalTimeline({ status }: { status: DocStatus }) {
                 isActive
                   ? 'bg-primary-600 border-primary-600 text-white'
                   : isDone
-                  ? 'bg-dark-200 border-dark-300 text-dark-500'
-                  : 'bg-white border-dark-200 text-dark-300'
+                  ? 'bg-subtle border-strong text-content-secondary'
+                  : 'bg-surface border-default text-content-muted'
               }`}>
                 {isActive ? <cfg.Icon size={18} /> : isDone ? <Check size={16} /> : <Circle size={16} />}
               </div>
-              <span className={`text-xs font-medium ${isActive ? 'text-primary-700' : isDone ? 'text-dark-500' : 'text-dark-300'}`}>
+              <span className={`text-xs font-medium ${isActive ? 'text-primary-700' : isDone ? 'text-content-secondary' : 'text-content-muted'}`}>
                 {cfg.label}
               </span>
             </div>
             {idx < TIMELINE_STEPS.length - 1 && (
-              <div className={`flex-1 h-0.5 mb-5 ${idx < currentIdx ? 'bg-dark-300' : 'bg-dark-100'}`} />
+              <div className={`flex-1 h-0.5 mb-5 ${idx < currentIdx ? 'bg-strong' : 'bg-default'}`} />
             )}
           </React.Fragment>
         );
@@ -82,23 +82,23 @@ function DocListItem({
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left px-4 py-3 border-b border-dark-100 transition-colors ${
-        active ? 'bg-primary-50 border-r-2 border-r-primary-500' : 'hover:bg-dark-50'
+      className={`w-full text-left px-4 py-3 border-b border-default transition-colors ${
+        active ? 'bg-primary-50 border-r-2 border-r-primary-500' : 'hover:bg-subtle'
       }`}
     >
       <div className="flex items-start justify-between gap-2">
-        <p className={`text-sm font-medium leading-snug line-clamp-2 ${active ? 'text-primary-700' : 'text-dark-800'}`}>
+        <p className={`text-sm font-medium leading-snug line-clamp-2 ${active ? 'text-primary-700' : 'text-content-primary'}`}>
           {doc.title}
         </p>
         <StatusBadge status={doc.status} />
       </div>
-      <div className="flex items-center gap-1.5 mt-1.5 text-xs text-dark-400 flex-wrap">
-        <span className="font-mono text-dark-500">{doc.currentVersion}</span>
-        <span className="text-dark-200">·</span>
+      <div className="flex items-center gap-1.5 mt-1.5 text-xs text-content-muted flex-wrap">
+        <span className="font-mono text-content-secondary">{doc.currentVersion}</span>
+        <span className="text-content-muted">·</span>
         <span className="truncate max-w-[120px]">{doc.knowledgeBaseName}</span>
-        <span className="text-dark-200">·</span>
+        <span className="text-content-muted">·</span>
         <span>{doc.authorName}</span>
-        <span className="text-dark-200">·</span>
+        <span className="text-content-muted">·</span>
         <span>{doc.updatedAt?.slice(0, 10)}</span>
       </div>
     </button>
@@ -116,27 +116,27 @@ function VersionsList({
 }) {
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12 gap-2 text-dark-400 text-sm">
+      <div className="flex items-center justify-center py-12 gap-2 text-content-muted text-sm">
         <Loader2 size={16} className="animate-spin" /> Đang tải...
       </div>
     );
   }
   if (versions.length === 0) {
-    return <p className="text-center text-sm text-dark-400 py-12">Chưa có lịch sử phiên bản.</p>;
+    return <p className="text-center text-sm text-content-muted py-12">Chưa có lịch sử phiên bản.</p>;
   }
   return (
-    <div className="divide-y divide-dark-100">
+    <div className="divide-y divide-strong">
       {versions.map((v, idx) => (
         <div key={v.id} className="px-6 py-4 flex items-start gap-4">
           <div className="flex flex-col items-center gap-1 shrink-0 pt-0.5">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ${idx === 0 ? 'bg-primary-600' : 'bg-dark-300'}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ${idx === 0 ? 'bg-primary-600' : 'bg-strong'}`}>
               {v.versionNumber}
             </div>
-            {idx < versions.length - 1 && <div className="w-0.5 h-6 bg-dark-100" />}
+            {idx < versions.length - 1 && <div className="w-0.5 h-6 bg-default" />}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm text-dark-700">{v.changeNote || 'Không có ghi chú'}</p>
-            <p className="text-xs text-dark-400 mt-1">{v.createdBy} · {v.createdAt?.slice(0, 10)}</p>
+            <p className="text-sm text-content-secondary">{v.changeNote || 'Không có ghi chú'}</p>
+            <p className="text-xs text-content-muted mt-1">{v.createdBy} · {v.createdAt?.slice(0, 10)}</p>
           </div>
         </div>
       ))}
@@ -179,8 +179,8 @@ function useBlobUrl(apiUrl: string | null) {
 
 function NoFileState({ fileType }: { fileType: string }) {
   return (
-    <div className="flex flex-col items-center gap-2 py-10 text-dark-400">
-      <FileText size={36} className="text-dark-200" />
+    <div className="flex flex-col items-center gap-2 py-10 text-content-muted">
+      <FileText size={36} className="text-content-muted opacity-50" />
       <p className="text-sm">Chưa có file {fileType} đính kèm.</p>
     </div>
   );
@@ -196,7 +196,7 @@ function FilePreview({ doc }: { doc: KnowledgeDocument }) {
   if (doc.fileType === 'PDF') {
     if (fetchError) return <p className="text-sm text-danger-500 italic">Không thể tải file PDF.</p>;
     if (!blobUrl) return (
-      <div className="flex items-center justify-center gap-2 py-10 text-dark-400 text-sm">
+      <div className="flex items-center justify-center gap-2 py-10 text-content-muted text-sm">
         <Loader2 size={16} className="animate-spin" /> Đang tải file...
       </div>
     );
@@ -204,7 +204,7 @@ function FilePreview({ doc }: { doc: KnowledgeDocument }) {
       <iframe
         src={blobUrl}
         title={doc.title}
-        className="w-full rounded-lg border border-dark-100"
+        className="w-full rounded-lg border border-default"
         style={{ height: 520 }}
       />
     );
@@ -213,7 +213,7 @@ function FilePreview({ doc }: { doc: KnowledgeDocument }) {
   if (IMAGE_TYPES.includes(doc.fileType)) {
     if (fetchError) return <p className="text-sm text-danger-500 italic">Không thể tải ảnh.</p>;
     if (!blobUrl) return (
-      <div className="flex items-center justify-center gap-2 py-6 text-dark-400 text-sm">
+      <div className="flex items-center justify-center gap-2 py-6 text-content-muted text-sm">
         <Loader2 size={16} className="animate-spin" /> Đang tải ảnh...
       </div>
     );
@@ -221,25 +221,25 @@ function FilePreview({ doc }: { doc: KnowledgeDocument }) {
       <img
         src={blobUrl}
         alt={doc.title}
-        className="max-w-full rounded-lg border border-dark-100"
+        className="max-w-full rounded-lg border border-default"
       />
     );
   }
 
   if (TEXT_TYPES.includes(doc.fileType)) {
     return doc.contentSummary ? (
-      <p className="text-sm text-dark-600 whitespace-pre-wrap leading-relaxed">
+      <p className="text-sm text-content-secondary whitespace-pre-wrap leading-relaxed">
         {doc.contentSummary}
       </p>
     ) : (
       <div className="flex flex-col items-center gap-3 py-6">
-        <p className="text-sm text-dark-400 italic">Không thể hiển thị inline. Tải xuống để xem.</p>
+        <p className="text-sm text-content-muted italic">Không thể hiển thị inline. Tải xuống để xem.</p>
         <a
           href={apiUrl}
           target="_blank"
           rel="noopener noreferrer"
           download
-          className="flex items-center gap-1.5 px-4 py-2 text-sm border border-dark-200 text-dark-600 rounded-lg hover:bg-dark-50 transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors"
         >
           <Download size={14} /> Tải xuống
         </a>
@@ -247,7 +247,7 @@ function FilePreview({ doc }: { doc: KnowledgeDocument }) {
     );
   }
 
-  return <p className="text-sm text-dark-400 italic">Chưa có tóm tắt nội dung.</p>;
+  return <p className="text-sm text-content-muted italic">Chưa có tóm tắt nội dung.</p>;
 }
 
 // ─── Version compare ──────────────────────────────────────────────────────────
@@ -306,8 +306,8 @@ function VersionCompare({ versions }: { versions: DocumentVersion[] }) {
 
   if (versions.length < 2) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-3 text-dark-400">
-        <ArrowLeftRight size={40} className="text-dark-200" />
+      <div className="flex flex-col items-center justify-center py-20 gap-3 text-content-muted">
+        <ArrowLeftRight size={40} className="text-content-muted opacity-50" />
         <p className="text-sm">Cần ít nhất 2 phiên bản để so sánh.</p>
       </div>
     );
@@ -321,24 +321,24 @@ function VersionCompare({ versions }: { versions: DocumentVersion[] }) {
       {/* Version selectors */}
       <div className="flex items-center gap-3">
         <div className="flex-1">
-          <label className="block text-xs font-medium text-dark-500 mb-1">Phiên bản (trái)</label>
+          <label className="block text-xs font-medium text-content-secondary mb-1">Phiên bản (trái)</label>
           <select
             value={leftId}
             onChange={e => setLeftId(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-dark-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-dark-700"
+            className="w-full px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary"
           >
             {versions.map(v => (
               <option key={v.id} value={v.id}>{v.versionNumber} — {v.createdAt?.slice(0, 10)}</option>
             ))}
           </select>
         </div>
-        <ArrowLeftRight size={16} className="text-dark-300 mt-5 shrink-0" />
+        <ArrowLeftRight size={16} className="text-content-muted mt-5 shrink-0" />
         <div className="flex-1">
-          <label className="block text-xs font-medium text-dark-500 mb-1">Phiên bản (phải)</label>
+          <label className="block text-xs font-medium text-content-secondary mb-1">Phiên bản (phải)</label>
           <select
             value={rightId}
             onChange={e => setRightId(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-dark-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-dark-700"
+            className="w-full px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary"
           >
             {versions.map(v => (
               <option key={v.id} value={v.id}>{v.versionNumber} — {v.createdAt?.slice(0, 10)}</option>
@@ -362,46 +362,46 @@ function VersionCompare({ versions }: { versions: DocumentVersion[] }) {
       )}
 
       {/* Diff view */}
-      <div className="rounded-xl border border-dark-200 overflow-hidden">
+      <div className="rounded-xl border border-default overflow-hidden">
         {/* Column headers */}
-        <div className="grid grid-cols-2 divide-x divide-dark-200 bg-dark-50 border-b border-dark-200">
+        <div className="grid grid-cols-2 divide-x divide-strong bg-subtle border-b border-default">
           <div className="px-4 py-2.5 flex items-center gap-2">
             <StatusBadge status={leftVer?.status ?? 'Draft'} />
-            <span className="text-xs font-mono font-semibold text-dark-600">{leftVer?.versionNumber}</span>
-            <span className="text-xs text-dark-400">· {leftVer?.createdAt?.slice(0, 10)}</span>
+            <span className="text-xs font-mono font-semibold text-content-secondary">{leftVer?.versionNumber}</span>
+            <span className="text-xs text-content-muted">· {leftVer?.createdAt?.slice(0, 10)}</span>
           </div>
           <div className="px-4 py-2.5 flex items-center gap-2">
             <StatusBadge status={rightVer?.status ?? 'Draft'} />
-            <span className="text-xs font-mono font-semibold text-dark-600">{rightVer?.versionNumber}</span>
-            <span className="text-xs text-dark-400">· {rightVer?.createdAt?.slice(0, 10)}</span>
+            <span className="text-xs font-mono font-semibold text-content-secondary">{rightVer?.versionNumber}</span>
+            <span className="text-xs text-content-muted">· {rightVer?.createdAt?.slice(0, 10)}</span>
           </div>
         </div>
 
         {/* Diff rows */}
         {rows.length === 0 ? (
-          <div className="grid grid-cols-2 divide-x divide-dark-100">
-            <div className="px-4 py-10 text-center text-sm text-dark-400 italic">Chưa có nội dung</div>
-            <div className="px-4 py-10 text-center text-sm text-dark-400 italic">Chưa có nội dung</div>
+          <div className="grid grid-cols-2 divide-x divide-strong">
+            <div className="px-4 py-10 text-center text-sm text-content-muted italic">Chưa có nội dung</div>
+            <div className="px-4 py-10 text-center text-sm text-content-muted italic">Chưa có nội dung</div>
           </div>
         ) : (
-          <div className="divide-y divide-dark-100 font-mono text-xs">
+          <div className="divide-y divide-strong font-mono text-xs">
             {rows.map((row, idx) => (
-              <div key={idx} className="grid grid-cols-2 divide-x divide-dark-100 min-h-[26px]">
+              <div key={idx} className="grid grid-cols-2 divide-x divide-strong min-h-[26px]">
                 <div className={`px-4 py-1 whitespace-pre-wrap leading-relaxed break-all ${
                   row.left?.type === 'removed'
-                    ? 'bg-danger-50 text-danger-700 line-through'
+                    ? 'bg-danger-50/10 text-danger-700 line-through'
                     : !row.left
-                    ? 'bg-dark-50'
-                    : 'text-dark-700'
+                    ? 'bg-subtle'
+                    : 'text-content-secondary'
                 }`}>
                   {row.left?.text ?? ''}
                 </div>
                 <div className={`px-4 py-1 whitespace-pre-wrap leading-relaxed break-all ${
                   row.right?.type === 'added'
-                    ? 'bg-success-50 text-success-700'
+                    ? 'bg-success-50/10 text-success-700'
                     : !row.right
-                    ? 'bg-dark-50'
-                    : 'text-dark-700'
+                    ? 'bg-subtle'
+                    : 'text-content-secondary'
                 }`}>
                   {row.right?.text ?? ''}
                 </div>
@@ -456,23 +456,23 @@ function DetailPanel({
   return (
     <div className="flex flex-col h-full">
       {/* Doc header */}
-      <div className="px-6 py-4 border-b border-dark-200 bg-white shrink-0">
+      <div className="px-6 py-4 border-b border-default bg-surface shrink-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <h2 className="text-base font-semibold text-dark-800">{doc.title}</h2>
+          <h2 className="text-base font-semibold text-content-primary">{doc.title}</h2>
           <StatusBadge status={doc.status} />
-          <span className="text-xs font-mono text-dark-500 px-2 py-0.5 bg-dark-100 rounded-md">
+          <span className="text-xs font-mono text-content-secondary px-2 py-0.5 bg-subtle rounded-md">
             {doc.currentVersion}
           </span>
         </div>
-        <div className="flex items-center gap-2 mt-1.5 text-xs text-dark-400">
+        <div className="flex items-center gap-2 mt-1.5 text-xs text-content-muted">
           <BookOpen size={11} /> {doc.knowledgeBaseName}
-          <span className="text-dark-200">·</span>
+          <span className="text-content-muted">·</span>
           <Clock size={11} /> {doc.versionCount} phiên bản
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-dark-200 bg-white shrink-0 px-6">
+      <div className="flex border-b border-default bg-surface shrink-0 px-6">
         {tabs.map(t => (
           <button
             key={t.key}
@@ -480,7 +480,7 @@ function DetailPanel({
             className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors -mb-px ${
               activeTab === t.key
                 ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-dark-500 hover:text-dark-700'
+                : 'border-transparent text-content-secondary hover:text-content-primary'
             }`}
           >
             {t.label}
@@ -490,12 +490,12 @@ function DetailPanel({
 
       {/* Feedback */}
       {error && (
-        <div className="mx-6 mt-3 flex items-center gap-2 bg-danger-50 border border-danger-200 text-danger-700 rounded-lg px-4 py-2 text-sm shrink-0">
+        <div className="mx-6 mt-3 flex items-center gap-2 bg-danger-50/10 border border-danger-500/30 text-danger-700 rounded-lg px-4 py-2 text-sm shrink-0">
           <AlertCircle size={14} className="shrink-0" /> {error}
         </div>
       )}
       {successMsg && (
-        <div className="mx-6 mt-3 flex items-center gap-2 bg-success-50 border border-success-200 text-success-700 rounded-lg px-4 py-2 text-sm shrink-0">
+        <div className="mx-6 mt-3 flex items-center gap-2 bg-success-50/10 border border-success-500/30 text-success-700 rounded-lg px-4 py-2 text-sm shrink-0">
           <Check size={14} className="shrink-0" /> {successMsg}
         </div>
       )}
@@ -505,16 +505,16 @@ function DetailPanel({
         {activeTab === 'info' && (
           <div className="p-6 space-y-5">
             {/* Approval timeline */}
-            <div className="bg-white rounded-xl border border-dark-200">
+            <div className="bg-surface rounded-xl border border-default">
               <ApprovalTimeline status={doc.status} />
             </div>
 
             {/* Content preview */}
-            <div className="bg-white rounded-xl border border-dark-200">
-              <div className="flex items-center justify-between px-5 py-3 border-b border-dark-100">
+            <div className="bg-surface rounded-xl border border-default">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-strong">
                 <div className="flex items-center gap-2">
                   <FileText size={14} className="text-primary-500" />
-                  <span className="text-sm font-medium text-dark-700">
+                  <span className="text-sm font-medium text-content-primary">
                     Nội dung phiên bản hiện tại ({doc.currentVersion})
                   </span>
                 </div>
@@ -533,7 +533,7 @@ function DetailPanel({
                       })
                       .catch(() => window.open(url, '_blank'));
                   }}
-                  className="flex items-center gap-1 text-xs text-dark-400 hover:text-primary-600 transition-colors"
+                  className="flex items-center gap-1 text-xs text-content-muted hover:text-primary-600 transition-colors"
                   title="Tải xuống"
                 >
                   <Download size={13} />
@@ -545,28 +545,28 @@ function DetailPanel({
             </div>
 
             {/* Doc info */}
-            <div className="bg-white rounded-xl border border-dark-200 px-5 py-4">
-              <p className="text-xs font-semibold text-dark-500 uppercase tracking-wide mb-3">Thông tin tài liệu</p>
+            <div className="bg-surface rounded-xl border border-default px-5 py-4">
+              <p className="text-xs font-semibold text-content-secondary uppercase tracking-wide mb-3">Thông tin tài liệu</p>
               <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-dark-400">Người tạo:</span>
-                  <span className="text-dark-700 font-medium">{doc.authorName}</span>
+                  <span className="text-content-muted">Người tạo:</span>
+                  <span className="text-content-primary font-medium">{doc.authorName}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-dark-400">Ngày nộp:</span>
-                  <span className="text-dark-700">{doc.submittedAt?.slice(0, 10) ?? doc.updatedAt?.slice(0, 10)}</span>
+                  <span className="text-content-muted">Ngày nộp:</span>
+                  <span className="text-content-primary">{doc.submittedAt?.slice(0, 10) ?? doc.updatedAt?.slice(0, 10)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-dark-400">Loại tệp:</span>
-                  <span className="text-dark-700">{doc.fileType}</span>
+                  <span className="text-content-muted">Loại tệp:</span>
+                  <span className="text-content-primary">{doc.fileType}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-dark-400">Số phiên bản:</span>
-                  <span className="text-dark-700">{doc.versionCount}</span>
+                  <span className="text-content-muted">Số phiên bản:</span>
+                  <span className="text-content-primary">{doc.versionCount}</span>
                 </div>
                 <div className="col-span-2 flex justify-between">
-                  <span className="text-dark-400">Bộ tri thức:</span>
-                  <span className="text-dark-700 font-medium text-right max-w-[220px] truncate">{doc.knowledgeBaseName}</span>
+                  <span className="text-content-muted">Bộ tri thức:</span>
+                  <span className="text-content-primary font-medium text-right max-w-[220px] truncate">{doc.knowledgeBaseName}</span>
                 </div>
               </div>
             </div>
@@ -579,7 +579,7 @@ function DetailPanel({
 
         {activeTab === 'compare' && (
           versionsLoading ? (
-            <div className="flex items-center justify-center py-12 gap-2 text-dark-400 text-sm">
+            <div className="flex items-center justify-center py-12 gap-2 text-content-muted text-sm">
               <Loader2 size={16} className="animate-spin" /> Đang tải phiên bản...
             </div>
           ) : (
@@ -589,9 +589,9 @@ function DetailPanel({
       </div>
 
       {/* Footer actions */}
-      <div className="flex items-center justify-between px-6 py-4 border-t border-dark-200 bg-white shrink-0">
+      <div className="flex items-center justify-between px-6 py-4 border-t border-default bg-surface shrink-0">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-dark-500">Trạng thái hiện tại:</span>
+          <span className="text-xs text-content-muted">Trạng thái hiện tại:</span>
           <StatusBadge status={doc.status} />
         </div>
         <div className="flex items-center gap-2">
@@ -613,21 +613,21 @@ function DetailPanel({
               <button
                 onClick={onRollback}
                 disabled={actionLoading}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-dark-200 text-dark-600 rounded-lg hover:bg-dark-50 disabled:opacity-40 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle disabled:opacity-40 transition-colors"
               >
                 <RotateCcw size={13} /> Rollback
               </button>
               <button
                 onClick={onRequestRevision}
                 disabled={actionLoading}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-warning-200 text-warning-700 rounded-lg hover:bg-warning-50 disabled:opacity-40 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-warning-500/30 text-warning-700 rounded-lg hover:bg-warning-50/10 disabled:opacity-40 transition-colors"
               >
                 <Edit2 size={13} /> Yêu cầu chỉnh sửa
               </button>
               <button
                 onClick={onReturnDraft}
                 disabled={actionLoading}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-dark-200 text-dark-600 rounded-lg hover:bg-dark-50 disabled:opacity-40 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle disabled:opacity-40 transition-colors"
               >
                 <X size={13} /> Trả về Draft
               </button>
@@ -648,14 +648,14 @@ function DetailPanel({
               <button
                 onClick={onRollback}
                 disabled={actionLoading}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-dark-200 text-dark-600 rounded-lg hover:bg-dark-50 disabled:opacity-40 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle disabled:opacity-40 transition-colors"
               >
                 <RotateCcw size={13} /> Rollback
               </button>
               <button
                 onClick={onArchive}
                 disabled={actionLoading}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-dark-200 text-dark-600 rounded-lg hover:bg-dark-50 disabled:opacity-40 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle disabled:opacity-40 transition-colors"
               >
                 <Archive size={13} /> Archive
               </button>
@@ -667,7 +667,7 @@ function DetailPanel({
             <button
               onClick={onRollback}
               disabled={actionLoading}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm border border-dark-200 text-dark-600 rounded-lg hover:bg-dark-50 disabled:opacity-40 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle disabled:opacity-40 transition-colors"
             >
               <RotateCcw size={13} /> Rollback
             </button>
@@ -695,14 +695,14 @@ function RevisionModal({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-dark-200">
-          <h2 className="font-semibold text-dark-800">Yêu cầu chỉnh sửa</h2>
-          <button onClick={onClose} className="text-dark-400 hover:text-dark-600"><X size={18} /></button>
+      <div className="bg-surface rounded-xl shadow-2xl w-full max-w-md mx-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-default bg-surface">
+          <h2 className="font-semibold text-content-primary">Yêu cầu chỉnh sửa</h2>
+          <button onClick={onClose} className="text-content-muted hover:text-content-secondary"><X size={18} /></button>
         </div>
         <div className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-dark-700 mb-1">
+            <label className="block text-sm font-medium text-content-secondary mb-1">
               Nội dung yêu cầu chỉnh sửa <span className="text-danger-600">*</span>
             </label>
             <textarea
@@ -710,12 +710,12 @@ function RevisionModal({
               onChange={e => setNote(e.target.value)}
               placeholder="Mô tả chi tiết những gì cần chỉnh sửa..."
               rows={4}
-              className="w-full border border-dark-200 rounded-lg px-3 py-2 text-sm text-dark-800 placeholder:text-dark-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+              className="w-full border border-default rounded-lg px-3 py-2 text-sm text-content-primary bg-surface placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
             />
           </div>
           <div className="flex justify-end gap-3">
             <button onClick={onClose}
-              className="px-4 py-2 text-sm border border-dark-200 text-dark-600 rounded-lg hover:bg-dark-50 transition-colors">
+              className="px-4 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors">
               Hủy
             </button>
             <button
@@ -762,41 +762,41 @@ export function KiemDuyetView() {
     <div className="flex flex-col h-full">
 
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 px-6 py-3 bg-white border-b border-dark-200 shrink-0">
-        <span className="text-sm text-dark-400">Tri thức AI</span>
-        <ChevronRight size={14} className="text-dark-300" />
-        <span className="text-sm font-medium text-dark-700">Kiểm duyệt & Phê duyệt tri thức</span>
+      <div className="flex items-center gap-2 px-6 py-3 bg-surface border-b border-default shrink-0">
+        <span className="text-sm text-content-muted">Tri thức AI</span>
+        <ChevronRight size={14} className="text-content-muted" />
+        <span className="text-sm font-medium text-content-primary">Kiểm duyệt & Phê duyệt tri thức</span>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
 
         {/* Left panel */}
-        <div className="w-72 shrink-0 flex flex-col border-r border-dark-200 bg-white">
+        <div className="w-72 shrink-0 flex flex-col border-r border-default bg-surface">
           {/* Header */}
-          <div className="px-4 py-3 border-b border-dark-200">
+          <div className="px-4 py-3 border-b border-default">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-dark-800">Tài liệu tri thức</span>
-              <span className="text-xs text-dark-400 bg-dark-100 px-2 py-0.5 rounded-full">
+              <span className="text-sm font-semibold text-content-primary">Tài liệu tri thức</span>
+              <span className="text-xs text-content-muted bg-subtle px-2 py-0.5 rounded-full">
                 {counts.all} tài liệu
               </span>
             </div>
           </div>
 
           {/* Search */}
-          <div className="px-3 py-2.5 border-b border-dark-100">
+          <div className="px-3 py-2.5 border-b border-strong">
             <div className="relative">
-              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-dark-400" />
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-content-muted" />
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Tìm tài liệu..."
-                className="w-full pl-8 pr-3 py-1.5 text-sm border border-dark-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
+                className="w-full pl-8 pr-3 py-1.5 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-surface text-content-primary"
               />
             </div>
           </div>
 
           {/* Status tabs */}
-          <div className="flex border-b border-dark-100 px-2 pt-1">
+          <div className="flex border-b border-strong px-2 pt-1">
             {STATUS_TABS.map(t => (
               <button
                 key={t.value}
@@ -804,11 +804,11 @@ export function KiemDuyetView() {
                 className={`flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded-t transition-colors ${
                   statusFilter === t.value
                     ? 'text-primary-600 border-b-2 border-primary-600'
-                    : 'text-dark-500 hover:text-dark-700'
+                    : 'text-content-secondary hover:text-content-primary'
                 }`}
               >
                 {t.label}
-                <span className={`px-1 rounded text-xs ${statusFilter === t.value ? 'bg-primary-100 text-primary-700' : 'bg-dark-100 text-dark-500'}`}>
+                <span className={`px-1 rounded text-xs ${statusFilter === t.value ? 'bg-primary-100 text-primary-700' : 'bg-subtle text-content-muted'}`}>
                   {t.count}
                 </span>
               </button>
@@ -819,10 +819,10 @@ export function KiemDuyetView() {
           <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="flex justify-center py-10">
-                <Loader2 size={18} className="animate-spin text-dark-300" />
+                <Loader2 size={18} className="animate-spin text-content-muted" />
               </div>
             ) : documents.length === 0 ? (
-              <p className="text-center text-xs text-dark-400 py-10">Không có tài liệu nào.</p>
+              <p className="text-center text-xs text-content-muted py-10">Không có tài liệu nào.</p>
             ) : (
               documents.map(doc => (
                 <DocListItem
@@ -837,10 +837,10 @@ export function KiemDuyetView() {
         </div>
 
         {/* Right panel */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-dark-50">
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-subtle">
           {!selectedDoc ? (
-            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-dark-400">
-              <FileText size={48} className="text-dark-200" />
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-content-muted">
+              <FileText size={48} className="text-content-muted opacity-50" />
               <p className="text-sm">Chọn tài liệu để xem chi tiết và phê duyệt</p>
             </div>
           ) : (

@@ -12,7 +12,7 @@ import { usersApi } from '@/lib/users-api';
 import type { UserItem, RoleItem, OrgNode } from '@/lib/users-api';
 
 // ─── Shared constants ─────────────────────────────────────────────────────────
-const inputCls = 'w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-transparent bg-white transition-all';
+const inputCls = 'w-full border border-default rounded-lg px-3 py-2 text-sm text-content-primary placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-transparent bg-surface transition-colors [&:-webkit-autofill]:[box-shadow:0_0_0_1000px_var(--bg-surface)_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:var(--text-primary)]';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const AVATAR_COLORS = [
@@ -46,11 +46,11 @@ function Field({ label, required, hint, children }: {
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-600 mb-1">
+      <label className="block text-sm font-medium text-content-secondary mb-1">
         {label} {required && <span className="text-rose-600">*</span>}
       </label>
       {children}
-      {hint && <p className="text-xs text-slate-400 mt-1">{hint}</p>}
+      {hint && <p className="text-xs text-content-muted mt-1">{hint}</p>}
     </div>
   );
 }
@@ -70,10 +70,10 @@ function StatusToggle({ status, onToggle }: { status: string; onToggle: () => vo
     <button onClick={onToggle} className="flex items-center gap-2"
       title={active ? 'Nhấn để vô hiệu hóa' : 'Nhấn để kích hoạt'}
     >
-      <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${active ? 'bg-blue-500' : 'bg-slate-200'}`}>
+      <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${active ? 'bg-primary-500' : 'bg-subtle'}`}>
         <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${active ? 'translate-x-4' : 'translate-x-1'}`} />
       </div>
-      <span className={`text-xs font-medium ${active ? 'text-blue-600' : 'text-slate-400'}`}>
+      <span className={`text-xs font-medium ${active ? 'text-primary-600' : 'text-content-muted'}`}>
         {active ? 'Hoạt động' : 'Vô hiệu'}
       </span>
     </button>
@@ -136,12 +136,12 @@ function UserModal({ editing, roles, orgs, onClose, onSaved }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 sticky top-0 bg-white z-10">
-          <h2 className="font-semibold text-slate-900">
+      <div className="bg-surface rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-default sticky top-0 bg-surface z-10">
+          <h2 className="font-semibold text-content-primary">
             {isNew ? '+ Thêm người dùng mới' : 'Chỉnh sửa người dùng'}
           </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+          <button onClick={onClose} className="text-content-muted hover:text-content-primary"><X size={18} /></button>
         </div>
         <form onSubmit={submit} className="p-6 space-y-4">
           {isNew && (
@@ -177,17 +177,17 @@ function UserModal({ editing, roles, orgs, onClose, onSaved }: {
           </Field>
           {isNew && (
             <Field label="Vai trò">
-              <div className="space-y-1 max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-2">
+              <div className="space-y-1 max-h-40 overflow-y-auto border border-default rounded-lg p-2">
                 {roles.length === 0 ? (
-                  <p className="text-xs text-slate-400 text-center py-2">Chưa có vai trò nào</p>
+                  <p className="text-xs text-content-muted text-center py-2">Chưa có vai trò nào</p>
                 ) : roles.map(role => (
-                  <label key={role.code} className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 px-2 py-1 rounded">
+                  <label key={role.code} className="flex items-center gap-2 cursor-pointer hover:bg-subtle px-2 py-1 rounded">
                     <input type="checkbox" className="rounded"
                       checked={selectedRoles.includes(role.code)}
                       onChange={() => toggleRole(role.code)} />
-                    <span className="text-sm text-slate-600">{role.name}</span>
+                    <span className="text-sm text-content-secondary">{role.name}</span>
                     {role.description && (
-                      <span className="text-xs text-slate-400 ml-auto truncate">{role.description}</span>
+                      <span className="text-xs text-content-muted ml-auto truncate">{role.description}</span>
                     )}
                   </label>
                 ))}
@@ -197,7 +197,7 @@ function UserModal({ editing, roles, orgs, onClose, onSaved }: {
           {error && <ErrorBanner message={error} />}
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose}
-              className="px-4 py-2 text-sm border border-slate-200 text-slate-500 rounded-lg hover:bg-slate-100">
+              className="px-4 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle">
               Hủy
             </button>
             <button type="submit" disabled={loading}
@@ -237,18 +237,18 @@ function ChangePasswordModal({ user, onClose }: { user: UserItem; onClose: () =>
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-          <h2 className="font-semibold text-slate-900">Đổi mật khẩu — {user.fullName}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+      <div className="bg-surface rounded-xl shadow-2xl w-full max-w-md mx-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-default">
+          <h2 className="font-semibold text-content-primary">Đổi mật khẩu — {user.fullName}</h2>
+          <button onClick={onClose} className="text-content-muted hover:text-content-primary"><X size={18} /></button>
         </div>
         {done ? (
           <div className="p-6 text-center">
-            <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3">
-              <UserCheck className="w-6 h-6 text-emerald-600" />
+            <div className="w-12 h-12 bg-success-50/10 rounded-full flex items-center justify-center mx-auto mb-3">
+              <UserCheck className="w-6 h-6 text-success-600" />
             </div>
-            <p className="text-slate-600 font-medium">Đổi mật khẩu thành công!</p>
-            <button onClick={onClose} className="mt-4 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            <p className="text-content-secondary font-medium">Đổi mật khẩu thành công!</p>
+            <button onClick={onClose} className="mt-4 px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700">
               Đóng
             </button>
           </div>
@@ -267,7 +267,7 @@ function ChangePasswordModal({ user, onClose }: { user: UserItem; onClose: () =>
             {error && <ErrorBanner message={error} />}
             <div className="flex justify-end gap-3 pt-2">
               <button type="button" onClick={onClose}
-                className="px-4 py-2 text-sm border border-slate-200 text-slate-500 rounded-lg hover:bg-slate-100">
+                className="px-4 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle">
                 Hủy
               </button>
               <button type="submit" disabled={loading}
@@ -304,21 +304,21 @@ function DeleteDialog({ user, onClose, onDeleted }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6">
-        <h2 className="font-semibold text-slate-900 mb-2">Xác nhận xóa</h2>
-        <p className="text-sm text-slate-600 mb-4">
+      <div className="bg-surface rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6">
+        <h2 className="font-semibold text-content-primary mb-2">Xác nhận xóa</h2>
+        <p className="text-sm text-content-secondary mb-4">
           Bạn có chắc muốn xóa người dùng <strong>{user.fullName}</strong>{' '}
-          (<code className="text-xs font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200">{user.username}</code>)?{' '}
+          (<code className="text-xs font-mono bg-subtle text-content-secondary px-2 py-0.5 rounded border border-default">{user.username}</code>)?{' '}
           Hành động này không thể hoàn tác.
         </p>
         {error && <ErrorBanner message={error} />}
         <div className="flex justify-end gap-3 mt-4">
           <button onClick={onClose}
-            className="px-4 py-2 text-sm border border-slate-200 text-slate-500 rounded-lg hover:bg-slate-100">
+            className="px-4 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle">
             Hủy
           </button>
           <button onClick={confirm} disabled={loading}
-            className="px-4 py-2 text-sm bg-rose-600 text-white rounded-lg hover:bg-rose-700 disabled:opacity-60">
+            className="px-4 py-2 text-sm bg-danger-600 text-white rounded-lg hover:bg-danger-700 disabled:opacity-60">
             {loading ? 'Đang xóa...' : 'Xóa'}
           </button>
         </div>
@@ -359,27 +359,27 @@ export function UserListView() {
   }
 
   const STATS = [
-    { label: 'Tổng người dùng', value: stats.total,    Icon: Users,     bg: 'bg-blue-100', color: 'text-blue-600',  accent: 'border-l-blue-500'  },
-    { label: 'Đang hoạt động',  value: stats.active,   Icon: UserCheck, bg: 'bg-emerald-100', color: 'text-emerald-600',  accent: 'border-l-emerald-500'  },
-    { label: 'Vô hiệu hóa',     value: stats.inactive, Icon: UserX,     bg: 'bg-rose-100',  color: 'text-rose-600',   accent: 'border-l-rose-500'   },
-    { label: 'Quản trị viên',   value: stats.admins,   Icon: Shield,    bg: 'bg-amber-100', color: 'text-amber-600',  accent: 'border-l-amber-500'  },
+    { label: 'Tổng người dùng', value: stats.total,    Icon: Users,     bg: 'bg-primary-100', color: 'text-primary-600',  accent: 'border-l-primary-500'  },
+    { label: 'Đang hoạt động',  value: stats.active,   Icon: UserCheck, bg: 'bg-success-100', color: 'text-success-600',  accent: 'border-l-success-500'  },
+    { label: 'Vô hiệu hóa',     value: stats.inactive, Icon: UserX,     bg: 'bg-danger-100',  color: 'text-danger-600',   accent: 'border-l-danger-500'   },
+    { label: 'Quản trị viên',   value: stats.admins,   Icon: Shield,    bg: 'bg-warning-100', color: 'text-warning-600',  accent: 'border-l-warning-500'  },
   ] as const;
 
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white border-b border-slate-200 shadow-sm px-6 py-4">
-        <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-2">
+      <div className="sticky top-0 z-10 bg-surface border-b border-default shadow-sm px-6 py-4">
+        <div className="flex items-center gap-1.5 text-xs text-content-muted mb-2">
           <span>Cấu hình hệ thống</span>
-          <ChevronRight size={12} className="text-slate-300" />
-          <span className="text-slate-500 font-medium">Cấu hình người dùng</span>
+          <ChevronRight size={12} className="text-content-muted opacity-50" />
+          <span className="text-content-secondary font-medium">Cấu hình người dùng</span>
         </div>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-1 h-7 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 shrink-0" />
+            <div className="w-1 h-7 rounded-full bg-gradient-to-r from-primary-600 to-indigo-600 shrink-0" />
             <div>
-              <h1 className="text-lg font-semibold text-slate-900">Cấu hình người dùng</h1>
-              <p className="text-xs text-slate-400 mt-0.5">Quản lý tài khoản và phân quyền truy cập hệ thống</p>
+              <h1 className="text-lg font-semibold text-content-primary">Cấu hình người dùng</h1>
+              <p className="text-xs text-content-muted mt-0.5">Quản lý tài khoản và phân quyền truy cập hệ thống</p>
             </div>
           </div>
         </div>
@@ -389,10 +389,10 @@ export function UserListView() {
         {/* Stats */}
         <div className="grid grid-cols-4 gap-4">
           {STATS.map(({ label, value, Icon, bg, color, accent }) => (
-            <div key={label} className={`bg-white rounded-xl border-l-4 border border-slate-100 shadow-sm px-5 py-4 flex items-center justify-between hover:shadow-md transition-shadow duration-base ${accent}`}>
+            <div key={label} className={`bg-surface rounded-xl border-l-4 border border-strong shadow-sm px-5 py-4 flex items-center justify-between hover:shadow-md transition-shadow duration-base ${accent}`}>
               <div>
-                <p className="text-xs text-slate-500">{label}</p>
-                <p className="text-2xl font-bold text-slate-900 mt-1">{value}</p>
+                <p className="text-xs text-content-secondary">{label}</p>
+                <p className="text-2xl font-bold text-content-primary mt-1">{value}</p>
               </div>
               <div className={`p-3 rounded-xl ${bg}`}>
                 <Icon className={`w-5 h-5 ${color}`} />
@@ -404,19 +404,19 @@ export function UserListView() {
         {/* Toolbar */}
         <div className="flex items-center gap-3">
           <div className="relative flex-1 max-w-xs">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-content-muted" />
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Tìm kiếm người dùng..."
-              className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-transparent transition-all"
+              className="w-full pl-9 pr-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-transparent transition-all bg-surface text-content-primary"
             />
           </div>
           <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)}
-            className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/40 bg-white text-slate-500 transition-all">
+            className="px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/40 bg-surface text-content-secondary transition-all">
             <option value="">Tất cả vai trò</option>
             {roles.map(r => <option key={r.code} value={r.name}>{r.name}</option>)}
           </select>
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-            className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/40 bg-white text-slate-500 transition-all">
+            className="px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/40 bg-surface text-content-secondary transition-all">
             <option value="">Tất cả trạng thái</option>
             <option value="ACTIVE">Hoạt động</option>
             <option value="INACTIVE">Vô hiệu</option>
@@ -424,11 +424,11 @@ export function UserListView() {
           </select>
           <div className="flex-1" />
           <button onClick={handleRefresh}
-            className="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Làm mới">
+            className="p-2 rounded-lg text-content-muted hover:text-primary-600 hover:bg-primary-50 transition-colors" title="Làm mới">
             <RefreshCw size={16} />
           </button>
           <button onClick={exportCsv}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm border border-slate-200 text-slate-500 rounded-lg hover:bg-slate-100 transition-colors">
+            className="flex items-center gap-1.5 px-3 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors">
             <Download size={14} /> Xuất Excel
           </button>
           <button onClick={() => setShowCreate(true)}
@@ -439,16 +439,16 @@ export function UserListView() {
 
         {/* Error */}
         {error && (
-          <div className="flex items-center gap-2 bg-danger-50 border border-danger-200 text-danger-700 rounded-lg px-4 py-3 text-sm">
+          <div className="flex items-center gap-2 bg-danger-50/10 border border-danger-500/30 text-danger-700 rounded-lg px-4 py-3 text-sm">
             <AlertCircle size={15} className="shrink-0" /> {error}
           </div>
         )}
 
         {/* Table */}
-        <div className="bg-white rounded-xl border border-dark-200 shadow-sm overflow-hidden">
+        <div className="bg-surface rounded-xl border border-default shadow-sm overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 text-left font-semibold">
+              <tr className="border-b border-default bg-subtle text-content-secondary text-left font-semibold">
                 <th className="px-4 py-3 w-12 text-center">STT</th>
                 <th className="px-4 py-3">NGƯỜI DÙNG</th>
                 <th className="px-4 py-3">TÊN ĐĂNG NHẬP</th>
@@ -458,39 +458,39 @@ export function UserListView() {
                 <th className="px-4 py-3 text-right">THAO TÁC</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-strong">
               {users.map((user, idx) => (
-                <tr key={user.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-3 text-slate-500 text-center">{idx + 1}</td>
+                <tr key={user.id} className="hover:bg-subtle transition-colors">
+                  <td className="px-4 py-3 text-content-secondary text-center">{idx + 1}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
                       <div className={`w-8 h-8 rounded-full ${avatarColor(user.fullName)} flex items-center justify-center text-white text-xs font-semibold shrink-0`}>
                         {initials(user.fullName)}
                       </div>
                       <div>
-                        <p className="font-medium text-slate-900">{user.fullName}</p>
-                        <p className="text-xs text-slate-400">{user.email}</p>
+                        <p className="font-medium text-content-primary">{user.fullName}</p>
+                        <p className="text-xs text-content-muted">{user.email}</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <code className="text-xs font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200">
+                    <code className="text-xs font-mono bg-subtle text-content-secondary px-2 py-0.5 rounded border border-default">
                       {user.username}
                     </code>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
                       {user.roles.length === 0
-                        ? <span className="text-slate-400 text-xs">—</span>
+                        ? <span className="text-content-muted text-xs">—</span>
                         : user.roles.map(r => (
                           <span key={r} className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleColor(r)}`}>{r}</span>
                         ))}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-slate-500 text-sm">
+                  <td className="px-4 py-3 text-content-secondary text-sm">
                     {user.organizationId && orgMap[user.organizationId]
                       ? orgMap[user.organizationId]
-                      : <span className="text-slate-400 text-xs">—</span>}
+                      : <span className="text-content-muted text-xs">—</span>}
                   </td>
                   <td className="px-4 py-3">
                     <StatusToggle status={user.status} onToggle={() => handleToggleStatus(user)} />
@@ -498,15 +498,15 @@ export function UserListView() {
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
                       <button onClick={() => setEditingUser(user)}
-                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Chỉnh sửa">
+                        className="p-1.5 text-content-muted hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors" title="Chỉnh sửa">
                         <Pencil size={14} />
                       </button>
                       <button onClick={() => setPermissionsUser(user)}
-                        className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Phân quyền">
+                        className="p-1.5 text-content-muted hover:text-warning-600 hover:bg-warning-50/10 rounded-lg transition-colors" title="Phân quyền">
                         <Key size={14} />
                       </button>
                       <button onClick={() => setDeletingUser(user)}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Xóa">
+                        className="p-1.5 text-content-muted hover:text-danger-600 hover:bg-danger-50/10 rounded-lg transition-colors" title="Xóa">
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -518,11 +518,11 @@ export function UserListView() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 text-sm text-slate-500">
+            <div className="flex items-center justify-between px-4 py-3 border-t border-default text-sm text-content-secondary">
               <span>Hiển thị {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} / {total} người dùng</span>
               <div className="flex gap-1">
                 <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                  className="px-2 py-1 border border-slate-200 rounded hover:bg-slate-100 disabled:opacity-40 transition-colors">‹</button>
+                  className="px-2 py-1 border border-default rounded hover:bg-subtle disabled:opacity-40 transition-colors">‹</button>
                 {Array.from({ length: totalPages }, (_, i) => i + 1)
                   .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
                   .reduce<(number | '...')[]>((acc, p, i, arr) => {
@@ -531,14 +531,14 @@ export function UserListView() {
                     return acc;
                   }, [])
                   .map((p, i) => p === '...'
-                    ? <span key={`e${i}`} className="px-2 py-1 text-slate-400">…</span>
+                    ? <span key={`e${i}`} className="px-2 py-1 text-content-muted">…</span>
                     : <button key={p} onClick={() => setPage(p as number)}
-                        className={`px-2.5 py-1 border rounded transition-colors ${page === p ? 'bg-blue-600 text-white border-blue-600 font-medium' : 'border-slate-200 hover:bg-slate-100'}`}>
+                        className={`px-2.5 py-1 border rounded transition-colors ${page === p ? 'bg-primary-600 text-white border-primary-600 font-medium' : 'border-default hover:bg-subtle'}`}>
                         {p}
                       </button>
                   )}
                 <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                  className="px-2 py-1 border border-slate-200 rounded hover:bg-slate-100 disabled:opacity-40 transition-colors">›</button>
+                  className="px-2 py-1 border border-default rounded hover:bg-subtle disabled:opacity-40 transition-colors">›</button>
               </div>
             </div>
           )}
