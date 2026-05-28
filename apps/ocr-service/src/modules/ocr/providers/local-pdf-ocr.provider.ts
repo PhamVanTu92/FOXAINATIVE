@@ -40,9 +40,8 @@ async function extractTextFromPdf(buffer: Buffer): Promise<string> {
 }
 
 function resolveFilePath(fileUrl: string): string | null {
-  if (fileUrl.startsWith('file:///')) return decodeURIComponent(fileUrl.slice(8));
   if (fileUrl.startsWith('file://')) return decodeURIComponent(fileUrl.slice(7));
-  if (path.isAbsolute(fileUrl)) return fileUrl;
+  if (path.isAbsolute(fileUrl))      return fileUrl;
   return null;
 }
 

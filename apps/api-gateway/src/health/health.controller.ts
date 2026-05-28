@@ -23,7 +23,7 @@ export class HealthController {
     return {
       service: 'foxai-api-gateway',
       version: '0.1.0',
-      docs: '/api/auth/login, /api/users, /api/roles, /api/permissions, /api/organizations',
+      docs: '/api/auth/login, /api/users, /api/roles, /api/permissions, /api/organizations, /api/ocr, /api/chatbot, /api/index, /api/knowledge',
     };
   }
 }

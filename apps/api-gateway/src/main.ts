@@ -11,8 +11,9 @@ async function bootstrap() {
   // Serve uploaded files publicly at /uploads/*
   app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads' });
 
+  const allowedOrigins = process.env['CORS_ORIGIN']?.split(',').map(s => s.trim()).filter(Boolean);
   app.enableCors({
-    origin: process.env['CORS_ORIGIN']?.split(',') ?? true,
+    origin: allowedOrigins?.length ? allowedOrigins : true,
     credentials: true,
   });
 

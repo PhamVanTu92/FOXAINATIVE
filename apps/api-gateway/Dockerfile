@@ -25,6 +25,7 @@ COPY packages/shared-proto packages/shared-proto
 # shared-types/tsconfig.json extends ../../tsconfig.base.json — the
 # base must exist or TS silently falls back to defaults (losing
 # experimentalDecorators → class-validator/transformer crash).
+RUN pnpm -C packages/shared-proto run gen:ts
 RUN pnpm -C packages/shared-types run build
 RUN pnpm -C apps/api-gateway run build
 

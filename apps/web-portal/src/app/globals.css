@@ -99,7 +99,7 @@
   --bg-page:    #F8FAFC;
   --bg-surface: #FFFFFF;
   --bg-subtle:  #F1F5F9;
-  --bg-sidebar: #1E293B;
+  --bg-sidebar: #FFFFFF;
 
   --text-primary:   #0F172A;
   --text-secondary: #64748B;
@@ -185,10 +185,6 @@
 /* Firefox */
 * { scrollbar-width: thin; scrollbar-color: #d1d5db transparent; }
 
-/* Sidebar – dark variant */
-aside *::-webkit-scrollbar-thumb       { background: rgba(255,255,255,0.14); }
-aside *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.26); }
-aside * { scrollbar-color: rgba(255,255,255,0.14) transparent; }
 
 /* ── Date input – remove native calendar icon on Chrome ─────────────────── */
 input[type="date"]::-webkit-calendar-picker-indicator {
