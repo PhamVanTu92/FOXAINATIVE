@@ -15,22 +15,60 @@ services:
       timeout: 5s
       retries: 5
 
-  # ─── System DB (Postgres dành cho system-service .NET) ──────────────────────
+  # ─── System DB ──────────────────────────────────────────────────────────────
   system-db:
-    image: postgres:17.0-alpine
+    image: postgres:16-alpine
     container_name: foxai-system-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: system_db
-      TZ: Asia/Ho_Chi_Minh
+      POSTGRES_USER: ${SYSTEM_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${SYSTEM_DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${SYSTEM_DB_NAME:-system_db}
     ports:
       - '5433:5432'
     volumes:
       - system_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d system_db']
+      test: ['CMD-SHELL', 'pg_isready -U ${SYSTEM_DB_USER:-postgres} -d ${SYSTEM_DB_NAME:-system_db}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Knowledge DB ───────────────────────────────────────────────────────────
+  knowledge-db:
+    image: postgres:16-alpine
+    container_name: foxai-knowledge-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${KNOWLEDGE_DB_USER:-kb_user}
+      POSTGRES_PASSWORD: ${KNOWLEDGE_DB_PASSWORD:-kb_pass}
+      POSTGRES_DB: ${KNOWLEDGE_DB_NAME:-knowledge_db}
+    ports:
+      - '5435:5432'
+    volumes:
+      - knowledge_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${KNOWLEDGE_DB_USER:-kb_user} -d ${KNOWLEDGE_DB_NAME:-knowledge_db}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── OCR DB (pgvector) ──────────────────────────────────────────────────────
+  ocr-db:
+    image: pgvector/pgvector:pg16
+    container_name: foxai-ocr-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${OCR_DB_USER:-ocr_user}
+      POSTGRES_PASSWORD: ${OCR_DB_PASSWORD:-ocr_pass}
+      POSTGRES_DB: ${OCR_DB_NAME:-ocr_db}
+    ports:
+      - '5434:5432'
+    volumes:
+      - ocr_db_data:/var/lib/postgresql/data
+      - ./scripts/init-ocr-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${OCR_DB_USER:-ocr_user} -d ${OCR_DB_NAME:-ocr_db}']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -44,7 +82,7 @@ services:
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: ${SYSTEM_SERVICE_ENV:-Production}
-      SYSTEM_DATABASE_URL: ${SYSTEM_DATABASE_URL_DOCKER}
+      SYSTEM_DATABASE_URL: postgresql://${SYSTEM_DB_USER:-postgres}:${SYSTEM_DB_PASSWORD:-postgres}@system-db:5432/${SYSTEM_DB_NAME:-system_db}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       Jwt__Secret: ${JWT_SECRET}
@@ -77,7 +115,7 @@ services:
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: ${KNOWLEDGE_SERVICE_ENV:-Production}
-      KNOWLEDGE_DATABASE_URL: ${KNOWLEDGE_DATABASE_URL_DOCKER}
+      KNOWLEDGE_DATABASE_URL: postgresql://${KNOWLEDGE_DB_USER:-kb_user}:${KNOWLEDGE_DB_PASSWORD:-kb_pass}@knowledge-db:5432/${KNOWLEDGE_DB_NAME:-knowledge_db}
       GRPC_PORT: '50052'
       HTTP_PORT: '3005'
       KNOWLEDGE_SERVICE_AUTOMIGRATE: 'true'
@@ -85,6 +123,9 @@ services:
     ports:
       - '52052:50052'
       - '3005:3005'
+    depends_on:
+      knowledge-db:
+        condition: service_healthy
     healthcheck:
       test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:3005/health']
       interval: 20s
@@ -103,7 +144,7 @@ services:
       APP_MODE: api
       NODE_ENV: production
       OCR_SERVICE_PORT: 3003
-      OCR_DATABASE_URL: ${OCR_DATABASE_URL}
+      OCR_DATABASE_URL: postgresql://${OCR_DB_USER:-ocr_user}:${OCR_DB_PASSWORD:-ocr_pass}@ocr-db:5432/${OCR_DB_NAME:-ocr_db}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ''
@@ -119,6 +160,8 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      ocr-db:
+        condition: service_healthy
 
   # ─── OCR Workers (job consumers, no HTTP) ────────────────────────────────────
   ocr-worker:
@@ -129,7 +172,7 @@ services:
     environment:
       APP_MODE: worker
       NODE_ENV: production
-      OCR_DATABASE_URL: ${OCR_DATABASE_URL}
+      OCR_DATABASE_URL: postgresql://${OCR_DB_USER:-ocr_user}:${OCR_DB_PASSWORD:-ocr_pass}@ocr-db:5432/${OCR_DB_NAME:-ocr_db}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ''
@@ -142,6 +185,8 @@ services:
       - ocr_uploads:/app/apps/ocr-service/uploads
     depends_on:
       redis:
+        condition: service_healthy
+      ocr-db:
         condition: service_healthy
     deploy:
       replicas: 2
@@ -391,9 +436,11 @@ services:
 
 volumes:
   redis_data:
+  system_db_data:
+  knowledge_db_data:
+  ocr_db_data:
   ocr_uploads:
   chatbot_py_db_data:
   index_py_db_data:
   qdrant_data:
   minio_data:
-  system_db_data:

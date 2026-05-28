@@ -131,6 +131,10 @@ class FacebookTmpService(BaseService):
 
     def _build_agent_graph(self):
         """Create a simple LangGraph agent without custom nodes."""
+        if not self.settings.gemini.api_key:
+            logger.warning('GEMINI__API_KEY not set — FacebookTmpService agent graph disabled')
+            return None
+
         model_name = _clean_env(
             os.getenv('TMP_FACEBOOK__GEMINI_MODEL_NAME'),
             self.settings.gemini.model_name,
