@@ -4,6 +4,7 @@ using KnowledgeService.Application.Features.KnowledgeDocuments.Dtos;
 using KnowledgeService.Domain.Entities;
 using Mapster;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace KnowledgeService.Application.Features.KnowledgeDocuments.Approve;
 
@@ -11,16 +12,25 @@ public class ApproveDocumentCommandHandler : IRequestHandler<ApproveDocumentComm
 {
     private readonly IKnowledgeDocumentRepository _repo;
     private readonly IKnowledgeFileRepository _fileRepo;
+    private readonly IKnowledgeBaseRepository _kbRepo;
     private readonly IUnitOfWork _uow;
+    private readonly IIndexServiceClient _indexClient;
+    private readonly ILogger<ApproveDocumentCommandHandler> _logger;
 
     public ApproveDocumentCommandHandler(
         IKnowledgeDocumentRepository repo,
         IKnowledgeFileRepository fileRepo,
-        IUnitOfWork uow)
+        IKnowledgeBaseRepository kbRepo,
+        IUnitOfWork uow,
+        IIndexServiceClient indexClient,
+        ILogger<ApproveDocumentCommandHandler> logger)
     {
         _repo = repo;
         _fileRepo = fileRepo;
+        _kbRepo = kbRepo;
         _uow = uow;
+        _indexClient = indexClient;
+        _logger = logger;
     }
 
     public async Task<KnowledgeDocumentDto> Handle(ApproveDocumentCommand cmd, CancellationToken ct)
@@ -58,6 +68,33 @@ public class ApproveDocumentCommandHandler : IRequestHandler<ApproveDocumentComm
         }
 
         await _uow.SaveChangesAsync(ct);
+
+        // Gửi file sang index-service để indexing nếu KB có collection và document có file
+        var kb = await _kbRepo.GetByIdAsync(doc.KnowledgeBaseId, ct);
+        _logger.LogInformation(
+            "ApproveDocument → docId={DocId}, kbId={KbId}, collectionId={CollectionId}, storagePath={StoragePath}",
+            doc.Id, doc.KnowledgeBaseId, kb?.CollectionId?.ToString() ?? "null", doc.StoragePath ?? "null");
+
+        if (kb?.CollectionId is Guid collectionId && doc.StoragePath is not null)
+        {
+            var ext = doc.FileType.ToString().ToLower();
+            _logger.LogInformation(
+                "ApproveDocument → sending to index-service collectionId={CollectionId}, ext={Ext}, version={Version}",
+                collectionId, ext, doc.CurrentVersion);
+            await _indexClient.UploadAndProcessDocumentAsync(
+                collectionId,
+                doc.StoragePath,
+                doc.Title,
+                ext,
+                doc.CurrentVersion,
+                ct);
+        }
+        else
+        {
+            _logger.LogWarning(
+                "ApproveDocument → SKIP index-service: collectionId={CollectionId}, storagePath={StoragePath}",
+                kb?.CollectionId?.ToString() ?? "null", doc.StoragePath ?? "null");
+        }
 
         return doc.Adapt<KnowledgeDocumentDto>();
     }

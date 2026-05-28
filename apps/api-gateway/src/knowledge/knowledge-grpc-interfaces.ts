@@ -29,6 +29,8 @@ export interface KnowledgeBaseMessage {
   totalFiles: number;
   createdAt: string;
   updatedAt: string;
+  /** UUID của collection trong index-service. Rỗng ("") nếu chưa được map. */
+  collectionId: string;
 }
 
 export interface KnowledgeFileMessage {

@@ -337,7 +337,8 @@ public class KnowledgeGrpcService : Protos.KnowledgeService.KnowledgeServiceBase
             },
             TotalFiles = dto.TotalFiles,
             CreatedAt = dto.CreatedAt.ToString("O"),
-            UpdatedAt = dto.UpdatedAt.ToString("O")
+            UpdatedAt = dto.UpdatedAt.ToString("O"),
+            CollectionId = dto.CollectionId?.ToString() ?? ""
         };
         msg.Permissions.AddRange(dto.Permissions.Select(p => new DepartmentRef
         {

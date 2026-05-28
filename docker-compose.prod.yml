@@ -124,6 +124,7 @@ services:
       HTTP_PORT: '3005'
       KNOWLEDGE_SERVICE_AUTOMIGRATE: 'true'
       KNOWLEDGE_SERVICE_SEED: 'true'
+      INDEX_SERVICE_URL: http://index-service:8000
     networks:
       - foxai-internal
     depends_on:
