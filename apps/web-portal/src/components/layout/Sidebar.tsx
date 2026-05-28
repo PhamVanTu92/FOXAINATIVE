@@ -10,7 +10,7 @@ import type { NavItem, NavSection } from './nav-config';
 import { ocrApi } from '@/lib/ocr-api';
 import { useAuthStore } from '@/stores/auth';
 
-function SidebarChildItem({ href, label, icon: Icon }: { href: string; label: string; icon: LucideIcon }) {
+function SidebarChildItem({ href, label, icon: Icon }) {
   const pathname = usePathname();
   const isActive = pathname === href;
   return (
@@ -22,7 +22,7 @@ function SidebarChildItem({ href, label, icon: Icon }: { href: string; label: st
           : 'text-slate-300 hover:bg-white/10 hover:text-white'
       }`}
     >
-      <Icon size={15} className={isActive ? 'text-cyan-300' : 'text-slate-400'} />
+      <Icon size={15} className={isActive ? 'text-teal-300' : 'text-slate-400'} />
       <span>{label}</span>
     </Link>
   );
@@ -54,7 +54,7 @@ function SidebarNavItem({ item }: { item: NavItem }) {
           }`}
           style={{ width: 'calc(100% - 16px)' }}
         >
-          <Icon size={17} className={isChildActive ? 'text-cyan-300' : 'text-slate-400'} />
+          <Icon size={17} className={isChildActive ? 'text-teal-300' : 'text-slate-400'} />
           <span className="flex-1 text-left">{item.label}</span>
           <ChevronDown
             size={14}
@@ -82,7 +82,7 @@ function SidebarNavItem({ item }: { item: NavItem }) {
       }`}
       style={{ display: 'flex', marginLeft: '8px', marginRight: '8px' }}
     >
-      <Icon size={17} className={isDirectActive ? 'text-cyan-300' : 'text-slate-400'} />
+      <Icon size={17} className={isDirectActive ? 'text-teal-300' : 'text-slate-400'} />
       <span>{item.label}</span>
     </Link>
   );
@@ -113,10 +113,10 @@ export default function Sidebar() {
   })), [schemaChildren]);
 
   return (
-    <aside className="flex flex-col h-screen w-64 bg-[#0d1f3c] border-r border-white/5 select-none">
+    <aside className="flex flex-col h-screen w-64 bg-gradient-to-b from-slate-800 to-slate-950 border-r border-white/5 select-none">
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
-        <div className="w-8 h-8 rounded-lg bg-cyan-500 flex items-center justify-center text-white font-bold text-sm">
+        <div className="w-8 h-8 rounded-lg bg-teal-500 flex items-center justify-center text-white font-bold text-sm">
           F
         </div>
         <div>
@@ -143,7 +143,7 @@ export default function Sidebar() {
 
       {/* User */}
       <div className="border-t border-white/10 px-4 py-3 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full bg-cyan-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+        <div className="w-8 h-8 rounded-full bg-teal-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
           {user?.fullName ? user.fullName.charAt(0).toUpperCase() : '?'}
         </div>
         <div className="min-w-0 flex-1">
@@ -153,7 +153,7 @@ export default function Sidebar() {
         <button
           onClick={async () => { await logout(); router.replace('/dang-nhap'); }}
           title="Đăng xuất"
-          className="shrink-0 text-slate-400 hover:text-red-400 transition-colors"
+          className="shrink-0 text-slate-400 hover:text-rose-400 transition-colors"
         >
           <LogOut size={16} />
         </button>

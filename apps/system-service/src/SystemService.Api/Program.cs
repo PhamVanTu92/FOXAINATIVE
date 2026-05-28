@@ -66,6 +66,10 @@ var autoSeed = app.Environment.IsDevelopment()
                || app.Environment.IsEnvironment("Test")
                || string.Equals(app.Configuration["SYSTEM_SERVICE_SEED"], "true", StringComparison.OrdinalIgnoreCase);
 
+var seedDemo = app.Environment.IsDevelopment()
+               || app.Environment.IsEnvironment("Test")
+               || string.Equals(app.Configuration["SYSTEM_SERVICE_SEED_DEMO"], "true", StringComparison.OrdinalIgnoreCase);
+
 if (autoMigrate)
 {
     using var scope = app.Services.CreateScope();
@@ -74,6 +78,10 @@ if (autoMigrate)
     if (autoSeed)
     {
         await DataSeeder.SeedAsync(scope.ServiceProvider);
+    }
+    if (seedDemo)
+    {
+        await DemoDataSeeder.SeedAsync(scope.ServiceProvider);
     }
 }
 
