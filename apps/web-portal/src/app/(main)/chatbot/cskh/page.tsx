@@ -1,7 +1,5 @@
-export default function BotCskhPage() {
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold text-gray-800">Bot CSKH – Kinh doanh</h1>
-    </div>
-  );
+import { ChatbotChatView } from '@/modules/chatbot';
+
+export default function Page() {
+  return <ChatbotChatView botId="bot-chatbot-mpowhhxt" />;
 }
