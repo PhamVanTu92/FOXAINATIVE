@@ -16,6 +16,8 @@ import { PermissionActionsModule } from './system/permission-actions/permission-
 import { OrganizationsModule } from './system/organizations/organizations.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
 import { OcrModule } from './ocr/ocr.module';
+import { ChatbotProxyModule } from './chatbot/chatbot.module';
+import { IndexProxyModule } from './index-py/index.module';
 
 @Module({
   imports: [
@@ -52,6 +54,8 @@ import { OcrModule } from './ocr/ocr.module';
     OrganizationsModule,
     KnowledgeModule,
     OcrModule,
+    ChatbotProxyModule,
+    IndexProxyModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

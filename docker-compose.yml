@@ -69,6 +69,24 @@ services:
       - ./scripts/init-ocr-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${OCR_DB_USER:-ocr_user} -d ${OCR_DB_NAME:-ocr_db}']
+=======
+  # ─── System DB (Postgres dành cho system-service .NET) ──────────────────────
+  system-db:
+    image: postgres:17.0-alpine
+    container_name: foxai-system-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: system_db
+      TZ: Asia/Ho_Chi_Minh
+    ports:
+      - '5432:5432'
+    volumes:
+      - system_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d system_db']
+>>>>>>> fa3acd9409d67d82a54c5257cd7b2b72689bba35
       interval: 10s
       timeout: 5s
       retries: 5
