@@ -3,6 +3,14 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { knowledgeBasesApi } from '@/lib/knowledge-api';
 import type { KnowledgeBase, KbGlobalStats, CreateKbPayload } from '@/lib/knowledge-api';
+import { orgsApi } from '@/lib/users-api';
+import type { OrgNode } from '@/lib/users-api';
+
+export interface DeptOption { id: string; name: string; }
+
+function flattenOrg(nodes: OrgNode[]): DeptOption[] {
+  return nodes.flatMap(n => [{ id: n.id, name: n.name }, ...flattenOrg(n.children ?? [])]);
+}
 
 export function useKnowledgeList() {
   const [allItems, setAllItems] = useState<KnowledgeBase[]>([]);
@@ -16,6 +24,7 @@ export function useKnowledgeList() {
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [orgDepts, setOrgDepts] = useState<DeptOption[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -35,6 +44,10 @@ export function useKnowledgeList() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    orgsApi.tree().then(res => setOrgDepts(flattenOrg(res.nodes))).catch(() => {});
+  }, []);
 
   const items = useMemo(() => {
     let list = allItems;
@@ -98,6 +111,7 @@ export function useKnowledgeList() {
     departments,
     showCreate, setShowCreate,
     creating, createKb,
+    orgDepts,
     exportExcel,
   };
 }

@@ -219,9 +219,8 @@ export class OcrProcessor extends WorkerHost {
 }
 
 function resolveLocalPath(fileUrl: string): string | null {
-  if (fileUrl.startsWith('file:///')) return decodeURIComponent(fileUrl.slice(8));
-  if (fileUrl.startsWith('file://'))  return decodeURIComponent(fileUrl.slice(7));
-  if (path.isAbsolute(fileUrl))       return fileUrl;
+  if (fileUrl.startsWith('file://')) return decodeURIComponent(fileUrl.slice(7));
+  if (path.isAbsolute(fileUrl))      return fileUrl;
   return null;
 }
 

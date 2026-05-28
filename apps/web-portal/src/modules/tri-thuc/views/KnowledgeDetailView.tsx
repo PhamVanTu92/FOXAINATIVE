@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useKnowledgeDetail } from '../hooks/useKnowledgeDetail';
 import { knowledgeFilesApi } from '@/lib/knowledge-api';
-import type { KnowledgeFile, DepartmentRef } from '@/lib/knowledge-api';
+import type { KnowledgeBase, KnowledgeFile, DepartmentRef, CreateKbPayload } from '@/lib/knowledge-api';
 
 // ─── File type config ─────────────────────────────────────────────────────────
 
@@ -218,6 +218,143 @@ function DeleteFileModal({
   );
 }
 
+// ─── Edit KB modal ────────────────────────────────────────────────────────────
+
+function EditKbModal({
+  kb, orgDepts, onClose, onSave, saving,
+}: {
+  kb: KnowledgeBase;
+  orgDepts: DepartmentRef[];
+  onClose: () => void;
+  onSave: (dto: Omit<CreateKbPayload, 'code'>) => void;
+  saving: boolean;
+}) {
+  const [name, setName] = useState(kb.name);
+  const [description, setDescription] = useState(kb.description ?? '');
+  const [managingId, setManagingId] = useState(kb.managingDepartmentId);
+  const [permIds, setPermIds] = useState<Set<string>>(
+    () => new Set(kb.permissions?.map(p => p.departmentId) ?? [])
+  );
+
+  function togglePerm(id: string) {
+    setPermIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim() || !managingId) return;
+    const managingDept = orgDepts.find(d => d.departmentId === managingId);
+    onSave({
+      name: name.trim(),
+      description: description.trim() || undefined,
+      managingDepartmentId: managingId,
+      managingDepartmentName: managingDept?.departmentName ?? '',
+      permittedDepartments: orgDepts.filter(d => permIds.has(d.departmentId)),
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-dark-200 sticky top-0 bg-white z-10">
+          <div className="flex items-center gap-2">
+            <Edit2 size={18} className="text-primary-600" />
+            <h2 className="font-semibold text-dark-800">Sửa bộ tri thức</h2>
+          </div>
+          <button onClick={onClose} className="text-dark-400 hover:text-dark-600"><X size={18} /></button>
+        </div>
+        <form onSubmit={submit} className="flex flex-col flex-1 overflow-hidden">
+          <div className="p-6 space-y-4 overflow-y-auto flex-1">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-dark-700 mb-1">Mã bộ tri thức</label>
+                <input
+                  value={kb.code}
+                  readOnly
+                  className="w-full px-3 py-2 text-sm border border-dark-200 rounded-lg bg-dark-50 text-dark-400 cursor-not-allowed" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-dark-700 mb-1">
+                  Tên bộ tri thức <span className="text-danger-600">*</span>
+                </label>
+                <input
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 text-sm border border-dark-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-dark-800" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-dark-700 mb-1">Mô tả</label>
+              <textarea
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 text-sm border border-dark-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-dark-800 resize-none" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-dark-700 mb-1">
+                Phòng ban quản lý <span className="text-danger-600">*</span>
+              </label>
+              <select
+                value={managingId}
+                onChange={e => setManagingId(e.target.value)}
+                required
+                className="w-full px-3 py-2 text-sm border border-dark-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-dark-700">
+                <option value="">-- Chọn phòng ban --</option>
+                {orgDepts.map(d => (
+                  <option key={d.departmentId} value={d.departmentId}>{d.departmentName}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-dark-700 mb-1">
+                Phân quyền phòng ban
+              </label>
+              <div className="border border-dark-200 rounded-lg overflow-hidden">
+                {orgDepts.length === 0 ? (
+                  <p className="text-sm text-dark-400 text-center py-4">Chưa có phòng ban nào.</p>
+                ) : (
+                  <div className="max-h-44 overflow-y-auto divide-y divide-dark-100">
+                    {orgDepts.map(d => (
+                      <label key={d.departmentId}
+                        className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-dark-50 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={permIds.has(d.departmentId)}
+                          onChange={() => togglePerm(d.departmentId)}
+                          className="w-4 h-4 rounded border-dark-300 accent-primary-600"
+                        />
+                        <span className="text-sm text-dark-700">{d.departmentName}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-dark-400 mt-1">Để trống = tất cả phòng ban có quyền truy cập.</p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 px-6 py-4 border-t border-dark-100 shrink-0">
+            <button type="button" onClick={onClose}
+              className="flex items-center gap-1.5 px-4 py-2 text-sm border border-dark-200 text-dark-600 rounded-lg hover:bg-dark-50 transition-colors">
+              <X size={14} /> Hủy
+            </button>
+            <button type="submit" disabled={saving || !name.trim() || !managingId}
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-60 transition-colors">
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+              Lưu
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main view ────────────────────────────────────────────────────────────────
 
 export function KnowledgeDetailView({ kbId }: { kbId: string }) {
@@ -234,6 +371,8 @@ export function KnowledgeDetailView({ kbId }: { kbId: string }) {
     permFile, setPermFile,
     savingPermissions, saveFilePermissions,
     orgDepts,
+    showEditKb, setShowEditKb,
+    savingKb, updateKb,
   } = useKnowledgeDetail(kbId);
 
   const TYPE_STATS = [
@@ -279,6 +418,7 @@ export function KnowledgeDetailView({ kbId }: { kbId: string }) {
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button
+                onClick={() => setShowEditKb(true)}
                 className="flex items-center gap-1.5 px-3 py-2 text-sm border border-dark-200 text-dark-600 rounded-lg hover:bg-dark-50 transition-colors">
                 <Edit2 size={14} /> Sửa bộ tri thức
               </button>
@@ -460,6 +600,17 @@ export function KnowledgeDetailView({ kbId }: { kbId: string }) {
           onClose={() => setPermFile(null)}
           onSave={saveFilePermissions}
           saving={savingPermissions}
+        />
+      )}
+
+      {/* Edit KB modal */}
+      {showEditKb && kb && (
+        <EditKbModal
+          kb={kb}
+          orgDepts={orgDepts}
+          onClose={() => setShowEditKb(false)}
+          onSave={updateKb}
+          saving={savingKb}
         />
       )}
     </div>
