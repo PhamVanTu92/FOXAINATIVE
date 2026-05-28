@@ -11,7 +11,8 @@ import {
   Network,
   ChevronRight,
   X,
-  ChevronDown,
+  Building2,
+  Users,
 } from 'lucide-react';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
@@ -70,44 +71,71 @@ function TreeNode({
 }) {
   const [open, setOpen] = useState(true);
   const hasChildren = (node.children?.length ?? 0) > 0;
+  const isTeam = node.level >= 2;
 
   return (
-    <div className="ml-4">
-      <div className="flex items-center gap-2 py-1.5 group">
+    <div>
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-primary-50/60 group transition-colors">
+        {/* Chevron / dot */}
         <button
-          onClick={() => setOpen((o) => !o)}
-          className="w-5 h-5 flex items-center justify-center text-gray-400"
+          onClick={() => hasChildren && setOpen((o) => !o)}
+          className="w-6 h-6 flex items-center justify-center shrink-0 text-dark-400"
         >
           {hasChildren ? (
-            <ChevronDown size={14} className={`transition-transform ${open ? '' : '-rotate-90'}`} />
+            <ChevronRight
+              size={14}
+              className={`transition-transform duration-200 ${open ? 'rotate-90' : ''}`}
+            />
           ) : (
-            <span className="w-2 h-2 rounded-full bg-gray-200 inline-block" />
+            <span className="w-1.5 h-1.5 rounded-full bg-dark-300 inline-block" />
           )}
         </button>
-        <span className="text-xs bg-amber-100 text-amber-700 font-mono px-1.5 py-0.5 rounded">
-          #{node.code}
-        </span>
-        <span className="text-sm font-medium text-gray-800">{node.name}</span>
-        {node.managerName && (
-          <span className="text-xs text-gray-400">— {node.managerName}</span>
-        )}
-        <div className="ml-auto hidden group-hover:flex gap-1">
+
+        {/* Icon */}
+        <div
+          className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+            isTeam ? 'bg-success-50' : 'bg-primary-50'
+          }`}
+        >
+          {isTeam ? (
+            <Users size={16} className="text-success-600" />
+          ) : (
+            <Building2 size={16} className="text-primary-500" />
+          )}
+        </div>
+
+        {/* Name + manager */}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-dark-800 leading-tight">{node.name}</p>
+          {node.managerName && (
+            <p className="text-xs text-primary-500 mt-0.5">{node.managerName}</p>
+          )}
+        </div>
+
+        {/* Hover actions */}
+        <div className="hidden group-hover:flex items-center gap-1">
           <button
             onClick={() => onEdit(node)}
-            className="p-1 text-amber-500 hover:bg-amber-50 rounded"
+            className="p-1.5 text-warning-500 hover:bg-warning-50 rounded-lg transition-colors"
           >
             <Pencil size={13} />
           </button>
           <button
             onClick={() => onDelete(node)}
-            className="p-1 text-red-400 hover:bg-red-50 rounded"
+            className="p-1.5 text-danger-400 hover:bg-danger-50 rounded-lg transition-colors"
           >
             <Trash2 size={13} />
           </button>
         </div>
+
+        {/* Code badge */}
+        <span className="text-xs font-mono text-dark-500 bg-dark-50 border border-dark-200 px-2 py-0.5 rounded shrink-0">
+          {node.code}
+        </span>
       </div>
+
       {open && hasChildren && (
-        <div className="border-l border-gray-100 ml-2">
+        <div className="ml-7 pl-4 border-l border-dashed border-dark-200">
           {node.children!.map((c) => (
             <TreeNode key={c.id} node={c} onEdit={onEdit} onDelete={onDelete} />
           ))}
@@ -383,16 +411,28 @@ export default function ToChucPage() {
 
   async function loadUsers() {
     try {
-      const r = await fetch(`${API}/api/users?page=1&pageSize=200`, { headers: authHeaders() });
-      if (r.ok) {
-        const data = await r.json();
-        const items = data.items ?? data.data ?? [];
-        setUsers(items.map((u: { id: string; fullName: string; email: string }) => ({
-          id: u.id,
-          fullName: u.fullName,
-          email: u.email,
-        })));
+      const first = await fetch(`${API}/api/users?page=1&pageSize=100`, { headers: authHeaders() });
+      if (!first.ok) return;
+      const firstData = await first.json();
+      const totalPages: number = firstData.page?.totalPages ?? 1;
+      let items = firstData.items ?? firstData.data ?? [];
+
+      if (totalPages > 1) {
+        const rest = await Promise.all(
+          Array.from({ length: totalPages - 1 }, (_, i) =>
+            fetch(`${API}/api/users?page=${i + 2}&pageSize=100`, { headers: authHeaders() })
+              .then(r => r.ok ? r.json() : { items: [] })
+              .then(d => d.items ?? d.data ?? [])
+          )
+        );
+        rest.forEach(page => { items = [...items, ...page]; });
       }
+
+      setUsers(items.map((u: { id: string; fullName: string; email: string }) => ({
+        id: u.id,
+        fullName: u.fullName,
+        email: u.email,
+      })));
     } catch {
       // ignore
     }

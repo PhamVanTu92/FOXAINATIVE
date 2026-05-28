@@ -81,8 +81,18 @@ export function useUsers() {
       const active = Number(d2.page?.totalItems ?? 0);
       const inactive = Number(d3.page?.totalItems ?? 0);
 
-      const all = await usersApi.list({ page: 1, pageSize: 500 });
-      const admins = all.items.filter(u =>
+      const firstPage = await usersApi.list({ page: 1, pageSize: 100 });
+      const totalPages = firstPage.page?.totalPages ?? 1;
+      let allItems = [...firstPage.items];
+      if (totalPages > 1) {
+        const rest = await Promise.all(
+          Array.from({ length: totalPages - 1 }, (_, i) =>
+            usersApi.list({ page: i + 2, pageSize: 100 })
+          )
+        );
+        rest.forEach(r => allItems.push(...r.items));
+      }
+      const admins = allItems.filter(u =>
         u.roles.some(r => r.toLowerCase().includes('quản trị') || r.toLowerCase() === 'admin')
       ).length;
 

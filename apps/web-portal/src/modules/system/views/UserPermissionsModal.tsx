@@ -31,7 +31,7 @@ function Checkbox({
       type="checkbox"
       checked={checked}
       onChange={onChange}
-      className="w-4 h-4 rounded accent-primary-600 cursor-pointer"
+      className="w-4 h-4 rounded accent-blue-600 cursor-pointer"
     />
   );
 }
@@ -149,19 +149,19 @@ export function UserPermissionsModal({
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl mx-4 flex flex-col max-h-[90vh]">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-dark-200 shrink-0">
-          <div className="flex items-center gap-2 text-dark-800 font-semibold">
-            <Key size={16} className="text-primary-500" />
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
+          <div className="flex items-center gap-2 text-slate-900 font-semibold">
+            <Key size={16} className="text-blue-500" />
             Phân quyền: {user.fullName}
           </div>
-          <button onClick={onClose} className="text-dark-400 hover:text-dark-600">
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-550 text-slate-500">
             <X size={18} />
           </button>
         </div>
 
         {/* Role tabs + hint */}
         {user.roles.length > 0 && (
-          <div className="flex items-center gap-2 px-6 py-3 border-b border-dark-200 bg-dark-50 shrink-0">
+          <div className="flex items-center gap-2 px-6 py-3 border-b border-slate-200 bg-slate-100 shrink-0">
             <div className="flex items-center gap-1.5">
               {user.roles.map(role => (
                 <button
@@ -169,42 +169,42 @@ export function UserPermissionsModal({
                   onClick={() => setActiveRole(role)}
                   className={`px-3 py-1 text-xs rounded-full font-medium transition-colors ${
                     activeRole === role
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-white border border-dark-200 text-dark-600 hover:bg-dark-100'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-100'
                   }`}
                 >
                   {role}
                 </button>
               ))}
             </div>
-            <span className="text-xs text-dark-400 ml-2">
+            <span className="text-xs text-slate-400 ml-2">
               Phân quyền cá nhân sẽ ghi đè quyền mặc định của vai trò
             </span>
-            <span className="text-xs text-dark-300 ml-auto">Click ô để bật/tắt</span>
+            <span className="text-xs text-slate-400 ml-auto">Click ô để bật/tắt</span>
           </div>
         )}
 
         {/* Body */}
         <div className="flex-1 overflow-auto">
           {loading ? (
-            <div className="flex items-center justify-center h-48 gap-2 text-dark-400 text-sm">
+            <div className="flex items-center justify-center h-48 gap-2 text-content-muted text-sm">
               <Loader2 size={18} className="animate-spin" /> Đang tải quyền hạn...
             </div>
           ) : moduleGroups.length === 0 ? (
-            <div className="flex items-center justify-center h-48 text-dark-400 text-sm">
+            <div className="flex items-center justify-center h-48 text-content-muted text-sm">
               Chưa có phân hệ nào được cấu hình.
             </div>
           ) : (
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10">
-                <tr className="bg-primary-50 border-b border-dark-200">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-dark-600 w-56">
+                <tr className="bg-blue-50/50 border-b border-slate-200">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 w-56">
                     Phân hệ / Module
                   </th>
                   {actions.map(action => {
                     const { checked: colChecked, indeterminate } = columnState(action.id);
                     return (
-                      <th key={action.id} className="px-3 py-3 text-center text-xs font-semibold text-dark-600 w-20">
+                      <th key={action.id} className="px-3 py-3 text-center text-xs font-semibold text-slate-500 w-20">
                         <div className="flex flex-col items-center gap-1.5">
                           <span>{action.name}</span>
                           <Checkbox
@@ -222,18 +222,18 @@ export function UserPermissionsModal({
                 {moduleGroups.map(group => (
                   <React.Fragment key={group.id}>
                     {/* Group header row */}
-                    <tr className="bg-dark-50">
+                    <tr className="bg-slate-100">
                       <td
                         colSpan={actions.length + 1}
-                        className="px-4 py-2 text-xs font-semibold text-primary-600 uppercase tracking-wide"
+                        className="px-4 py-2 text-xs font-semibold text-blue-600 uppercase tracking-wide"
                       >
                         {group.name}
                       </td>
                     </tr>
                     {/* Module rows */}
                     {group.modules.map(module => (
-                      <tr key={module.id} className="border-b border-dark-100 hover:bg-primary-50/30 transition-colors">
-                        <td className="px-4 py-2.5 text-sm text-dark-700">{module.name}</td>
+                      <tr key={module.id} className="border-b border-slate-200 hover:bg-blue-50/30 transition-colors">
+                        <td className="px-4 py-2.5 text-sm text-slate-500">{module.name}</td>
                         {actions.map(action => {
                           const isChecked = checked.has(toKey(module.id, action.id));
                           return (
@@ -242,7 +242,7 @@ export function UserPermissionsModal({
                                 type="checkbox"
                                 checked={isChecked}
                                 onChange={() => toggleCell(module.id, action.id)}
-                                className="w-4 h-4 rounded accent-primary-600 cursor-pointer"
+                                className="w-4 h-4 rounded accent-blue-600 cursor-pointer"
                               />
                             </td>
                           );
@@ -258,36 +258,36 @@ export function UserPermissionsModal({
 
         {/* Error */}
         {error && (
-          <div className="flex items-center gap-2 mx-6 my-2 text-sm bg-danger-50 border border-danger-200 text-danger-700 rounded-lg px-3 py-2 shrink-0">
+          <div className="flex items-center gap-2 mx-6 my-2 text-sm bg-rose-50 border border-rose-200 text-rose-700 rounded-lg px-3 py-2 shrink-0">
             <AlertCircle size={14} className="shrink-0" /> {error}
           </div>
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-dark-100 bg-dark-50 shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-slate-100 shrink-0">
           <button
             onClick={onClose}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm border border-dark-200 text-dark-600 rounded-lg hover:bg-white transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 text-sm border border-slate-200 text-slate-500 rounded-lg hover:bg-white transition-colors"
           >
             <X size={14} /> Hủy
           </button>
           <div className="flex items-center gap-2">
             <button
               onClick={selectAll}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm border border-primary-200 text-primary-600 rounded-lg hover:bg-primary-50 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm border border-blue-200 text-blue-600 rounded-lg hover:bg-blue-50/50 transition-colors"
             >
               ✓ Chọn tất cả
             </button>
             <button
               onClick={deselectAll}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm border border-dark-200 text-dark-600 rounded-lg hover:bg-dark-100 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm border border-slate-200 text-slate-500 rounded-lg hover:bg-slate-100 transition-colors"
             >
               <Square size={14} /> Bỏ tất cả
             </button>
             <button
               onClick={save}
               disabled={saving || loading}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm bg-gradient-primary text-white rounded-lg shadow-sm hover:shadow-md hover:opacity-95 disabled:opacity-60 transition-all"
+              className="flex items-center gap-1.5 px-4 py-2 text-sm bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg shadow-sm hover:shadow-md hover:opacity-95 disabled:opacity-60 transition-all"
             >
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Key size={14} />}
               Lưu phân quyền

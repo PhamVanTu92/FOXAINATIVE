@@ -39,6 +39,22 @@ export interface RoleItem {
   code: string;
   name: string;
   description?: string;
+  isSystem?: boolean;
+  userCount?: number;
+  grants?: PermissionCell[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateRolePayload {
+  code?: string;
+  name: string;
+  description?: string;
+}
+
+export interface UpdateRolePayload {
+  name?: string;
+  description?: string;
 }
 
 export interface OrgNode {
@@ -135,6 +151,36 @@ export const usersApi = {
 export const rolesApi = {
   list(pageSize = 100): Promise<ListRolesResponse> {
     return req(`/roles?page=1&pageSize=${pageSize}`);
+  },
+
+  get(id: string): Promise<RoleItem> {
+    return req(`/roles/${id}`);
+  },
+
+  create(payload: CreateRolePayload): Promise<RoleItem> {
+    return req('/roles', { method: 'POST', body: JSON.stringify(payload) });
+  },
+
+  update(id: string, payload: UpdateRolePayload): Promise<RoleItem> {
+    return req(`/roles/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+  },
+
+  remove(id: string): Promise<void> {
+    return fetch(`${BASE}/roles/${id}`, { method: 'DELETE', headers: { ...authHeader() } })
+      .then(async r => {
+        if (!r.ok && r.status !== 204) {
+          const body = await r.json().catch(() => ({}));
+          throw new Error((body as { message?: string }).message ?? `HTTP ${r.status}`);
+        }
+      });
+  },
+
+  addPermissions(id: string, grants: PermissionPair[]): Promise<RoleItem> {
+    return req(`/roles/${id}/permissions`, { method: 'POST', body: JSON.stringify({ grants }) });
+  },
+
+  removePermissions(id: string, grants: PermissionPair[]): Promise<RoleItem> {
+    return req(`/roles/${id}/permissions`, { method: 'DELETE', body: JSON.stringify({ grants }) });
   },
 };
 

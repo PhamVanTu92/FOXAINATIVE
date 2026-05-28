@@ -42,14 +42,14 @@ function TypeBadge({ type }: { type: string }) {
 }
 
 function StatCard({
-  label, value, colorClass, accentCls = 'border-dark-200', onClick,
+  label, value, colorClass, accentCls = 'border-slate-200', onClick,
 }: { label: string; value: number; colorClass: string; accentCls?: string; onClick?: () => void }) {
   return (
     <div
       onClick={onClick}
-      className={`bg-white rounded-xl border-l-4 border border-dark-100 shadow-sm px-5 py-4 transition-shadow hover:shadow-md ${accentCls} ${onClick ? 'cursor-pointer' : ''}`}
+      className={`bg-white rounded-xl border-l-4 border border-slate-100 shadow-sm px-5 py-4 transition-shadow hover:shadow-md ${accentCls} ${onClick ? 'cursor-pointer' : ''}`}
     >
-      <p className="text-xs font-medium text-dark-500 uppercase tracking-wide">{label}</p>
+      <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{label}</p>
       <p className={`text-3xl font-bold mt-1.5 tabular-nums ${colorClass}`}>{value.toLocaleString('vi-VN')}</p>
     </div>
   );
@@ -348,21 +348,21 @@ export function ChungTuView() {
   const { openDetailPanel } = detail;
 
   return (
-    <div className="min-h-full bg-dark-50">
+    <div className="min-h-full bg-slate-50">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white border-b shadow-sm px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-1 h-8 rounded-full bg-gradient-primary shrink-0" />
+          <div className="w-1 h-8 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 shrink-0" />
           <div>
-            <h1 className="text-xl font-semibold text-dark-900">Quản lý Chứng từ</h1>
-            <p className="text-sm text-dark-500 mt-0.5">Danh sách tất cả chứng từ đã xử lý OCR</p>
+            <h1 className="text-xl font-semibold text-slate-900">Quản lý Chứng từ</h1>
+            <p className="text-sm text-slate-500 mt-0.5">Danh sách tất cả chứng từ đã xử lý OCR</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleExportExcel}
             disabled={exporting}
-            className="flex items-center gap-2 border border-dark-200 bg-white text-dark-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-dark-50 disabled:opacity-50 transition-colors"
+            className="flex items-center gap-2 border border-slate-200 bg-white text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-550 hover:bg-slate-100 disabled:opacity-50 transition-colors"
           >
             <Download className="w-4 h-4" />
             {exporting ? 'Đang xuất...' : (selectedIds.size > 0 ? `Xuất Excel (${selectedIds.size})` : 'Xuất Excel')}
@@ -377,7 +377,7 @@ export function ChungTuView() {
                 onClick={() => selectedIds.size > 0 ? openTransferModal([...selectedIds]) : openTransferAllConfirmed()}
                 disabled={isDisabled}
                 title={confirmedCount === 0 ? 'Không có chứng từ "Đã xác nhận" nào để chuyển' : undefined}
-                className="flex items-center gap-2 bg-teal-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 <Database className="w-4 h-4" />
                 {loadingTransfer ? 'Đang tải...' : (
@@ -393,33 +393,33 @@ export function ChungTuView() {
         {/* Stat cards */}
         {stats && (
           <div className="grid grid-cols-5 gap-4">
-            <StatCard label="Tổng chứng từ"  value={stats.total}       colorClass="text-dark-800"    accentCls="border-l-dark-300"    onClick={() => { setStatusFilter(''); setPage(1); }} />
+            <StatCard label="Tổng chứng từ"  value={stats.total}       colorClass="text-slate-800"    accentCls="border-l-slate-350 border-l-slate-300"    onClick={() => { setStatusFilter(''); setPage(1); }} />
             <StatCard label="Chờ xác nhận"   value={stats.processed}   colorClass="text-orange-500"  accentCls="border-l-orange-400"  onClick={() => { setStatusFilter('PROCESSED'); setPage(1); }} />
-            <StatCard label="Đã xác nhận"    value={stats.confirmed}   colorClass="text-success-600" accentCls="border-l-success-400" onClick={() => { setStatusFilter('CONFIRMED'); setPage(1); }} />
+            <StatCard label="Đã xác nhận"    value={stats.confirmed}   colorClass="text-emerald-600" accentCls="border-l-emerald-400" onClick={() => { setStatusFilter('CONFIRMED'); setPage(1); }} />
             <StatCard label="Đã chuyển kho"  value={stats.transferred} colorClass="text-violet-600"  accentCls="border-l-violet-400"  onClick={() => { setStatusFilter('TRANSFERRED'); setPage(1); }} />
-            <StatCard label="Lỗi OCR"        value={stats.error}       colorClass="text-danger-500"  accentCls="border-l-danger-400"  onClick={() => { setStatusFilter('ERROR'); setPage(1); }} />
+            <StatCard label="Lỗi OCR"        value={stats.error}       colorClass="text-rose-500"  accentCls="border-l-rose-400"  onClick={() => { setStatusFilter('ERROR'); setPage(1); }} />
           </div>
         )}
 
         {/* Filter bar */}
-        <div className="bg-white rounded-xl border border-dark-100 shadow-sm px-4 py-3 flex flex-wrap gap-2.5 items-center">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-3 flex flex-wrap gap-2.5 items-center">
           <div className="flex-1 min-w-[200px]">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="text"
                 value={search}
                 onChange={e => { setSearch(e.target.value); setPage(1); }}
                 placeholder="Tìm theo số HĐ, tên file, người bán..."
-                className="w-full pl-9 pr-3 py-2 text-sm border border-dark-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-dark-50 focus:bg-white transition-colors"
+                className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 focus:bg-white transition-colors"
               />
             </div>
           </div>
-          <div className="w-px h-6 bg-dark-200 shrink-0" />
+          <div className="w-px h-6 bg-slate-200 shrink-0" />
           <select
             value={statusFilter}
             onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
-            className="h-9 px-3 text-sm border border-dark-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-dark-700"
+            className="h-9 px-3 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700"
           >
             <option value="">Tất cả trạng thái</option>
             <option value="DRAFT">Đang xử lý</option>
@@ -431,22 +431,22 @@ export function ChungTuView() {
           <select
             value={typeFilter}
             onChange={e => { setTypeFilter(e.target.value); setPage(1); }}
-            className="h-9 px-3 text-sm border border-dark-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-dark-700"
+            className="h-9 px-3 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700"
           >
             <option value="">Tất cả loại</option>
             {Object.entries(TYPE_CONFIG).map(([k, v]) => (
               <option key={k} value={k}>{v.label}</option>
             ))}
           </select>
-          <div className="flex items-center h-9 border border-dark-200 rounded-lg overflow-hidden bg-white shrink-0 focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-primary-400">
-            <span className="pl-2.5 pr-1.5 text-[11px] font-medium text-dark-400 whitespace-nowrap select-none">Từ ngày</span>
+          <div className="flex items-center h-9 border border-slate-200 rounded-lg overflow-hidden bg-white shrink-0 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-400">
+            <span className="pl-2.5 pr-1.5 text-[11px] font-medium text-slate-400 whitespace-nowrap select-none">Từ ngày</span>
             <input
               type="date"
               value={dateFrom}
               onChange={e => { setDateFrom(e.target.value); setPage(1); }}
               className="h-full text-sm bg-transparent border-0 focus:outline-none w-[128px]"
             />
-            <span className="px-1.5 text-dark-300 select-none text-sm">–</span>
+            <span className="px-1.5 text-slate-300 select-none text-sm">–</span>
             <input
               type="date"
               value={dateTo}
@@ -456,10 +456,10 @@ export function ChungTuView() {
           </div>
           {(search || statusFilter || typeFilter || dateFrom || dateTo) && (
             <>
-              <div className="w-px h-6 bg-dark-200 shrink-0" />
+              <div className="w-px h-6 bg-slate-200 shrink-0" />
               <button
                 onClick={() => { setSearch(''); setStatusFilter(''); setTypeFilter(''); setDateFrom(''); setDateTo(''); setPage(1); }}
-                className="h-9 px-3 text-sm text-dark-500 hover:text-danger-600 border border-dark-200 rounded-lg hover:bg-danger-50 hover:border-danger-200 transition-colors flex items-center gap-1.5"
+                className="h-9 px-3 text-sm text-slate-500 hover:text-rose-600 border border-slate-200 rounded-lg hover:bg-rose-50 hover:border-rose-200 transition-colors flex items-center gap-1.5"
               >
                 <X className="w-3.5 h-3.5" /> Xóa bộ lọc
               </button>
@@ -469,36 +469,36 @@ export function ChungTuView() {
 
         {/* Bulk action bar */}
         {selectedIds.size > 0 && (
-          <div className="bg-primary-50 border border-primary-200 rounded-xl shadow-sm px-4 py-3 flex items-center gap-4">
-            <span className="text-sm font-medium text-primary-700">Đã chọn {selectedIds.size} chứng từ</span>
-            <button onClick={handleBulkConfirm} className="flex items-center gap-1.5 text-sm text-success-700 hover:text-success-800 font-medium">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl shadow-sm px-4 py-3 flex items-center gap-4">
+            <span className="text-sm font-medium text-blue-700">Đã chọn {selectedIds.size} chứng từ</span>
+            <button onClick={handleBulkConfirm} className="flex items-center gap-1.5 text-sm text-emerald-700 hover:text-emerald-800 font-medium">
               <Check className="w-4 h-4" /> Xác nhận hàng loạt
             </button>
             <button onClick={() => openTransferModal([...selectedIds])} className="flex items-center gap-1.5 text-sm text-teal-700 hover:text-teal-800 font-medium">
               <Database className="w-4 h-4" /> Chuyển vào kho tri thức
             </button>
-            <button onClick={handleBulkDelete} className="flex items-center gap-1.5 text-sm text-danger-600 hover:text-danger-700 font-medium">
+            <button onClick={handleBulkDelete} className="flex items-center gap-1.5 text-sm text-rose-600 hover:text-rose-700 font-medium">
               <Trash2 className="w-4 h-4" /> Xóa hàng loạt
             </button>
-            <button onClick={() => list.setSelectedIds(new Set())} className="ml-auto flex items-center gap-1 text-sm text-dark-500 hover:text-dark-700">
+            <button onClick={() => list.setSelectedIds(new Set())} className="ml-auto flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700">
               <X className="w-3.5 h-3.5" /> Bỏ chọn
             </button>
           </div>
         )}
 
         {pageError && (
-          <div className="flex items-center gap-2 bg-danger-50 border border-danger-200 text-danger-700 rounded-lg px-4 py-3 text-sm">
+          <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg px-4 py-3 text-sm">
             <AlertCircle className="w-4 h-4 shrink-0" />
             {pageError}
           </div>
         )}
 
         {/* Table */}
-        <div className="bg-white rounded-xl border border-dark-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[820px]">
               <thead>
-                <tr className="border-b bg-dark-50/80 text-xs font-semibold text-dark-500 uppercase tracking-wide">
+                <tr className="border-b bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wide">
                   <th className="w-10 px-4 py-3">
                     <input
                       type="checkbox"
@@ -517,53 +517,53 @@ export function ChungTuView() {
                   <th className="px-4 py-3 text-center">Thao tác</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-12 text-center text-dark-400">Đang tải...</td>
+                    <td colSpan={9} className="px-4 py-12 text-center text-slate-400">Đang tải...</td>
                   </tr>
                 ) : !docs?.items.length ? (
                   <tr>
                     <td colSpan={9} className="px-4 py-14 text-center">
-                      <FileText className="w-10 h-10 text-dark-200 mx-auto mb-2" />
-                      <p className="text-dark-400 text-sm">Không có chứng từ nào</p>
+                      <FileText className="w-10 h-10 text-slate-200 mx-auto mb-2" />
+                      <p className="text-slate-400 text-sm">Không có chứng từ nào</p>
                     </td>
                   </tr>
                 ) : docs.items.map((doc: DocListItem, idx: number) => (
                   <tr
                     key={doc.id}
-                    className={`border-b last:border-0 transition-colors ${selectedIds.has(doc.id) ? 'bg-primary-50/50' : 'hover:bg-dark-50'}`}
+                    className={`transition-colors hover:bg-slate-50 ${selectedIds.has(doc.id) ? 'bg-blue-50/50' : ''}`}
                   >
                     <td className="px-4 py-3" onClick={e => { e.stopPropagation(); toggleSelect(doc.id); }}>
                       <input type="checkbox" checked={selectedIds.has(doc.id)} onChange={() => {}} className="rounded" />
                     </td>
-                    <td className="px-4 py-3 text-dark-400 text-xs">{(page - 1) * 25 + idx + 1}</td>
-                    <td className="px-4 py-3 font-mono text-xs font-semibold text-dark-700">{doc.schemaCode}</td>
+                    <td className="px-4 py-3 text-slate-400 text-xs">{(page - 1) * 25 + idx + 1}</td>
+                    <td className="px-4 py-3 font-mono text-xs font-semibold text-slate-700">{doc.schemaCode}</td>
                     <td className="px-4 py-3 max-w-[220px]">
                       <button
                         onClick={() => openDetailPanel(doc.id)}
-                        className="flex items-start gap-2 hover:text-primary-600 transition-colors text-left w-full"
+                        className="flex items-start gap-2 hover:text-blue-600 transition-colors text-left w-full"
                       >
-                        <FileText className="w-3.5 h-3.5 text-dark-400 shrink-0 mt-0.5" />
+                        <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
                         <span className="flex flex-col min-w-0">
-                          <span className="truncate text-sm font-medium text-dark-800">{doc.schema.name}</span>
-                          {doc.fileName && <span className="truncate text-xs text-dark-400">{doc.fileName}</span>}
+                          <span className="truncate text-sm font-medium text-slate-800">{doc.schema.name}</span>
+                          {doc.fileName && <span className="truncate text-xs text-slate-400">{doc.fileName}</span>}
                         </span>
                       </button>
                     </td>
                     <td className="px-4 py-3"><TypeBadge type={doc.schema.type} /></td>
-                    <td className="px-4 py-3 text-dark-500 text-xs whitespace-nowrap">{fmtDate(doc.createdAt)}</td>
-                    <td className="px-4 py-3 text-dark-400 text-xs">—</td>
+                    <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">{fmtDate(doc.createdAt)}</td>
+                    <td className="px-4 py-3 text-slate-400 text-xs">—</td>
                     <td className="px-4 py-3"><StatusBadge status={doc.status} /></td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1">
-                        <button onClick={() => openDetailPanel(doc.id)} className="p-1.5 text-dark-400 hover:text-violet-500 hover:bg-violet-50 rounded-lg transition-colors" title="Xem chi tiết">
+                        <button onClick={() => openDetailPanel(doc.id)} className="p-1.5 text-slate-400 hover:text-violet-500 hover:bg-violet-50 rounded-lg transition-colors" title="Xem chi tiết">
                           <Eye className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => openEditModal(doc)} className="p-1.5 text-dark-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-colors" title="Sửa chứng từ">
+                        <button onClick={() => openEditModal(doc)} className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors" title="Sửa chứng từ">
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => deleteDoc(doc.id)} className="p-1.5 text-dark-400 hover:text-danger-500 hover:bg-danger-50 rounded-lg transition-colors" title="Xóa chứng từ">
+                        <button onClick={() => deleteDoc(doc.id)} className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors" title="Xóa chứng từ">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -602,53 +602,53 @@ export function ChungTuView() {
       {editDoc && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-dark-200">
-              <h2 className="text-base font-semibold text-dark-900">Sửa chứng từ OCR</h2>
-              <button onClick={() => setEditDoc(null)} className="p-1.5 rounded-lg text-dark-400 hover:text-dark-700 hover:bg-dark-100">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+              <h2 className="text-base font-semibold text-slate-900">Sửa chứng từ OCR</h2>
+              <button onClick={() => setEditDoc(null)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100">
                 <X className="w-4 h-4" />
               </button>
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-xs font-medium text-dark-600 mb-1.5">Mã chứng từ</label>
-                <input type="text" readOnly value={editDoc.schemaCode} className="w-full px-3 py-2 text-sm border border-dark-200 rounded-lg bg-dark-50 text-dark-500 cursor-not-allowed font-mono" />
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Mã chứng từ</label>
+                <input type="text" readOnly value={editDoc.schemaCode} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 text-slate-500 cursor-not-allowed font-mono" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-dark-600 mb-1.5">Tên chứng từ</label>
-                <input type="text" readOnly value={editDoc.schema.name} className="w-full px-3 py-2 text-sm border border-dark-200 rounded-lg bg-dark-50 text-dark-500 cursor-not-allowed" />
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Tên chứng từ</label>
+                <input type="text" readOnly value={editDoc.schema.name} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 text-slate-500 cursor-not-allowed" />
               </div>
               {editDoc.fileName && (
                 <div>
-                  <label className="block text-xs font-medium text-dark-600 mb-1.5">Tên file</label>
-                  <input type="text" readOnly value={editDoc.fileName} className="w-full px-3 py-2 text-sm border border-dark-200 rounded-lg bg-dark-50 text-dark-400 cursor-not-allowed" />
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Tên file</label>
+                  <input type="text" readOnly value={editDoc.fileName} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 text-slate-400 cursor-not-allowed" />
                 </div>
               )}
               <div>
-                <label className="block text-xs font-medium text-dark-600 mb-1.5">Loại chứng từ</label>
-                <input type="text" readOnly value={TYPE_CONFIG[editDoc.schema.type]?.label ?? editDoc.schema.type} className="w-full px-3 py-2 text-sm border border-dark-200 rounded-lg bg-dark-50 text-dark-500 cursor-not-allowed" />
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Loại chứng từ</label>
+                <input type="text" readOnly value={TYPE_CONFIG[editDoc.schema.type]?.label ?? editDoc.schema.type} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 text-slate-500 cursor-not-allowed" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-dark-600 mb-1.5">Trạng thái</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Trạng thái</label>
                 <select
                   value={editStatus}
                   onChange={e => setEditStatus(e.target.value)}
                   disabled={editDoc.status === 'CONFIRMED' || editDoc.status === 'TRANSFERRED'}
-                  className={`w-full px-3 py-2 text-sm border border-dark-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${editDoc.status === 'CONFIRMED' || editDoc.status === 'TRANSFERRED' ? 'bg-dark-50 text-dark-500 cursor-not-allowed' : 'bg-white text-dark-800'}`}
+                  className={`w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${editDoc.status === 'CONFIRMED' || editDoc.status === 'TRANSFERRED' ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-800'}`}
                 >
                   <option value="PROCESSED">Nháp</option>
                   <option value="CONFIRMED">Đã xác nhận</option>
                   {editDoc.status === 'TRANSFERRED' && <option value="TRANSFERRED">Đã chuyển kho</option>}
                 </select>
                 {(editDoc.status === 'CONFIRMED' || editDoc.status === 'TRANSFERRED') && (
-                  <p className="text-xs text-dark-400 mt-1">
+                  <p className="text-xs text-slate-400 mt-1">
                     {editDoc.status === 'TRANSFERRED' ? 'Chứng từ đã chuyển kho không thể thay đổi trạng thái.' : 'Xác nhận rồi → không thể chỉnh sửa trạng thái.'}
                   </p>
                 )}
               </div>
             </div>
-            <div className="px-6 py-4 border-t border-dark-100 flex justify-end gap-3">
-              <button onClick={() => setEditDoc(null)} className="px-4 py-2 text-sm text-dark-600 border border-dark-200 rounded-lg hover:bg-dark-50">Hủy</button>
-              <button onClick={handleSaveEdit} disabled={editSaving} className="px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50">
+            <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+              <button onClick={() => setEditDoc(null)} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">Hủy</button>
+              <button onClick={handleSaveEdit} disabled={editSaving} className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
                 {editSaving ? 'Đang lưu...' : 'Lưu'}
               </button>
             </div>
@@ -664,28 +664,28 @@ export function ChungTuView() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm">
             <div className="p-6 text-center">
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 ${transferIds.length > 0 ? 'bg-teal-50' : 'bg-orange-50'}`}>
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 ${transferIds.length > 0 ? 'bg-teal-550 bg-teal-50' : 'bg-orange-50'}`}>
                 <Database className={`w-6 h-6 ${transferIds.length > 0 ? 'text-teal-600' : 'text-orange-400'}`} />
               </div>
-              <h2 className="text-base font-semibold text-dark-900 mb-2">Chuyển vào kho tri thức</h2>
+              <h2 className="text-base font-semibold text-slate-900 mb-2">Chuyển vào kho tri thức</h2>
               {transferIds.length > 0 ? (
-                <p className="text-sm text-dark-500">
-                  Chuyển <span className="font-semibold text-dark-800">{transferIds.length}</span> chứng từ <span className="text-success-600 font-medium">đã xác nhận</span> vào kho tri thức?
+                <p className="text-sm text-slate-500">
+                  Chuyển <span className="font-semibold text-slate-800">{transferIds.length}</span> chứng từ <span className="text-emerald-600 font-medium">đã xác nhận</span> vào kho tri thức?
                 </p>
               ) : (
-                <p className="text-sm text-dark-500">
-                  Không có chứng từ nào ở trạng thái <span className="font-medium text-success-600">"Đã xác nhận"</span> trong lựa chọn hiện tại.
+                <p className="text-sm text-slate-500">
+                  Không có chứng từ nào ở trạng thái <span className="font-medium text-emerald-600">"Đã xác nhận"</span> trong lựa chọn hiện tại.
                   <br />
-                  <span className="text-xs text-dark-400 mt-1 block">Vui lòng xác nhận chứng từ trước khi chuyển kho.</span>
+                  <span className="text-xs text-slate-400 mt-1 block">Vui lòng xác nhận chứng từ trước khi chuyển kho.</span>
                 </p>
               )}
             </div>
-            <div className="px-6 py-4 border-t border-dark-100 flex justify-center gap-3">
-              <button onClick={() => setTransferOpen(false)} disabled={transferring} className="px-6 py-2 text-sm text-dark-600 border border-dark-200 rounded-lg hover:bg-dark-50 disabled:opacity-50">
+            <div className="px-6 py-4 border-t border-slate-100 flex justify-center gap-3">
+              <button onClick={() => setTransferOpen(false)} disabled={transferring} className="px-6 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50">
                 {transferIds.length > 0 ? 'Hủy' : 'Đóng'}
               </button>
               {transferIds.length > 0 && (
-                <button onClick={handleTransfer} disabled={transferring} className="px-6 py-2 text-sm font-medium bg-teal-800 text-white rounded-lg hover:bg-teal-900 disabled:opacity-50">
+                <button onClick={handleTransfer} disabled={transferring} className="px-6 py-2 text-sm font-medium bg-teal-600 text-white rounded-lg hover:bg-teal-500 disabled:opacity-50">
                   {transferring ? 'Đang chuyển...' : 'Chuyển'}
                 </button>
               )}
@@ -699,14 +699,18 @@ export function ChungTuView() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm">
             <div className="px-6 pt-6 pb-4">
-              <h3 className="text-base font-semibold text-dark-900 mb-2">{confirmDialog.title}</h3>
-              <p className="text-sm text-dark-500 leading-relaxed">{confirmDialog.message}</p>
+              <h3 className="text-base font-semibold text-slate-900 mb-2">{confirmDialog.title}</h3>
+              <p className="text-sm text-slate-500 leading-relaxed">{confirmDialog.message}</p>
             </div>
-            <div className="px-6 py-4 border-t border-dark-100 flex justify-end gap-3">
-              <button onClick={() => setConfirmDialog(null)} className="px-4 py-2 text-sm text-dark-600 border border-dark-200 rounded-lg hover:bg-dark-50 transition-colors">Hủy</button>
+            <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+              <button onClick={() => setConfirmDialog(null)} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Hủy</button>
               <button
                 onClick={() => { const fn = confirmDialog.onConfirm; setConfirmDialog(null); fn(); }}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${confirmDialog.confirmCls}`}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  confirmDialog.confirmCls === 'bg-danger-600 text-white hover:bg-danger-700' ? 'bg-rose-600 text-white hover:bg-rose-700' :
+                  confirmDialog.confirmCls === 'bg-success-600 text-white hover:bg-success-700' ? 'bg-emerald-600 text-white hover:bg-emerald-700' :
+                  confirmDialog.confirmCls
+                }`}
               >
                 {confirmDialog.confirmLabel}
               </button>
@@ -719,14 +723,14 @@ export function ChungTuView() {
       {toast && (
         <div className={`fixed bottom-6 right-6 z-[70] flex items-center gap-3 px-4 py-3.5 rounded-xl shadow-lg border max-w-sm text-sm font-medium animate-in slide-in-from-bottom-2 duration-200 ${
           toast.type === 'error'
-            ? 'bg-white text-danger-700 border-danger-200'
-            : 'bg-white text-success-700 border-success-200'
+            ? 'bg-white text-rose-700 border-rose-200'
+            : 'bg-white text-emerald-700 border-emerald-200'
         }`}>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${toast.type === 'error' ? 'bg-danger-50' : 'bg-success-50'}`}>
-            {toast.type === 'error' ? <AlertCircle className="w-4 h-4 text-danger-500" /> : <Check className="w-4 h-4 text-success-500" />}
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${toast.type === 'error' ? 'bg-rose-50' : 'bg-emerald-50'}`}>
+            {toast.type === 'error' ? <AlertCircle className="w-4 h-4 text-rose-500" /> : <Check className="w-4 h-4 text-emerald-500" />}
           </div>
           <span className="flex-1 leading-snug">{toast.message}</span>
-          <button onClick={() => setToast(null)} className="ml-1 text-dark-300 hover:text-dark-500 shrink-0 transition-colors">
+          <button onClick={() => setToast(null)} className="ml-1 text-slate-300 hover:text-slate-500 shrink-0 transition-colors">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
