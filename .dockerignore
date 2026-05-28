@@ -4,6 +4,9 @@
 **/dist
 **/*.log
 **/*.log.*
+# TypeScript incremental cache — if copied stale, tsc skips emit thinking
+# everything is up-to-date, leaving dist/ empty (silent build break).
+**/*.tsbuildinfo
 .git
 .gitignore
 

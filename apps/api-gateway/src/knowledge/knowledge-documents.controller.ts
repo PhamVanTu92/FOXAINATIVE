@@ -19,6 +19,7 @@ import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { AccessToken, CurrentUser } from '../common/auth/current-user.decorator';
 import { AuthenticatedRequestUser } from '../common/auth/jwt-auth.guard';
+import { RequirePermission } from '../common/auth/require-permission.decorator';
 import { buildForwardMetadata } from '../common/grpc/grpc-metadata.helper';
 import {
   CreateDocumentVersionDto,
@@ -66,6 +67,7 @@ export class KnowledgeDocumentsController {
 
   @Post()
   @UseInterceptors(FileInterceptor('file', multerOptions))
+  @RequirePermission('KNOWLEDGE_UPLOAD', 'CREATE')
   upload(
     @UploadedFile() file: Express.Multer.File | undefined,
     @Body() dto: UploadDocumentDto,
@@ -93,6 +95,7 @@ export class KnowledgeDocumentsController {
   }
 
   @Get()
+  @RequirePermission('KNOWLEDGE_MGMT', 'READ')
   list(
     @Query() q: ListDocumentsQueryDto,
     @AccessToken() token: string,
@@ -111,6 +114,7 @@ export class KnowledgeDocumentsController {
   }
 
   @Get(':docId/file')
+  @RequirePermission('KNOWLEDGE_MGMT', 'READ')
   async downloadFile(
     @Param('docId', new ParseUUIDPipe()) docId: string,
     @AccessToken() token: string,
@@ -127,6 +131,7 @@ export class KnowledgeDocumentsController {
   }
 
   @Get(':docId')
+  @RequirePermission('KNOWLEDGE_MGMT', 'READ')
   get(
     @Param('docId', new ParseUUIDPipe()) docId: string,
     @AccessToken() token: string,
@@ -137,6 +142,7 @@ export class KnowledgeDocumentsController {
 
   @Post(':docId/submit-review')
   @HttpCode(HttpStatus.OK)
+  @RequirePermission('KNOWLEDGE_UPLOAD', 'UPDATE')
   submitForReview(
     @Param('docId', new ParseUUIDPipe()) docId: string,
     @AccessToken() token: string,
@@ -147,6 +153,7 @@ export class KnowledgeDocumentsController {
 
   @Post(':docId/approve')
   @HttpCode(HttpStatus.OK)
+  @RequirePermission('KNOWLEDGE_REVIEW', 'UPDATE')
   approve(
     @Param('docId', new ParseUUIDPipe()) docId: string,
     @AccessToken() token: string,
@@ -157,6 +164,7 @@ export class KnowledgeDocumentsController {
 
   @Post(':docId/return-draft')
   @HttpCode(HttpStatus.OK)
+  @RequirePermission('KNOWLEDGE_REVIEW', 'UPDATE')
   returnToDraft(
     @Param('docId', new ParseUUIDPipe()) docId: string,
     @AccessToken() token: string,
@@ -167,6 +175,7 @@ export class KnowledgeDocumentsController {
 
   @Post(':docId/request-revision')
   @HttpCode(HttpStatus.OK)
+  @RequirePermission('KNOWLEDGE_REVIEW', 'UPDATE')
   requestRevision(
     @Param('docId', new ParseUUIDPipe()) docId: string,
     @Body() dto: RequestRevisionDto,
@@ -181,6 +190,7 @@ export class KnowledgeDocumentsController {
 
   @Post(':docId/archive')
   @HttpCode(HttpStatus.OK)
+  @RequirePermission('KNOWLEDGE_MGMT', 'UPDATE')
   archive(
     @Param('docId', new ParseUUIDPipe()) docId: string,
     @AccessToken() token: string,
@@ -191,6 +201,7 @@ export class KnowledgeDocumentsController {
 
   @Post(':docId/rollback')
   @HttpCode(HttpStatus.OK)
+  @RequirePermission('KNOWLEDGE_MGMT', 'UPDATE')
   rollback(
     @Param('docId', new ParseUUIDPipe()) docId: string,
     @AccessToken() token: string,
@@ -200,6 +211,7 @@ export class KnowledgeDocumentsController {
   }
 
   @Get(':docId/versions')
+  @RequirePermission('KNOWLEDGE_MGMT', 'READ')
   listVersions(
     @Param('docId', new ParseUUIDPipe()) docId: string,
     @AccessToken() token: string,
@@ -212,6 +224,7 @@ export class KnowledgeDocumentsController {
   }
 
   @Post(':docId/versions')
+  @RequirePermission('KNOWLEDGE_UPLOAD', 'CREATE')
   createVersion(
     @Param('docId', new ParseUUIDPipe()) docId: string,
     @Body() dto: CreateDocumentVersionDto,

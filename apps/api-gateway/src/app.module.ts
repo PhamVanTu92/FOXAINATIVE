@@ -5,6 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
+import { PermissionGuard } from './common/auth/permission.guard';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './system/auth/auth.module';
 import { UsersModule } from './system/users/users.module';
@@ -15,6 +16,8 @@ import { PermissionActionsModule } from './system/permission-actions/permission-
 import { OrganizationsModule } from './system/organizations/organizations.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
 import { OcrModule } from './ocr/ocr.module';
+import { ChatbotProxyModule } from './chatbot/chatbot.module';
+import { IndexProxyModule } from './index-py/index.module';
 
 @Module({
   imports: [
@@ -51,10 +54,13 @@ import { OcrModule } from './ocr/ocr.module';
     OrganizationsModule,
     KnowledgeModule,
     OcrModule,
+    ChatbotProxyModule,
+    IndexProxyModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: PermissionGuard },
   ],
 })
 export class AppModule {}

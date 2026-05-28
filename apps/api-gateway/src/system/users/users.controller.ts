@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { AccessToken, CurrentUser } from '../../common/auth/current-user.decorator';
 import { AuthenticatedRequestUser } from '../../common/auth/jwt-auth.guard';
+import { RequirePermission } from '../../common/auth/require-permission.decorator';
 import { buildForwardMetadata } from '../../common/grpc/grpc-metadata.helper';
 import { UsersService } from './users.service';
 import {
@@ -31,6 +32,7 @@ export class UsersController {
   constructor(private readonly users: UsersService) {}
 
   @Post()
+  @RequirePermission('USER_CONFIG', 'CREATE')
   create(
     @Body() dto: CreateUserDto,
     @AccessToken() token: string,
@@ -40,6 +42,7 @@ export class UsersController {
   }
 
   @Get()
+  @RequirePermission('USER_CONFIG', 'READ')
   list(
     @Query() q: ListUsersQueryDto,
     @AccessToken() token: string,
@@ -62,6 +65,7 @@ export class UsersController {
   }
 
   @Get(':id')
+  @RequirePermission('USER_CONFIG', 'READ')
   get(
     @Param('id', new ParseUUIDPipe()) id: string,
     @AccessToken() token: string,
@@ -71,6 +75,7 @@ export class UsersController {
   }
 
   @Patch(':id')
+  @RequirePermission('USER_CONFIG', 'UPDATE')
   update(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: UpdateUserDto,
@@ -82,6 +87,7 @@ export class UsersController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermission('USER_CONFIG', 'DELETE')
   async remove(
     @Param('id', new ParseUUIDPipe()) id: string,
     @AccessToken() token: string,
@@ -92,6 +98,7 @@ export class UsersController {
 
   @Post(':id/change-password')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermission('USER_CONFIG', 'UPDATE')
   async changePassword(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: ChangePasswordDto,
@@ -105,6 +112,7 @@ export class UsersController {
   }
 
   @Post(':id/change-status')
+  @RequirePermission('USER_CONFIG', 'UPDATE')
   changeStatus(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: ChangeStatusDto,
@@ -119,6 +127,7 @@ export class UsersController {
 
   @Post(':id/roles')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermission('USER_CONFIG', 'UPDATE')
   async assignRole(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: AssignRoleDto,
@@ -133,6 +142,7 @@ export class UsersController {
 
   @Delete(':id/roles/:roleCode')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermission('USER_CONFIG', 'UPDATE')
   async unassignRole(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Param('roleCode') roleCode: string,
@@ -146,6 +156,7 @@ export class UsersController {
   }
 
   @Get(':id/permissions')
+  @RequirePermission('USER_CONFIG', 'READ')
   getPermissions(
     @Param('id', new ParseUUIDPipe()) id: string,
     @AccessToken() token: string,
@@ -155,6 +166,7 @@ export class UsersController {
   }
 
   @Put(':id/permissions')
+  @RequirePermission('USER_CONFIG', 'UPDATE')
   setPermissions(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: SetUserPermissionsDto,
