@@ -3,6 +3,8 @@
 
 FROM node:20-alpine AS builder
 
+RUN apk add --no-cache protobuf
+
 RUN corepack enable && corepack prepare pnpm@8.15.4 --activate
 
 WORKDIR /app

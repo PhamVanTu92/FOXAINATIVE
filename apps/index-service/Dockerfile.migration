@@ -41,8 +41,8 @@ COPY --chown=app:app joint ./joint
 # Copy migration script
 COPY --chown=app:app scripts/run_migration.sh /app/run_migration.sh
 
-# Make script executable (sed strips Windows CRLF line endings)
-RUN sed -i 's/\r//' /app/run_migration.sh && chmod +x /app/run_migration.sh
+# Make script executable and strip Windows CRLF line endings
+RUN sed -i 's/\r$//' /app/run_migration.sh && chmod +x /app/run_migration.sh
 
 # Set environment variables
 ENV PYTHONPATH="/app"

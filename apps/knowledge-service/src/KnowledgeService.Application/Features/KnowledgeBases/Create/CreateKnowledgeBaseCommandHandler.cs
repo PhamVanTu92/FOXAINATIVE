@@ -11,11 +11,16 @@ public class CreateKnowledgeBaseCommandHandler : IRequestHandler<CreateKnowledge
 {
     private readonly IKnowledgeBaseRepository _repo;
     private readonly IUnitOfWork _uow;
+    private readonly IIndexServiceClient _indexClient;
 
-    public CreateKnowledgeBaseCommandHandler(IKnowledgeBaseRepository repo, IUnitOfWork uow)
+    public CreateKnowledgeBaseCommandHandler(
+        IKnowledgeBaseRepository repo,
+        IUnitOfWork uow,
+        IIndexServiceClient indexClient)
     {
         _repo = repo;
         _uow = uow;
+        _indexClient = indexClient;
     }
 
     public async Task<KnowledgeBaseDto> Handle(CreateKnowledgeBaseCommand cmd, CancellationToken ct)
@@ -45,6 +50,15 @@ public class CreateKnowledgeBaseCommandHandler : IRequestHandler<CreateKnowledge
 
         await _repo.AddAsync(kb, ct);
         await _uow.SaveChangesAsync(ct);
+
+        // Tạo collection tương ứng trong index-service; không rollback KB nếu lỗi
+        var collectionId = await _indexClient.CreateCollectionAsync(kb.Code, kb.Description, ct);
+        if (collectionId.HasValue)
+        {
+            kb.CollectionId = collectionId.Value;
+            _repo.Update(kb);
+            await _uow.SaveChangesAsync(ct);
+        }
 
         return kb.Adapt<KnowledgeBaseDto>();
     }
