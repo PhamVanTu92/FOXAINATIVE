@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { knowledgeBasesApi, knowledgeFilesApi } from '@/lib/knowledge-api';
-import type { KnowledgeBase, KnowledgeFile, DepartmentRef } from '@/lib/knowledge-api';
+import type { KnowledgeBase, KnowledgeFile, DepartmentRef, CreateKbPayload } from '@/lib/knowledge-api';
 import { orgsApi } from '@/lib/users-api';
 import type { OrgNode } from '@/lib/users-api';
 
@@ -86,7 +86,11 @@ export function useKnowledgeDetail(kbId: string) {
     setUploading(true);
     setError('');
     try {
-      const created = await knowledgeFilesApi.add(kbId, file, { fileType });
+      const created = await knowledgeFilesApi.add(kbId, {
+        file,
+        fileName: file.name,
+        fileType,
+      });
       setAllFiles(prev => [...prev, created]);
       setShowUpload(false);
       showSuccess('Đã tải lên tệp thành công');
@@ -130,6 +134,25 @@ export function useKnowledgeDetail(kbId: string) {
     }
   }
 
+  const [showEditKb, setShowEditKb] = useState(false);
+  const [savingKb, setSavingKb] = useState(false);
+
+  async function updateKb(dto: Omit<CreateKbPayload, 'code'>) {
+    if (!kb) return;
+    setSavingKb(true);
+    setError('');
+    try {
+      const updated = await knowledgeBasesApi.update(kb.id, dto);
+      setKb(updated);
+      setShowEditKb(false);
+      showSuccess('Đã cập nhật bộ tri thức');
+    } catch (e: unknown) {
+      setError((e as Error).message);
+    } finally {
+      setSavingKb(false);
+    }
+  }
+
   return {
     kb, files, allFiles, loading, error, successMsg,
     search, setSearch,
@@ -142,5 +165,7 @@ export function useKnowledgeDetail(kbId: string) {
     permFile, setPermFile,
     savingPermissions, saveFilePermissions,
     orgDepts,
+    showEditKb, setShowEditKb,
+    savingKb, updateKb,
   };
 }

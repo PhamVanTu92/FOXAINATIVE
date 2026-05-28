@@ -136,10 +136,39 @@ export function useKiemDuyet() {
     try {
       const updated = await knowledgeDocumentsApi.rollback(selectedDoc.id);
       updateDoc(updated);
-      // reload versions after rollback
       const versRes = await knowledgeDocumentsApi.versions(selectedDoc.id);
       setVersions(versRes.items);
       showSuccess('Đã rollback phiên bản thành công');
+    } catch (e: unknown) {
+      setError((e as Error).message);
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleSubmitReview() {
+    if (!selectedDoc) return;
+    setActionLoading(true);
+    setError('');
+    try {
+      const updated = await knowledgeDocumentsApi.submitReview(selectedDoc.id);
+      updateDoc(updated);
+      showSuccess('Đã gửi tài liệu lên kiểm duyệt');
+    } catch (e: unknown) {
+      setError((e as Error).message);
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleArchive() {
+    if (!selectedDoc) return;
+    setActionLoading(true);
+    setError('');
+    try {
+      const updated = await knowledgeDocumentsApi.archive(selectedDoc.id);
+      updateDoc(updated);
+      showSuccess('Đã lưu trữ tài liệu');
     } catch (e: unknown) {
       setError((e as Error).message);
     } finally {
@@ -159,5 +188,6 @@ export function useKiemDuyet() {
     showRevisionModal, setShowRevisionModal,
     revisionNote, setRevisionNote,
     handleApprove, handleReturnDraft, handleRequestRevision, handleRollback,
+    handleSubmitReview, handleArchive,
   };
 }
