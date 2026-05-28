@@ -10,7 +10,7 @@ import type { NavItem, NavSection } from './nav-config';
 import { ocrApi } from '@/lib/ocr-api';
 import { useAuthStore } from '@/stores/auth';
 
-function SidebarChildItem({ href, label, icon: Icon }) {
+function SidebarChildItem({ href, label, icon: Icon }: { href: string; label: string; icon: LucideIcon }) {
   const pathname = usePathname();
   const isActive = pathname === href;
   return (
