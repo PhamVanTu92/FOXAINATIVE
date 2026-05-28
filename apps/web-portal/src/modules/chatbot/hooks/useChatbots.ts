@@ -1,10 +1,17 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { chatbotApi, knowledgeBasesApi } from '@/lib/chatbot-api';
-import type {
-  ChatbotItem, KnowledgeBase, UpdateChatbotPayload,
-} from '@/lib/chatbot-api';
+import { chatbotApi } from '@/lib/chatbot-api';
+import { collectionsApi } from '@/lib/collections-api';
+import type { ChatbotItem, UpdateChatbotPayload } from '@/lib/chatbot-api';
+import type { Collection } from '@/lib/collections-api';
+
+/** Báo cho Sidebar (hoặc consumer khác) biết để refetch list chatbot. */
+function notifyChatbotsChanged() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('chatbots:updated'));
+  }
+}
 
 /**
  * Quản lý danh sách chatbot + chatbot đang chọn + thao tác CRUD/cấu hình.
@@ -12,10 +19,11 @@ import type {
  */
 export function useChatbots() {
   const [bots, setBots] = useState<ChatbotItem[]>([]);
-  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
+  const [collections, setCollections] = useState<Collection[]>([]);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,17 +32,15 @@ export function useChatbots() {
     setLoading(true);
     setError(null);
     try {
-      const [list, kbs] = await Promise.all([
+      const [list, cols] = await Promise.all([
         chatbotApi.list(),
-        knowledgeBasesApi.list(),
+        collectionsApi.list().catch(() => [] as Collection[]),
       ]);
       setBots(list);
-      setKnowledgeBases(kbs);
-      // Auto-select chatbot đầu tiên nếu chưa có selection và đang không tạo mới
-      setSelectedId(prev => {
-        if (prev && list.some(b => b.id === prev)) return prev;
-        return list[0]?.id ?? null;
-      });
+      setCollections(cols);
+      // Giữ selection cũ nếu bot còn tồn tại; KHÔNG auto-select bot đầu tiên
+      // — màn chờ ban đầu để trống cho tới khi user chủ động click 1 bot.
+      setSelectedId(prev => (prev && list.some(b => b.id === prev) ? prev : null));
     } catch (e: unknown) {
       setError((e as Error).message);
     } finally {
@@ -48,10 +54,12 @@ export function useChatbots() {
 
   const selectBot = (id: string) => {
     setCreating(false);
+    setEditingId(null);
     setSelectedId(id);
   };
 
   const startCreate = () => {
+    setEditingId(null);
     setCreating(true);
   };
 
@@ -59,10 +67,29 @@ export function useChatbots() {
     setCreating(false);
   };
 
+  const startEdit = (bot: ChatbotItem) => {
+    setCreating(false);
+    setSelectedId(bot.id);
+    setEditingId(bot.id);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+  };
+
+  const editingBot = editingId ? bots.find(b => b.id === editingId) ?? null : null;
+
   const handleCreated = (created: ChatbotItem) => {
     setBots(prev => [...prev, created]);
     setSelectedId(created.id);
     setCreating(false);
+    notifyChatbotsChanged();
+  };
+
+  const handleEdited = (updated: ChatbotItem) => {
+    setBots(prev => prev.map(b => b.id === updated.id ? updated : b));
+    setEditingId(null);
+    notifyChatbotsChanged();
   };
 
   const handleToggleActive = async (bot: ChatbotItem) => {
@@ -92,6 +119,7 @@ export function useChatbots() {
         if (selectedId === bot.id) setSelectedId(next[0]?.id ?? null);
         return next;
       });
+      notifyChatbotsChanged();
     } catch (e: unknown) {
       alert((e as Error).message);
     }
@@ -100,19 +128,23 @@ export function useChatbots() {
   return {
     // data
     bots,
-    knowledgeBases,
+    collections,
     selected,
     selectedId,
     creating,
+    editingBot,
     // state
     loading,
     error,
-    // selection
+    // selection / mode
     selectBot,
     startCreate,
     cancelCreate,
+    startEdit,
+    cancelEdit,
     // actions
     handleCreated,
+    handleEdited,
     handleToggleActive,
     handleUpdateConfig,
     handleDelete,

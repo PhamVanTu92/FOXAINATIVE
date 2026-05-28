@@ -3,11 +3,12 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
-import { ChevronDown, ScanLine, LogOut } from 'lucide-react';
+import { ChevronDown, ScanLine, LogOut, MessageSquare } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { navConfig } from './nav-config';
 import type { NavItem, NavSection } from './nav-config';
 import { ocrApi } from '@/lib/ocr-api';
+import { chatbotApi } from '@/lib/chatbot-api';
 import { useAuthStore } from '@/stores/auth';
 
 function SidebarChildItem({ href, label, icon: Icon }: { href: string; label: string; icon: LucideIcon }) {
@@ -92,6 +93,7 @@ export default function Sidebar() {
   const router = useRouter();
   const { user, logout, init } = useAuthStore();
   const [schemaChildren, setSchemaChildren] = useState<{ label: string; href: string; icon: LucideIcon }[]>([]);
+  const [chatbotItems, setChatbotItems] = useState<NavItem[]>([]);
 
   useEffect(() => { init(); }, [init]);
 
@@ -103,14 +105,35 @@ export default function Sidebar() {
     }).catch(() => {});
   }, []);
 
-  const dynamicNavConfig = useMemo<NavSection[]>(() => navConfig.map(section => ({
-    ...section,
-    items: section.items.map(item =>
-      item.label === 'Nhận dạng OCR'
-        ? { ...item, children: schemaChildren }
-        : item
-    ),
-  })), [schemaChildren]);
+  // Load chatbots cho section "CHATBOT AI THÔNG MINH" — refresh khi nhận event
+  useEffect(() => {
+    const loadChatbots = () => {
+      chatbotApi.list().then(list => {
+        setChatbotItems(
+          list.map(b => ({ label: b.name, href: `/chatbot/${b.id}`, icon: MessageSquare })),
+        );
+      }).catch(() => setChatbotItems([]));
+    };
+    loadChatbots();
+    window.addEventListener('chatbots:updated', loadChatbots);
+    return () => window.removeEventListener('chatbots:updated', loadChatbots);
+  }, []);
+
+  const dynamicNavConfig = useMemo<NavSection[]>(() => navConfig.map(section => {
+    // Section CHATBOT: thay toàn bộ items bằng danh sách thật từ API
+    if (section.section === 'CHATBOT AI THÔNG MINH') {
+      return { ...section, items: chatbotItems };
+    }
+    // Section OCR: chỉ thay children của item "Nhận dạng OCR"
+    return {
+      ...section,
+      items: section.items.map(item =>
+        item.label === 'Nhận dạng OCR'
+          ? { ...item, children: schemaChildren }
+          : item,
+      ),
+    };
+  }), [schemaChildren, chatbotItems]);
 
   return (
     <aside className="flex flex-col h-screen w-64 bg-gradient-to-b from-slate-800 to-slate-950 border-r border-white/5 select-none">

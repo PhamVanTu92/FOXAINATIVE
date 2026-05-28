@@ -19,9 +19,12 @@ ARG TARGETARCH
 FROM ghcr.io/astral-sh/uv:python${PYTHON_VERSION}-bookworm-slim@sha256:${SHA256_DIGEST_BUILDER} AS builder
 
 # UV Environment Variables
+# UV_HTTP_TIMEOUT: default 30s isn't enough for large wheels (pandas, numpy,
+# pymupdf, magika...) on slow networks — bump to 10 min to avoid spurious fails.
 ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
-    UV_PYTHON_DOWNLOADS=never
+    UV_PYTHON_DOWNLOADS=never \
+    UV_HTTP_TIMEOUT=600
 
 # Install build dependencies for compiling Python packages (cryptography, bcrypt, etc.)
 RUN apt-get update && apt-get install -y --no-install-recommends \

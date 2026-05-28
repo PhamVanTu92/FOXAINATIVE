@@ -2,15 +2,17 @@
 
 import { useRef } from 'react';
 import {
-  ChevronRight, MessageSquare, Plus, Trash2, Download, Mic, Send, AlertCircle,
-  BookOpen,
+  ChevronRight, MessageSquare, Plus, Trash2, Download, Mic, MicOff, Send, AlertCircle,
+  BookOpen, Volume2, VolumeX,
 } from 'lucide-react';
 import { useChatbotChat } from '../hooks/useChatbotChat';
+import type { BotLookup } from '../hooks/useChatbotChat';
+import { useChatbotSTT } from '../hooks/useChatbotSTT';
 import { PURPOSE_LABELS } from '@/lib/chatbot-api';
-import type { ChatbotItem, ChatMessage } from '@/lib/chatbot-api';
+import type { ChatbotItem, ChatMessage, ChatbotMode } from '@/lib/chatbot-api';
 
 interface Props {
-  botId: string;
+  lookup: BotLookup;
 }
 
 /**
@@ -29,8 +31,8 @@ interface Props {
  *   │ Composer: input + mic + send                    │
  *   └─────────────────────────────────────────────────┘
  */
-export function ChatbotChatView({ botId }: Props) {
-  const c = useChatbotChat(botId);
+export function ChatbotChatView({ lookup }: Props) {
+  const c = useChatbotChat(lookup);
 
   if (c.loadingBot) {
     return (
@@ -60,6 +62,8 @@ export function ChatbotChatView({ botId }: Props) {
           bot={c.bot}
           onNewSession={c.newSession}
           canClear={!c.isEmpty}
+          speaking={c.speaking}
+          onStopSpeaking={c.stopSpeaking}
         />
 
         {/* Messages / Empty */}
@@ -74,7 +78,9 @@ export function ChatbotChatView({ botId }: Props) {
           value={c.input}
           onChange={c.setInput}
           onSubmit={c.submitInput}
+          onVoiceFinal={(text) => c.sendMessage(text)}
           sending={c.sending}
+          mode={c.bot.mode}
         />
       </div>
     </div>
@@ -95,13 +101,16 @@ function Breadcrumb({ botName }: { botName: string }) {
 }
 
 function BotHeader({
-  bot, onNewSession, canClear,
+  bot, onNewSession, canClear, speaking, onStopSpeaking,
 }: {
   bot: ChatbotItem;
   onNewSession: () => void;
   canClear: boolean;
+  speaking: boolean;
+  onStopSpeaking: () => void;
 }) {
   const tone = avatarTone(bot.purpose);
+  const voiceEnabled = bot.mode === 'voice' || bot.mode === 'both';
   return (
     <div className="flex items-center gap-3 py-4 border-b border-dark-100">
       <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${tone.bg}`}>
@@ -114,10 +123,28 @@ function BotHeader({
           <span className="text-dark-300">·</span>
           <BookOpen size={11} />
           {bot.knowledgeBaseIds.length} bộ tri thức
+          {voiceEnabled && (
+            <>
+              <span className="text-dark-300">·</span>
+              <Volume2 size={11} className="text-violet-600" />
+              <span className="text-violet-600 font-medium">Voice</span>
+            </>
+          )}
         </p>
       </div>
 
       <div className="flex items-center gap-1">
+        {speaking && (
+          <button
+            onClick={onStopSpeaking}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium
+              bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200
+              rounded-lg transition-colors animate-pulse"
+            title="Dừng đọc"
+          >
+            <VolumeX size={13} /> Đang đọc…
+          </button>
+        )}
         <button
           onClick={onNewSession}
           disabled={!canClear}
@@ -261,14 +288,29 @@ function Dot({ delay }: { delay: string }) {
 }
 
 function Composer({
-  value, onChange, onSubmit, sending,
+  value, onChange, onSubmit, onVoiceFinal, sending, mode,
 }: {
   value: string;
   onChange: (v: string) => void;
   onSubmit: () => void;
+  onVoiceFinal: (text: string) => void;
   sending: boolean;
+  mode: ChatbotMode;
 }) {
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const voiceEnabled = mode === 'voice' || mode === 'both';
+
+  // STT — show interim transcript trong input; khi final → auto-send (voice UX)
+  const stt = useChatbotSTT({
+    lang: 'vi-VN',
+    onResult: (text, isFinal) => {
+      if (!isFinal) onChange(text);
+    },
+    onFinal: (text) => {
+      onChange('');
+      onVoiceFinal(text);
+    },
+  });
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -277,28 +319,50 @@ function Composer({
     }
   }
 
+  const toggleMic = () => (stt.recording ? stt.stop() : stt.start());
+
+  // Tooltip + state cho mic button
+  let micDisabled = false;
+  let micTitle = 'Nhập bằng giọng nói';
+  if (!voiceEnabled) {
+    micDisabled = true;
+    micTitle = 'Bot này không bật chế độ Voice — chỉnh "Hình thức" sang Voice hoặc Chat + Voice';
+  } else if (!stt.supported) {
+    micDisabled = true;
+    micTitle = 'Trình duyệt không hỗ trợ Speech Recognition (dùng Chrome / Edge)';
+  } else if (stt.recording) {
+    micTitle = 'Bấm để dừng ghi';
+  }
+
   return (
     <div className="border-t border-dark-100 py-4">
-      <div className="relative rounded-2xl border-2 border-primary-200 focus-within:border-primary-400
-        bg-white shadow-sm transition-colors">
+      <div className={`relative rounded-2xl border-2 bg-white shadow-sm transition-colors
+        ${stt.recording
+          ? 'border-danger-300 ring-2 ring-danger-100'
+          : 'border-primary-200 focus-within:border-primary-400'}`}>
         <textarea
           ref={taRef}
           rows={1}
           value={value}
           onChange={e => onChange(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="Nhập câu hỏi..."
+          placeholder={stt.recording ? 'Đang nghe…' : 'Nhập câu hỏi...'}
           className="w-full resize-none bg-transparent text-sm text-dark-800
             placeholder:text-dark-400 px-4 py-3 pr-24 focus:outline-none max-h-40"
         />
         <div className="absolute right-2 bottom-2 flex items-center gap-1">
           <button
             type="button"
-            className="p-2 rounded-lg text-dark-400 hover:text-primary-600 hover:bg-primary-50
-              transition-colors"
-            title="Nhập giọng nói"
+            onClick={toggleMic}
+            disabled={micDisabled}
+            className={`p-2 rounded-lg transition-colors
+              ${stt.recording
+                ? 'bg-danger-500 text-white hover:bg-danger-600 animate-pulse'
+                : 'text-dark-400 hover:text-primary-600 hover:bg-primary-50'}
+              disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-dark-400`}
+            title={micTitle}
           >
-            <Mic size={16} />
+            {stt.recording ? <MicOff size={16} /> : <Mic size={16} />}
           </button>
           <button
             type="button"
@@ -314,11 +378,18 @@ function Composer({
         </div>
       </div>
       <p className="mt-2 text-center text-[11px] text-dark-400">
+        {stt.error && (
+          <span className="text-danger-600">⚠ {stt.error} · </span>
+        )}
         © Nhấn <kbd className="px-1 rounded bg-dark-100 text-dark-600 font-mono">Enter</kbd> để gửi
         {' · '}
         <kbd className="px-1 rounded bg-dark-100 text-dark-600 font-mono">Shift+Enter</kbd> để xuống dòng
-        {' · '}
-        Nhấn mic để nhập giọng nói
+        {voiceEnabled && (
+          <>
+            {' · '}
+            Nhấn mic để nói (tiếng Việt)
+          </>
+        )}
       </p>
     </div>
   );
@@ -328,10 +399,10 @@ function Composer({
 
 function avatarTone(purpose: ChatbotItem['purpose']): { bg: string; fg: string } {
   switch (purpose) {
-    case 'INTERNAL':   return { bg: 'bg-teal-100',    fg: 'text-teal-700' };
-    case 'CSKH':       return { bg: 'bg-violet-100',  fg: 'text-violet-700' };
-    case 'SALES':      return { bg: 'bg-orange-100',  fg: 'text-orange-700' };
-    case 'LEADERSHIP': return { bg: 'bg-primary-100', fg: 'text-primary-700' };
-    default:           return { bg: 'bg-sky-100',     fg: 'text-sky-700' };
+    case 'customer_care': return { bg: 'bg-violet-100',  fg: 'text-violet-700' };
+    case 'sales':         return { bg: 'bg-orange-100',  fg: 'text-orange-700' };
+    case 'tech_support':  return { bg: 'bg-teal-100',    fg: 'text-teal-700' };
+    case 'other':         return { bg: 'bg-primary-100', fg: 'text-primary-700' };
+    default:              return { bg: 'bg-sky-100',     fg: 'text-sky-700' };
   }
 }

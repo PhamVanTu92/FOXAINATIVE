@@ -36,8 +36,10 @@ export function ChatbotConfigView() {
           bots={c.bots}
           selectedId={c.selectedId}
           creating={c.creating}
+          editingId={c.editingBot?.id ?? null}
           onSelect={c.selectBot}
           onStartCreate={c.startCreate}
+          onStartEdit={c.startEdit}
           onDelete={c.handleDelete}
         />
 
@@ -56,40 +58,29 @@ export function ChatbotConfigView() {
           </div>
         ) : c.creating ? (
           <ChatbotCreateForm
-            knowledgeBases={c.knowledgeBases}
-            onCreated={c.handleCreated}
+            collections={c.collections}
+            onSaved={c.handleCreated}
             onCancel={c.cancelCreate}
+          />
+        ) : c.editingBot ? (
+          <ChatbotCreateForm
+            key={c.editingBot.id}
+            editing={c.editingBot}
+            collections={c.collections}
+            onSaved={c.handleEdited}
+            onCancel={c.cancelEdit}
           />
         ) : c.selected ? (
           <ChatbotDetailView
             bot={c.selected}
             onUpdateConfig={c.handleUpdateConfig}
+            onEdit={() => c.startEdit(c.selected!)}
           />
         ) : (
-          <EmptyState onStartCreate={c.startCreate} />
+          // Không có gì chọn → để trống. Sidebar đã có nút "+ Thêm chatbot mới".
+          <div className="flex-1" />
         )}
       </div>
-    </div>
-  );
-}
-
-function EmptyState({ onStartCreate }: { onStartCreate: () => void }) {
-  return (
-    <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
-      <div className="w-14 h-14 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center mb-3">
-        <MessageSquare size={28} />
-      </div>
-      <p className="text-sm font-medium text-dark-700">Chưa có chatbot nào</p>
-      <p className="text-xs text-dark-500 mt-1 max-w-xs">
-        Tạo chatbot đầu tiên để bắt đầu cấu hình tri thức và nhúng vào hệ thống của bạn.
-      </p>
-      <button
-        onClick={onStartCreate}
-        className="mt-4 px-4 py-2 text-sm font-medium bg-warning-500 hover:bg-warning-600
-          text-white rounded-lg shadow-sm transition-colors"
-      >
-        + Thêm chatbot mới
-      </button>
     </div>
   );
 }

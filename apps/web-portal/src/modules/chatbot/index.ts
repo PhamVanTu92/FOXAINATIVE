@@ -7,3 +7,4 @@ export { ChatbotChatView } from './views/ChatbotChatView';
 export { useChatbots } from './hooks/useChatbots';
 export { useChatbotForm } from './hooks/useChatbotForm';
 export { useChatbotChat } from './hooks/useChatbotChat';
+export type { BotLookup } from './hooks/useChatbotChat';

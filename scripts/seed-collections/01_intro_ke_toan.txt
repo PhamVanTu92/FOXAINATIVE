@@ -1,0 +1,19 @@
+QUY TRÌNH KẾ TOÁN NỘI BỘ FOXAI
+
+1. PHẠM VI ÁP DỤNG
+Quy trình này áp dụng cho toàn bộ nhân viên phòng Kế toán - Tài chính và các phòng ban có phát sinh giao dịch tài chính tại FOXAI.
+
+2. QUY ĐỊNH VỀ HÓA ĐƠN
+- Hóa đơn đầu vào phải được tập trung về phòng Kế toán trong vòng 03 ngày làm việc kể từ ngày phát hành.
+- Mọi hóa đơn trên 5.000.000 VNĐ bắt buộc thanh toán qua chuyển khoản ngân hàng.
+- Hóa đơn điện tử được lưu trữ trên hệ thống quản lý văn bản trong tối thiểu 10 năm theo quy định pháp luật.
+
+3. QUY TRÌNH TẠM ỨNG
+- Đề xuất tạm ứng tối đa 30.000.000 VNĐ/người/lần.
+- Thời hạn hoàn ứng: 15 ngày kể từ ngày nhận tạm ứng.
+- Quá hạn hoàn ứng sẽ bị khấu trừ vào lương tháng kế tiếp.
+
+4. BÁO CÁO TÀI CHÍNH
+- Báo cáo tài chính tháng được phát hành trước ngày 10 của tháng tiếp theo.
+- Báo cáo tài chính quý gửi ban giám đốc trước ngày 15 của tháng đầu quý sau.
+- Báo cáo năm hoàn thành kiểm toán trong quý 1 năm sau.

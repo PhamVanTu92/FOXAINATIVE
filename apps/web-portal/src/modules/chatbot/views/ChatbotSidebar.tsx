@@ -8,13 +8,16 @@ interface Props {
   bots: ChatbotItem[];
   selectedId: string | null;
   creating: boolean;
+  editingId: string | null;
   onSelect: (id: string) => void;
   onStartCreate: () => void;
+  onStartEdit: (bot: ChatbotItem) => void;
   onDelete: (bot: ChatbotItem) => void;
 }
 
 export function ChatbotSidebar({
-  bots, selectedId, creating, onSelect, onStartCreate, onDelete,
+  bots, selectedId, creating, editingId,
+  onSelect, onStartCreate, onStartEdit, onDelete,
 }: Props) {
   return (
     <aside className="w-[320px] shrink-0 border-r border-dark-200 bg-white flex flex-col">
@@ -44,7 +47,9 @@ export function ChatbotSidebar({
               key={bot.id}
               bot={bot}
               isSelected={isActiveItem}
+              isEditing={editingId === bot.id}
               onSelect={() => onSelect(bot.id)}
+              onEdit={() => onStartEdit(bot)}
               onDelete={() => onDelete(bot)}
             />
           );
@@ -57,19 +62,22 @@ export function ChatbotSidebar({
 // ─── Sub-component ────────────────────────────────────────────────────────────
 
 function BotRow({
-  bot, isSelected, onSelect, onDelete,
+  bot, isSelected, isEditing, onSelect, onEdit, onDelete,
 }: {
   bot: ChatbotItem;
   isSelected: boolean;
+  isEditing: boolean;
   onSelect: () => void;
+  onEdit: () => void;
   onDelete: () => void;
 }) {
+  const highlight = isSelected || isEditing;
   return (
     <button
       type="button"
       onClick={onSelect}
       className={`w-full text-left rounded-lg border transition-all p-3 group
-        ${isSelected
+        ${highlight
           ? 'border-primary-500 bg-primary-50/60 shadow-sm ring-1 ring-primary-200'
           : 'border-dark-200 bg-white hover:border-dark-300 hover:bg-dark-50'}`}
     >
@@ -84,11 +92,14 @@ function BotRow({
           </span>
         </div>
 
-        {isSelected && (
+        {highlight && (
           <div className="flex items-center gap-0.5 shrink-0">
             <button
-              onClick={(e) => { e.stopPropagation(); /* edit handled in detail view */ }}
-              className="p-1 text-dark-400 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors"
+              onClick={(e) => { e.stopPropagation(); onEdit(); }}
+              className={`p-1 rounded transition-colors
+                ${isEditing
+                  ? 'text-primary-700 bg-primary-100'
+                  : 'text-dark-400 hover:text-primary-600 hover:bg-primary-50'}`}
               title="Chỉnh sửa"
             >
               <Pencil size={13} />

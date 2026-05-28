@@ -1,5 +1,5 @@
 import { ChatbotChatView } from '@/modules/chatbot';
 
 export default function Page() {
-  return <ChatbotChatView botId="bot-chatbot-mpowhhxt" />;
+  return <ChatbotChatView lookup={{ byPurpose: 'customer_care', byNameContains: 'cskh' }} />;
 }

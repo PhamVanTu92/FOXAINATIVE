@@ -17,9 +17,12 @@ ARG SHA256_DIGEST_BUILDER=51ba01a1b91be564ccbd0ffc8c8bc6dd26f5fe11b4454b2a4d1180
 FROM ghcr.io/astral-sh/uv:python${PYTHON_VERSION}-bookworm-slim@sha256:${SHA256_DIGEST_BUILDER} AS builder
 
 # UV Environment Variables
+# UV_HTTP_TIMEOUT: default 30s isn't enough for large wheels (pandas, numpy,
+# pymupdf...) on slow networks — bump to 10 min to avoid spurious fails.
 ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
-    UV_PYTHON_DOWNLOADS=never
+    UV_PYTHON_DOWNLOADS=never \
+    UV_HTTP_TIMEOUT=600
 
 # Install build dependencies (only needed during compilation)
 RUN apt-get update && apt-get install -y --no-install-recommends \

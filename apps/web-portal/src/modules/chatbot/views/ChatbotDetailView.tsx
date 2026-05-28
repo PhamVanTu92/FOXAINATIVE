@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Code2, FileCode2, Webhook, Copy, Check, FileText, Cpu, Layers,
+  Code2, FileCode2, Webhook, Copy, Check, FileText, Cpu, Layers, Pencil,
 } from 'lucide-react';
 import { buildEmbedSnippet } from '@/lib/chatbot-api';
 import type { ChatbotItem, EmbedKind, OverlapType, UpdateChatbotPayload } from '@/lib/chatbot-api';
@@ -10,15 +10,44 @@ import type { ChatbotItem, EmbedKind, OverlapType, UpdateChatbotPayload } from '
 interface Props {
   bot: ChatbotItem;
   onUpdateConfig: (id: string, patch: UpdateChatbotPayload) => void;
+  onEdit: () => void;
 }
 
-export function ChatbotDetailView({ bot, onUpdateConfig }: Props) {
+export function ChatbotDetailView({ bot, onUpdateConfig, onEdit }: Props) {
   return (
     <div className="flex-1 overflow-y-auto bg-dark-50/40">
       <div className="px-6 py-6 space-y-6 max-w-5xl">
+        <BotHeader bot={bot} onEdit={onEdit} />
         <ChunkSection bot={bot} onUpdateConfig={onUpdateConfig} />
         <IntegrationSection bot={bot} />
       </div>
+    </div>
+  );
+}
+
+function BotHeader({ bot, onEdit }: { bot: ChatbotItem; onEdit: () => void }) {
+  return (
+    <div className="bg-white rounded-xl border border-dark-200 shadow-sm px-5 py-4
+      flex items-center justify-between gap-3">
+      <div className="min-w-0">
+        <h2 className="text-base font-semibold text-dark-800 truncate">{bot.name}</h2>
+        <p className="text-xs text-dark-500 mt-0.5 truncate">
+          {bot.shortDescription || '—'}
+          <span className="mx-1.5 text-dark-300">·</span>
+          {bot.knowledgeBaseIds.length} bộ tri thức
+          <span className="mx-1.5 text-dark-300">·</span>
+          {bot.faqs.length} FAQ
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onEdit}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium
+          border border-primary-200 text-primary-700 bg-primary-50 hover:bg-primary-100
+          rounded-lg transition-colors shrink-0"
+      >
+        <Pencil size={13} /> Chỉnh sửa
+      </button>
     </div>
   );
 }

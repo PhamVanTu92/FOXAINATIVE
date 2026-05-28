@@ -3,6 +3,10 @@
 
 FROM node:20-alpine AS builder
 
+# protoc is required by `packages/shared-proto run gen:ts` (invokes the
+# ts-proto protoc plugin). Alpine doesn't ship it by default.
+RUN apk add --no-cache protobuf
+
 RUN corepack enable && corepack prepare pnpm@8.15.4 --activate
 
 WORKDIR /app

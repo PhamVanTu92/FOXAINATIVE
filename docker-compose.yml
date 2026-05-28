@@ -1,14 +1,18 @@
 services:
-  # ─── Redis (BullMQ) ─────────────────────────────────────────────────────────
+  # ─── Redis (BullMQ + RedisSearch cho LangGraph checkpointer) ────────────────
+  # Đổi từ redis:7-alpine sang redis-stack-server vì chatbot-service dùng
+  # LangGraph + Redis checkpointer, cần module RedisSearch (lệnh FT._LIST).
+  # redis-stack-server vẫn tương thích 100% Redis commands → BullMQ vẫn chạy.
   redis:
-    image: redis:7-alpine
+    image: redis/redis-stack-server:7.4.0-v0
     container_name: foxai-redis
     restart: unless-stopped
     ports:
       - '6379:6379'
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
+    environment:
+      REDIS_ARGS: '--appendonly yes'
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
@@ -17,7 +21,7 @@ services:
 
   # ─── System DB ──────────────────────────────────────────────────────────────
   system-db:
-    image: postgres:16-alpine
+    image: postgres:17.0-alpine
     container_name: foxai-system-db
     restart: unless-stopped
     environment:
@@ -35,6 +39,8 @@ services:
       retries: 5
 
   # ─── Knowledge DB ───────────────────────────────────────────────────────────
+  # NOTE: knowledge_db_data volume was initialized by Postgres 16 — keep image
+  # at 16 to stay compatible. Bump to 17 only after running pg_upgrade.
   knowledge-db:
     image: postgres:16-alpine
     container_name: foxai-knowledge-db
