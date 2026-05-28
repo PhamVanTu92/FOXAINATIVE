@@ -1,7 +1,5 @@
-export default function NguoiDungPage() {
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold text-gray-800">Cấu hình người dùng</h1>
-    </div>
-  );
+import { UserListView } from '@/modules/system';
+
+export default function Page() {
+  return <UserListView />;
 }

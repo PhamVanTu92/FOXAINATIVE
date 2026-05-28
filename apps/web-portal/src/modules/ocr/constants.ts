@@ -11,13 +11,13 @@ export const TYPE_OPTIONS: { value: DocType; label: string }[] = [
 ];
 
 export const TYPE_CONFIG: Record<string, { label: string; color: string }> = {
-  INVOICE:           { label: 'Hóa đơn',         color: 'bg-blue-100 text-blue-700 border border-blue-200' },
-  RECEIPT:           { label: 'Hóa đơn bán lẻ',  color: 'bg-teal-100 text-teal-700 border border-teal-200' },
-  CONTRACT:          { label: 'Hợp đồng',         color: 'bg-green-100 text-green-700 border border-green-200' },
-  STATEMENT:         { label: 'Bảng kê',          color: 'bg-orange-100 text-orange-700 border border-orange-200' },
-  MINUTES:           { label: 'Biên bản',         color: 'bg-amber-100 text-amber-700 border border-amber-200' },
-  WAREHOUSE_RECEIPT: { label: 'Phiếu nhập kho',   color: 'bg-purple-100 text-purple-700 border border-purple-200' },
-  OTHERS:            { label: 'Khác',             color: 'bg-gray-100 text-gray-600 border border-gray-200' },
+  INVOICE:           { label: 'Hóa đơn',         color: 'bg-primary-100 text-primary-700 border border-primary-200' },
+  RECEIPT:           { label: 'Hóa đơn bán lẻ',  color: 'bg-teal-100    text-teal-700    border border-teal-200'    },
+  CONTRACT:          { label: 'Hợp đồng',         color: 'bg-success-100 text-success-700 border border-success-200' },
+  STATEMENT:         { label: 'Bảng kê',          color: 'bg-orange-100  text-orange-700  border border-orange-200'  },
+  MINUTES:           { label: 'Biên bản',         color: 'bg-warning-100 text-warning-700 border border-warning-200' },
+  WAREHOUSE_RECEIPT: { label: 'Phiếu nhập kho',   color: 'bg-violet-100  text-violet-700  border border-violet-200'  },
+  OTHERS:            { label: 'Khác',             color: 'bg-dark-100    text-dark-600    border border-dark-200'    },
 };
 
 export const DATA_TYPE_OPTIONS: { value: DataType; label: string }[] = [
