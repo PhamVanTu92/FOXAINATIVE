@@ -16,7 +16,7 @@ function toKey(moduleId: string, actionId: string): PermKey {
   return `${moduleId}:${actionId}`;
 }
 function fromKey(key: PermKey): PermissionPair {
-  const [moduleId, actionId] = key.split(':');
+  const [moduleId = '', actionId = ''] = key.split(':');
   return { moduleId, actionId };
 }
 

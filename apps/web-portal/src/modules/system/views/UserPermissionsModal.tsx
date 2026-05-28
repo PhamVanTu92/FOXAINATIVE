@@ -132,7 +132,7 @@ export function UserPermissionsModal({
     setError('');
     try {
       const effectiveGrants = Array.from(checked).map(key => {
-        const [moduleId, actionId] = key.split(':');
+        const [moduleId = '', actionId = ''] = key.split(':');
         return { moduleId, actionId };
       });
       await permissionsApi.setUser(user.id, effectiveGrants);
