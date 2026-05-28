@@ -1,7 +1,9 @@
 using KnowledgeService.Application.Common.Abstractions;
 using KnowledgeService.Infrastructure.Helpers;
+using KnowledgeService.Infrastructure.IndexService;
 using KnowledgeService.Infrastructure.Persistence;
 using KnowledgeService.Infrastructure.Persistence.Repositories;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,6 +28,12 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IKnowledgeFileRepository, KnowledgeFileRepository>();
         services.AddScoped<IKnowledgeDocumentRepository, KnowledgeDocumentRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        services.AddHttpContextAccessor();
+
+        var indexServiceUrl = config["INDEX_SERVICE_URL"] ?? "http://index-service:8000";
+        services.AddHttpClient<IIndexServiceClient, IndexServiceClient>(client =>
+            client.BaseAddress = new Uri(indexServiceUrl));
 
         return services;
     }

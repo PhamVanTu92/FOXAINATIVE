@@ -11,6 +11,7 @@ public class KnowledgeBaseDto
     public List<DepartmentRefDto> Permissions { get; set; } = new();
     public FileCountsDto FileCounts { get; set; } = new();
     public int TotalFiles { get; set; }
+    public Guid? CollectionId { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
