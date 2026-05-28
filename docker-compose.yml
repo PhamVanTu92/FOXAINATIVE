@@ -444,4 +444,3 @@ volumes:
   index_py_db_data:
   qdrant_data:
   minio_data:
-  system_db_data:
