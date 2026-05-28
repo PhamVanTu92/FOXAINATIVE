@@ -243,11 +243,11 @@ services:
       API_GATEWAY_PORT: 3001
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
-      # gRPC: use compose service DNS + internal ports
       SYSTEM_SERVICE_GRPC_URL: system-service:50051
-      OCR_SERVICE_GRPC_URL: ocr-api:3003
       KNOWLEDGE_SERVICE_GRPC_URL: knowledge-service:50052
+      OCR_SERVICE_URL: http://ocr-api:3003
       CHATBOT_SERVICE_GRPC_URL: chatbot-service:3004
+      CORS_ORIGIN: ${CORS_ORIGIN:-}
       REDIS_HOST: ${REDIS_HOST:-host.docker.internal}
       REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
