@@ -60,6 +60,9 @@ COPY --from=builder /app/packages/ocr-db/node_modules/.prisma packages/ocr-db/no
 COPY --from=builder /app/node_modules/.pnpm node_modules/.pnpm
 COPY --from=builder /app/node_modules/.modules.yaml node_modules/.modules.yaml
 
+COPY apps/ocr-service/start.sh apps/ocr-service/start.sh
+RUN chmod +x apps/ocr-service/start.sh
+
 WORKDIR /app/apps/ocr-service
 
 ENV NODE_ENV=production
@@ -69,4 +72,4 @@ RUN mkdir -p uploads
 
 EXPOSE 3003
 
-CMD ["node", "dist/main.js"]
+CMD ["sh", "start.sh"]
