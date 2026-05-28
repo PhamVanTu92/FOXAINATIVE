@@ -7,18 +7,102 @@ Claude Code đọc file này trước khi viết bất kỳ component nào.
 
 ## 1. Kiến trúc Layer (bắt buộc tuân theo)
 
+### 1.1 Sơ đồ tổng thể
+
 ```
-app/(route)/page.tsx          ← Route Layer  : chỉ import + render View, KHÔNG có logic
-modules/<name>/views/*.tsx    ← View Layer   : UI component, nhận state từ hook
-modules/<name>/hooks/*.ts     ← Hook Layer   : state, API calls, business logic
-lib/<name>-api.ts             ← API Layer    : typed fetch wrappers
+src/
+├── app/
+│   └── (main)/
+│       └── <feature>/
+│           └── page.tsx              ← Route Layer  (2 dòng, không có logic)
+├── modules/
+│   └── <feature>/
+│       ├── index.ts                  ← Public exports của module
+│       ├── views/
+│       │   └── <Feature>View.tsx     ← View Layer   (UI + JSX, dùng hook)
+│       └── hooks/
+│           └── use<Feature>.ts       ← Hook Layer   (state, API, logic)
+└── lib/
+    └── <feature>-api.ts              ← API Layer    (typed fetch wrappers)
 ```
 
-**Route Layer — luôn là 3 dòng:**
+### 1.2 Quy tắc từng layer
+
+#### Route Layer — `app/(main)/<feature>/page.tsx`
+- **Luôn là 2 dòng**, không có state, không có logic, không có JSX phức tạp.
+- Chỉ import View từ module và render.
+
 ```tsx
-import { XxxView } from '@/modules/xxx';
-export default function Page() { return <XxxView />; }
+import { FeatureView } from '@/modules/<feature>';
+export default function Page() { return <FeatureView />; }
 ```
+
+#### View Layer — `modules/<feature>/views/<Feature>View.tsx`
+- Chỉ chứa JSX và UI logic thuần (className, layout, event handlers).
+- **Không gọi API trực tiếp**, không dùng `useState`/`useEffect` cho data fetching.
+- Nhận toàn bộ state và actions từ hook qua destructuring.
+
+```tsx
+'use client';
+export function FeatureView() {
+  const { data, loading, error, doSomething } = useFeature();
+  return ( /* JSX */ );
+}
+```
+
+#### Hook Layer — `modules/<feature>/hooks/use<Feature>.ts`
+- Chứa toàn bộ state (`useState`), side effects (`useEffect`), API calls.
+- Export một object phẳng với tất cả state và actions cần thiết cho View.
+- Không import bất kỳ component JSX nào.
+
+```ts
+'use client';
+export function useFeature() {
+  const [data, setData] = useState([]);
+  // ... logic
+  return { data, loading, error, doSomething };
+}
+```
+
+#### API Layer — `lib/<feature>-api.ts`
+- Typed fetch wrappers, không có state.
+- Mỗi function trả về Promise với kiểu rõ ràng.
+- Export các interface/type dùng chung cho View và Hook.
+
+#### Module index — `modules/<feature>/index.ts`
+- Re-export tất cả View cần dùng từ route layer.
+- Không export hook hoặc internal helpers.
+
+```ts
+export { FeatureView } from './views/FeatureView';
+export { AnotherView } from './views/AnotherView';
+```
+
+### 1.3 Ví dụ thực tế (module system)
+
+```
+modules/system/
+├── index.ts
+├── views/
+│   ├── UserListView.tsx          → dùng useUsers()
+│   ├── RoleConfigView.tsx        → dùng useRoleConfig()
+│   ├── ToChucView.tsx            → dùng useToChuc()
+│   └── UserPermissionsModal.tsx  → dùng useUserPermissions(userId, roles)
+└── hooks/
+    ├── useUsers.ts
+    ├── useRoleConfig.ts
+    ├── useToChuc.ts
+    └── useUserPermissions.ts
+```
+
+### 1.4 Checklist khi tạo module mới
+
+- [ ] `app/(main)/<feature>/page.tsx` — chỉ 2 dòng, import + render
+- [ ] `modules/<feature>/views/<Feature>View.tsx` — JSX only, dùng hook
+- [ ] `modules/<feature>/hooks/use<Feature>.ts` — toàn bộ state/logic
+- [ ] `lib/<feature>-api.ts` — typed fetch wrappers + interface exports
+- [ ] `modules/<feature>/index.ts` — re-export View(s)
+- [ ] Không có `useState`/`useEffect`/fetch trong Route hoặc View
 
 ---
 
