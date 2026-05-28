@@ -6,11 +6,11 @@
 /* Dùng var(--color-primary) khi cần trong CSS thuần hoặc inline style        */
 :root {
   /* 5 Brand Colors */
-  --color-primary:   #2563EB;
+  --color-primary:   #4F46E5;
   --color-dark:      #1E293B;
-  --color-success:   #059669;
-  --color-warning:   #D97706;
-  --color-danger:    #E11D48;
+  --color-success:   #10B981;
+  --color-warning:   #F59E0B;
+  --color-danger:    #F43F5E;
 
   /* 4 Accent Colors */
   --color-violet:    #7C3AED;
@@ -19,16 +19,16 @@
   --color-orange:    #EA580C;
 
   /* Primary scale */
-  --color-primary-50:  #EFF6FF;
-  --color-primary-100: #DBEAFE;
-  --color-primary-200: #BFDBFE;
-  --color-primary-300: #93C5FD;
-  --color-primary-400: #60A5FA;
-  --color-primary-500: #3B82F6;
-  --color-primary-600: #2563EB;
-  --color-primary-700: #1D4ED8;
-  --color-primary-800: #1E40AF;
-  --color-primary-900: #1E3A8A;
+  --color-primary-50:  #EEF2FF;
+  --color-primary-100: #E0E7FF;
+  --color-primary-200: #C7D2FE;
+  --color-primary-300: #A5B4FC;
+  --color-primary-400: #818CF8;
+  --color-primary-500: #6366F1;
+  --color-primary-600: #4F46E5;
+  --color-primary-700: #4338CA;
+  --color-primary-800: #3730A3;
+  --color-primary-900: #312E81;
 
   /* Success scale */
   --color-success-50:  #ECFDF5;
@@ -101,11 +101,11 @@
   --bg-subtle:  #F1F5F9;
   --bg-sidebar: #FFFFFF;
 
-  --text-primary:   #0F172A;
+  --text-primary:   #1E293B;
   --text-secondary: #64748B;
   --text-muted:     #94A3B8;
   --text-inverse:   #FFFFFF;
-  --text-link:      #2563EB;
+  --text-link:      #4F46E5;
 
   --border-default: #E2E8F0;
   --border-strong:  #CBD5E1;
@@ -133,18 +133,18 @@
 
   /* ── Surface Hierarchy ───────────────────────────────────────────────────── */
   --bg-elevated: rgba(255, 255, 255, 0.72);
-  --bg-hover:    #EFF6FF;
-  --bg-active:   #DBEAFE;
+  --bg-hover:    #EEF2FF;
+  --bg-active:   #E0E7FF;
   --bg-glass:    rgba(255, 255, 255, 0.85);
 
   /* ── Shadow System ───────────────────────────────────────────────────────── */
-  --shadow-sm:   0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow-md:   0 4px 12px rgba(15, 23, 42, 0.08);
-  --shadow-lg:   0 10px 30px rgba(15, 23, 42, 0.12);
-  --shadow-glow: 0 0 0 1px rgba(59, 130, 246, 0.12), 0 8px 32px rgba(37, 99, 235, 0.18);
+  --shadow-sm:   0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md:   0 4px 12px rgba(15, 23, 42, 0.06);
+  --shadow-lg:   0 10px 30px rgba(15, 23, 42, 0.08);
+  --shadow-glow: 0 0 0 1px rgba(99, 102, 241, 0.12), 0 8px 32px rgba(79, 70, 229, 0.18);
 
   /* ── Gradient Tokens ─────────────────────────────────────────────────────── */
-  --gradient-primary: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%);
+  --gradient-primary: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
   --gradient-surface: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
   --gradient-dark:    linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
 
@@ -170,6 +170,78 @@
   --card-hover:    0 4px 12px rgba(15, 23, 42, 0.08);
   --card-active:   0 2px 6px rgba(15, 23, 42, 0.10);
   --card-selected: 0 0 0 1px rgba(59, 130, 246, 0.12), 0 8px 32px rgba(37, 99, 235, 0.18);
+}
+
+.dark {
+  /* ── Background Depth ── */
+  --bg-page:    #020617; /* Slate 950 */
+  --bg-surface: #0F172A; /* Slate 900 */
+  --bg-subtle:  #1E293B; /* Slate 800 */
+  --bg-sidebar: #020617; /* Slate 950 */
+
+  /* ── Typography Legibility ── */
+  --text-primary:   #F8FAFC; /* Slate 50 */
+  --text-secondary: #CBD5E1; /* Slate 300 (better contrast) */
+  --text-muted:     #94A3B8; /* Slate 400 */
+  --text-inverse:   #020617; /* Slate 950 */
+
+  --border-default: #1E293B; /* Slate 800 */
+  --border-strong:  #334155; /* Slate 700 */
+
+  --bg-hover:    #1E293B;
+  --bg-active:   #334155;
+  --bg-elevated: rgba(15, 23, 42, 0.95);
+  --bg-glass:    rgba(15, 23, 42, 0.85);
+
+  --shadow-sm:   0 1px 2px rgba(0, 0, 0, 0.8);
+  --shadow-md:   0 4px 12px rgba(0, 0, 0, 0.9);
+  --shadow-lg:   0 10px 30px rgba(0, 0, 0, 1);
+
+  /* ── Status Backgrounds (Translucent in Dark Mode) ── */
+  --color-primary-50:  rgba(99, 102, 241, 0.15);
+  --color-success-50:  rgba(16, 185, 129, 0.15);
+  --color-warning-50:  rgba(245, 158, 11, 0.15);
+  --color-danger-50:   rgba(244, 63, 94, 0.15);
+  --color-violet-50:   rgba(139, 92, 246, 0.15);
+  --color-teal-50:     rgba(20, 184, 166, 0.15);
+  --color-sky-50:      rgba(14, 165, 233, 0.15);
+  --color-orange-50:   rgba(249, 115, 22, 0.15);
+  --color-dark-50:     rgba(148, 163, 184, 0.1);
+
+  --color-primary-100: rgba(99, 102, 241, 0.25);
+  --color-success-100: rgba(16, 185, 129, 0.25);
+  --color-warning-100: rgba(245, 158, 11, 0.25);
+  --color-danger-100:  rgba(244, 63, 94, 0.25);
+  --color-violet-100:  rgba(139, 92, 246, 0.25);
+  --color-teal-100:    rgba(20, 184, 166, 0.25);
+  --color-sky-100:     rgba(14, 165, 233, 0.25);
+  --color-orange-100:  rgba(249, 115, 22, 0.25);
+  --color-dark-100:    rgba(148, 163, 184, 0.2);
+
+  /* ── Status Text Colors (Lighter for Dark Mode) ── */
+  --color-primary-600: #818CF8; /* mapped to 400 */
+  --color-primary-700: #A5B4FC; /* mapped to 300 */
+  
+  --color-success-600: #34D399; /* mapped to 400 */
+  --color-success-700: #6EE7B7; /* mapped to 300 */
+  
+  --color-warning-600: #FBBF24; /* mapped to 400 */
+  --color-warning-700: #FCD34D; /* mapped to 300 */
+  
+  --color-danger-600:  #FB7185; /* mapped to 400 */
+  --color-danger-700:  #FDA4AF; /* mapped to 300 */
+
+  --color-violet-600:  #A78BFA;
+  --color-violet-700:  #C4B5FD;
+
+  --color-teal-600:    #2DD4BF;
+  --color-teal-700:    #5EEAD4;
+
+  --color-sky-600:     #38BDF8;
+  --color-sky-700:     #7DD3FC;
+
+  --color-orange-600:  #FB923C;
+  --color-orange-700:  #FDBA74;
 }
 
 /* ── Thin scrollbars (Chromium / Safari) ────────────────────────────────── */

@@ -22,7 +22,7 @@ const FILE_TYPE_CFG: Record<string, { color: string; bg: string }> = {
 };
 
 function FileTypeBadge({ type }: { type: string }) {
-  const cfg = FILE_TYPE_CFG[type] ?? { color: 'text-dark-600', bg: 'bg-dark-100' };
+  const cfg = FILE_TYPE_CFG[type] ?? { color: 'text-content-secondary', bg: 'bg-subtle' };
   return (
     <span className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md ${cfg.bg} ${cfg.color}`}>
       {type}
@@ -53,36 +53,36 @@ function UploadModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-dark-200">
-          <h2 className="font-semibold text-dark-800">Tải lên tệp</h2>
-          <button onClick={onClose} className="text-dark-400 hover:text-dark-600"><X size={18} /></button>
+      <div className="bg-surface rounded-xl overflow-hidden shadow-2xl w-full max-w-md mx-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-default bg-surface">
+          <h2 className="font-semibold text-content-primary">Tải lên tệp</h2>
+          <button onClick={onClose} className="text-content-muted hover:text-content-secondary"><X size={18} /></button>
         </div>
         <form onSubmit={submit} className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-dark-700 mb-1">
+            <label className="block text-sm font-medium text-content-secondary mb-1">
               Chọn tệp <span className="text-danger-600">*</span>
             </label>
             <input type="file"
               onChange={e => setFile(e.target.files?.[0] ?? null)}
               required
-              className="w-full text-sm text-dark-700 border border-dark-200 rounded-lg px-3 py-2 file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
+              className="w-full text-sm text-content-secondary border border-default rounded-lg px-3 py-2 file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-dark-700 mb-1">Loại tệp</label>
+            <label className="block text-sm font-medium text-content-secondary mb-1">Loại tệp</label>
             <select value={fileType} onChange={e => setFileType(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-dark-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-dark-700">
+              className="w-full px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-secondary">
               {FILE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
           {error && (
-            <div className="flex items-center gap-2 bg-danger-50 border border-danger-200 text-danger-700 rounded-lg px-3 py-2 text-sm">
+            <div className="flex items-center gap-2 bg-danger-50/10 border border-danger-500/30 text-danger-700 rounded-lg px-3 py-2 text-sm">
               <AlertCircle size={14} className="shrink-0" /> {error}
             </div>
           )}
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose}
-              className="px-4 py-2 text-sm border border-dark-200 text-dark-600 rounded-lg hover:bg-dark-50 transition-colors">
+              className="px-4 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors">
               Hủy
             </button>
             <button type="submit" disabled={uploading || !file}
@@ -127,44 +127,55 @@ function FilePermissionsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-dark-200 sticky top-0 bg-white z-10">
+      <div className="bg-surface rounded-xl overflow-hidden shadow-2xl w-full max-w-sm mx-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-default sticky top-0 bg-surface z-10">
           <div className="flex items-center gap-2">
             <Shield size={16} className="text-primary-600" />
-            <h2 className="font-semibold text-dark-800">Phân quyền tệp tri thức</h2>
+            <h2 className="font-semibold text-content-primary">Phân quyền tệp tri thức</h2>
           </div>
-          <button onClick={onClose} className="text-dark-400 hover:text-dark-600"><X size={18} /></button>
+          <button onClick={onClose} className="text-content-muted hover:text-content-secondary"><X size={18} /></button>
         </div>
         <div className="px-6 py-4 space-y-4">
-          <p className="text-xs text-dark-500 truncate">
-            <span className="font-medium text-dark-700">{file.fileName}</span>
-          </p>
-          {departments.length === 0 ? (
-            <p className="text-sm text-dark-400 text-center py-4">Chưa có phòng ban nào được cấu hình.</p>
-          ) : (
-            <div className="space-y-1 max-h-64 overflow-y-auto">
-              {departments.map(dept => (
-                <label key={dept.departmentId}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-dark-50 transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={selected.has(dept.departmentId)}
-                    onChange={() => toggle(dept)}
-                    className="w-4 h-4 rounded border-dark-300 text-primary-600 focus:ring-primary-500 accent-primary-600"
-                  />
-                  <span className="text-sm text-dark-700">{dept.departmentName}</span>
-                </label>
-              ))}
+          <div>
+            <label className="block text-sm font-medium text-content-secondary mb-1">Tệp được chọn</label>
+            <div className="flex items-center gap-2 px-3 py-2 bg-subtle border border-default rounded-lg">
+              <FileText size={16} className="text-content-muted shrink-0" />
+              <span className="text-sm font-medium text-content-secondary truncate">{file.fileName}</span>
             </div>
-          )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-content-secondary mb-1">
+              Phân quyền phòng ban
+            </label>
+            <div className="border border-default rounded-lg overflow-hidden bg-surface">
+              {departments.length === 0 ? (
+                <p className="text-sm text-content-muted text-center py-4">Chưa có phòng ban nào được cấu hình.</p>
+              ) : (
+                <div className="max-h-56 overflow-y-auto divide-y divide-strong">
+                  {departments.map(dept => (
+                    <label key={dept.departmentId}
+                      className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-subtle transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(dept.departmentId)}
+                        onChange={() => toggle(dept)}
+                        className="w-4 h-4 rounded border-default text-primary-600 focus:ring-primary-500 accent-primary-600"
+                      />
+                      <span className="text-sm text-content-secondary">{dept.departmentName}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
           <div className="flex items-start gap-2 bg-primary-50 border border-primary-100 rounded-lg px-3 py-2.5">
             <AlertCircle size={14} className="text-primary-500 shrink-0 mt-0.5" />
             <p className="text-xs text-primary-700">Để trống = tất cả phòng ban đều được sử dụng tệp này.</p>
           </div>
         </div>
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-dark-100">
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-strong bg-surface">
           <button onClick={onClose}
-            className="px-4 py-2 text-sm border border-dark-200 text-dark-600 rounded-lg hover:bg-dark-50 transition-colors">
+            className="px-4 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors">
             Hủy
           </button>
           <button onClick={handleSave} disabled={saving}
@@ -190,21 +201,21 @@ function DeleteFileModal({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-dark-200">
-          <h2 className="font-semibold text-dark-800">Xóa tệp</h2>
-          <button onClick={onClose} className="text-dark-400 hover:text-dark-600"><X size={18} /></button>
+      <div className="bg-surface rounded-xl overflow-hidden shadow-2xl w-full max-w-sm mx-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-default bg-surface">
+          <h2 className="font-semibold text-content-primary">Xóa tệp</h2>
+          <button onClick={onClose} className="text-content-muted hover:text-content-secondary"><X size={18} /></button>
         </div>
         <div className="px-6 py-5">
-          <p className="text-sm text-dark-600">
+          <p className="text-sm text-content-secondary">
             Bạn có chắc muốn xóa tệp{' '}
-            <strong className="text-dark-900">{file.fileName}</strong>?
+            <strong className="text-content-primary">{file.fileName}</strong>?
             Hành động này không thể hoàn tác.
           </p>
         </div>
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-dark-100">
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-strong bg-surface">
           <button onClick={onClose}
-            className="px-4 py-2 text-sm border border-dark-200 text-dark-600 rounded-lg hover:bg-dark-50 transition-colors">
+            className="px-4 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors">
             Hủy
           </button>
           <button onClick={onConfirm} disabled={deleting}
@@ -259,52 +270,52 @@ function EditKbModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-dark-200 sticky top-0 bg-white z-10">
+      <div className="bg-surface rounded-xl overflow-hidden shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-default sticky top-0 bg-surface z-10">
           <div className="flex items-center gap-2">
             <Edit2 size={18} className="text-primary-600" />
-            <h2 className="font-semibold text-dark-800">Sửa bộ tri thức</h2>
+            <h2 className="font-semibold text-content-primary">Sửa bộ tri thức</h2>
           </div>
-          <button onClick={onClose} className="text-dark-400 hover:text-dark-600"><X size={18} /></button>
+          <button onClick={onClose} className="text-content-muted hover:text-content-secondary"><X size={18} /></button>
         </div>
         <form onSubmit={submit} className="flex flex-col flex-1 overflow-hidden">
           <div className="p-6 space-y-4 overflow-y-auto flex-1">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-dark-700 mb-1">Mã bộ tri thức</label>
+                <label className="block text-sm font-medium text-content-secondary mb-1">Mã bộ tri thức</label>
                 <input
                   value={kb.code}
                   readOnly
-                  className="w-full px-3 py-2 text-sm border border-dark-200 rounded-lg bg-dark-50 text-dark-400 cursor-not-allowed" />
+                  className="w-full px-3 py-2 text-sm border border-default rounded-lg bg-subtle text-content-muted cursor-not-allowed" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-dark-700 mb-1">
+                <label className="block text-sm font-medium text-content-secondary mb-1">
                   Tên bộ tri thức <span className="text-danger-600">*</span>
                 </label>
                 <input
                   value={name}
                   onChange={e => setName(e.target.value)}
                   required
-                  className="w-full px-3 py-2 text-sm border border-dark-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-dark-800" />
+                  className="w-full px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-surface text-content-primary" />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-dark-700 mb-1">Mô tả</label>
+              <label className="block text-sm font-medium text-content-secondary mb-1">Mô tả</label>
               <textarea
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 text-sm border border-dark-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-dark-800 resize-none" />
+                className="w-full px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-surface text-content-primary resize-none" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-dark-700 mb-1">
+              <label className="block text-sm font-medium text-content-secondary mb-1">
                 Phòng ban quản lý <span className="text-danger-600">*</span>
               </label>
               <select
                 value={managingId}
                 onChange={e => setManagingId(e.target.value)}
                 required
-                className="w-full px-3 py-2 text-sm border border-dark-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-dark-700">
+                className="w-full px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-secondary">
                 <option value="">-- Chọn phòng ban --</option>
                 {orgDepts.map(d => (
                   <option key={d.departmentId} value={d.departmentId}>{d.departmentName}</option>
@@ -312,35 +323,35 @@ function EditKbModal({
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-dark-700 mb-1">
+              <label className="block text-sm font-medium text-content-secondary mb-1">
                 Phân quyền phòng ban
               </label>
-              <div className="border border-dark-200 rounded-lg overflow-hidden">
+              <div className="border border-default rounded-lg overflow-hidden bg-surface">
                 {orgDepts.length === 0 ? (
-                  <p className="text-sm text-dark-400 text-center py-4">Chưa có phòng ban nào.</p>
+                  <p className="text-sm text-content-muted text-center py-4">Chưa có phòng ban nào.</p>
                 ) : (
-                  <div className="max-h-44 overflow-y-auto divide-y divide-dark-100">
+                  <div className="max-h-44 overflow-y-auto divide-y divide-strong">
                     {orgDepts.map(d => (
                       <label key={d.departmentId}
-                        className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-dark-50 transition-colors">
+                        className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-subtle transition-colors">
                         <input
                           type="checkbox"
                           checked={permIds.has(d.departmentId)}
                           onChange={() => togglePerm(d.departmentId)}
-                          className="w-4 h-4 rounded border-dark-300 accent-primary-600"
+                          className="w-4 h-4 rounded border-default accent-primary-600"
                         />
-                        <span className="text-sm text-dark-700">{d.departmentName}</span>
+                        <span className="text-sm text-content-secondary">{d.departmentName}</span>
                       </label>
                     ))}
                   </div>
                 )}
               </div>
-              <p className="text-xs text-dark-400 mt-1">Để trống = tất cả phòng ban có quyền truy cập.</p>
+              <p className="text-xs text-content-muted mt-1">Để trống = tất cả phòng ban có quyền truy cập.</p>
             </div>
           </div>
-          <div className="flex justify-end gap-3 px-6 py-4 border-t border-dark-100 shrink-0">
+          <div className="flex justify-end gap-3 px-6 py-4 border-t border-strong shrink-0 bg-surface">
             <button type="button" onClick={onClose}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm border border-dark-200 text-dark-600 rounded-lg hover:bg-dark-50 transition-colors">
+              className="flex items-center gap-1.5 px-4 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors">
               <X size={14} /> Hủy
             </button>
             <button type="submit" disabled={saving || !name.trim() || !managingId}
@@ -383,18 +394,18 @@ export function KnowledgeDetailView({ kbId }: { kbId: string }) {
   ] as const;
 
   return (
-    <div className="flex flex-col h-full bg-dark-50">
+    <div className="flex flex-col h-full bg-subtle">
 
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 px-6 py-3 bg-white border-b border-dark-200">
-        <span className="text-sm text-dark-400">Tri thức AI</span>
-        <ChevronRight size={14} className="text-dark-300" />
+      <div className="flex items-center gap-2 px-6 py-3 bg-surface border-b border-default">
+        <span className="text-sm text-content-muted">Tri thức AI</span>
+        <ChevronRight size={14} className="text-content-muted" />
         <button onClick={() => router.push('/tri-thuc')}
-          className="text-sm text-dark-400 hover:text-primary-600 transition-colors">
+          className="text-sm text-content-muted hover:text-primary-600 transition-colors">
           Quản lý tri thức
         </button>
-        <ChevronRight size={14} className="text-dark-300" />
-        <span className="text-sm font-medium text-dark-700 truncate max-w-[240px]">
+        <ChevronRight size={14} className="text-content-muted" />
+        <span className="text-sm font-medium text-content-secondary truncate max-w-[240px]">
           {kb?.name ?? '...'}
         </span>
       </div>
@@ -406,12 +417,12 @@ export function KnowledgeDetailView({ kbId }: { kbId: string }) {
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
               <button onClick={() => router.push('/tri-thuc')}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-dark-200 text-dark-600 rounded-lg hover:bg-dark-50 transition-colors shrink-0">
+                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors shrink-0">
                 <ArrowLeft size={14} /> Quay lại
               </button>
               <div>
-                <h1 className="text-lg font-semibold text-dark-800">{kb?.name ?? '...'}</h1>
-                <p className="text-xs text-dark-400 mt-0.5">
+                <h1 className="text-lg font-semibold text-content-primary">{kb?.name ?? '...'}</h1>
+                <p className="text-xs text-content-muted mt-0.5">
                   {kb?.code} · Quản lý bởi: {kb?.managingDepartmentName}
                 </p>
               </div>
@@ -419,7 +430,7 @@ export function KnowledgeDetailView({ kbId }: { kbId: string }) {
             <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={() => setShowEditKb(true)}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-dark-200 text-dark-600 rounded-lg hover:bg-dark-50 transition-colors">
+                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors">
                 <Edit2 size={14} /> Sửa bộ tri thức
               </button>
               <button onClick={() => setShowUpload(true)}
@@ -431,12 +442,12 @@ export function KnowledgeDetailView({ kbId }: { kbId: string }) {
 
           {/* Feedback */}
           {error && (
-            <div className="flex items-center gap-2 bg-danger-50 border border-danger-200 text-danger-700 rounded-lg px-4 py-3 text-sm">
+            <div className="flex items-center gap-2 bg-danger-50/10 border border-danger-500/30 text-danger-700 rounded-lg px-4 py-3 text-sm">
               <AlertCircle size={15} className="shrink-0" /> {error}
             </div>
           )}
           {successMsg && (
-            <div className="flex items-center gap-2 bg-success-50 border border-success-200 text-success-700 rounded-lg px-4 py-3 text-sm">
+            <div className="flex items-center gap-2 bg-success-50/10 border border-success-500/30 text-success-700 rounded-lg px-4 py-3 text-sm">
               <Check size={15} className="shrink-0" /> {successMsg}
             </div>
           )}
@@ -452,13 +463,13 @@ export function KnowledgeDetailView({ kbId }: { kbId: string }) {
                   className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border transition-all ${
                     isActive
                       ? `${bg} ${border} shadow-sm`
-                      : 'bg-white border-dark-200 hover:border-dark-300'
+                      : 'bg-surface border-default hover:border-strong'
                   }`}
                 >
                   <FileText size={16} className={color} />
                   <div className="text-left">
                     <p className={`text-xl font-bold ${color}`}>{loading ? '—' : count}</p>
-                    <p className="text-xs text-dark-500">{label}</p>
+                    <p className="text-xs text-content-muted">{label}</p>
                   </div>
                 </button>
               );
@@ -468,13 +479,13 @@ export function KnowledgeDetailView({ kbId }: { kbId: string }) {
           {/* Toolbar */}
           <div className="flex items-center gap-3">
             <div className="relative max-w-xs w-full">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-content-muted" />
               <input value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="Tìm tệp..."
-                className="w-full pl-9 pr-3 py-2 text-sm border border-dark-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white" />
+                className="w-full pl-9 pr-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-surface text-content-primary" />
             </div>
             <select value={fileTypeFilter} onChange={e => setFileTypeFilter(e.target.value)}
-              className="px-3 py-2 text-sm border border-dark-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-dark-700">
+              className="px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-secondary">
               <option value="">Tất cả loại tệp</option>
               {['Word', 'Excel', 'PDF', 'Image', 'PowerPoint', 'Text'].map(t =>
                 <option key={t} value={t}>{t}</option>
@@ -483,53 +494,53 @@ export function KnowledgeDetailView({ kbId }: { kbId: string }) {
           </div>
 
           {/* Files table */}
-          <div className="bg-white rounded-xl border border-dark-200 shadow-sm overflow-hidden">
+          <div className="bg-surface rounded-xl border border-default shadow-sm overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-dark-50 border-b border-dark-200">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-dark-500 uppercase tracking-wide w-10">STT</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-dark-500 uppercase tracking-wide">Tên tệp</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-dark-500 uppercase tracking-wide w-24">Loại</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-dark-500 uppercase tracking-wide w-24">Kích thước</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-dark-500 uppercase tracking-wide w-28">Ngày tải lên</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-dark-500 uppercase tracking-wide">Phân quyền phòng ban</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-dark-500 uppercase tracking-wide w-24">Thao tác</th>
+                <tr className="bg-subtle border-b border-default">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-muted uppercase tracking-wide w-10">STT</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-muted uppercase tracking-wide">Tên tệp</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-muted uppercase tracking-wide w-24">Loại</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-muted uppercase tracking-wide w-24">Kích thước</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-muted uppercase tracking-wide w-28">Ngày tải lên</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-muted uppercase tracking-wide">Phân quyền phòng ban</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-content-muted uppercase tracking-wide w-24">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={7} className="text-center py-12 text-dark-400 text-sm">
+                  <tr><td colSpan={7} className="text-center py-12 text-content-muted text-sm">
                     <Loader2 size={18} className="animate-spin inline mr-2" /> Đang tải...
                   </td></tr>
                 ) : files.length === 0 ? (
                   <tr><td colSpan={7} className="text-center py-14">
-                    <FileText className="w-10 h-10 text-dark-200 mx-auto mb-2" />
-                    <p className="text-dark-400 text-sm">Chưa có tệp nào.</p>
+                    <FileText className="w-10 h-10 text-content-muted mx-auto mb-2 opacity-50" />
+                    <p className="text-content-muted text-sm">Chưa có tệp nào.</p>
                   </td></tr>
                 ) : (
                   files.map((file, idx) => (
-                    <tr key={file.id} className="border-b last:border-0 hover:bg-dark-50 transition-colors">
-                      <td className="px-4 py-3 text-dark-400 text-xs">{idx + 1}</td>
+                    <tr key={file.id} className="border-b border-default last:border-0 hover:bg-subtle transition-colors">
+                      <td className="px-4 py-3 text-content-muted text-xs">{idx + 1}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <FileText size={14} className="text-dark-400 shrink-0" />
-                          <span className="text-dark-700 font-medium truncate max-w-[300px]">{file.fileName}</span>
+                          <FileText size={14} className="text-content-muted shrink-0" />
+                          <span className="text-content-secondary font-medium truncate max-w-[300px]">{file.fileName}</span>
                         </div>
                       </td>
                       <td className="px-4 py-3">
                         <FileTypeBadge type={file.fileType} />
                       </td>
-                      <td className="px-4 py-3 text-dark-500 text-xs">
+                      <td className="px-4 py-3 text-content-muted text-xs">
                         {file.fileSizeMb ? `${file.fileSizeMb.toFixed(1)} MB` : '—'}
                       </td>
-                      <td className="px-4 py-3 text-dark-500 text-xs">
+                      <td className="px-4 py-3 text-content-muted text-xs">
                         {file.uploadedAt?.slice(0, 10) ?? '—'}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-1">
                           {file.permissions?.map(p => (
                             <span key={p.departmentId}
-                              className="text-xs px-2 py-0.5 bg-dark-100 text-dark-600 rounded-md truncate max-w-[140px]">
+                              className="text-xs px-2 py-0.5 bg-subtle text-content-secondary rounded-md truncate max-w-[140px]">
                               {p.departmentName}
                             </span>
                           ))}
@@ -541,21 +552,21 @@ export function KnowledgeDetailView({ kbId }: { kbId: string }) {
                             href={knowledgeFilesApi.downloadUrl(kbId, file.id)}
                             target="_blank"
                             rel="noreferrer"
-                            className="p-1.5 text-success-600 hover:bg-success-50 rounded-md transition-colors"
+                            className="p-1.5 text-success-600 hover:bg-success-50/10 rounded-md transition-colors"
                             title="Tải xuống"
                           >
                             <Download size={14} />
                           </a>
                           <button
                             onClick={() => setPermFile(file)}
-                            className="p-1.5 text-dark-400 hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors"
+                            className="p-1.5 text-content-muted hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors"
                             title="Phân quyền"
                           >
                             <Shield size={14} />
                           </button>
                           <button
                             onClick={() => setDeletingFile(file)}
-                            className="p-1.5 text-dark-400 hover:text-danger-600 hover:bg-danger-50 rounded-md transition-colors"
+                            className="p-1.5 text-content-muted hover:text-danger-600 hover:bg-danger-50/10 rounded-md transition-colors"
                             title="Xóa"
                           >
                             <Trash2 size={14} />

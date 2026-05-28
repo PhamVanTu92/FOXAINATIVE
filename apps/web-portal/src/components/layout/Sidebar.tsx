@@ -3,12 +3,13 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
-import { ChevronDown, ScanLine, LogOut } from 'lucide-react';
+import { ChevronDown, ScanLine, LogOut, Sun, Moon } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { navConfig } from './nav-config';
 import type { NavItem, NavSection } from './nav-config';
 import { ocrApi } from '@/lib/ocr-api';
 import { useAuthStore } from '@/stores/auth';
+import { useTheme } from '@/components/ThemeProvider';
 
 function SidebarChildItem({ href, label, icon: Icon }: { href: string; label: string; icon: LucideIcon }) {
   const pathname = usePathname();
@@ -18,11 +19,11 @@ function SidebarChildItem({ href, label, icon: Icon }: { href: string; label: st
       href={href}
       className={`flex items-center gap-2.5 pl-9 pr-3 py-2 text-sm rounded-md mx-2 transition-colors ${
         isActive
-          ? 'bg-primary-50 text-primary-700 font-medium'
-          : 'text-dark-600 hover:bg-dark-50 hover:text-dark-800'
+          ? 'bg-primary-500/10 text-primary-600 font-semibold'
+          : 'text-content-secondary font-semibold hover:bg-subtle hover:text-content-primary'
       }`}
     >
-      <Icon size={15} className={isActive ? 'text-primary-600' : 'text-dark-400'} />
+      <Icon size={15} className={isActive ? 'text-primary-600' : 'text-content-muted'} />
       <span>{label}</span>
     </Link>
   );
@@ -49,16 +50,16 @@ function SidebarNavItem({ item }: { item: NavItem }) {
           onClick={() => setOpen((o) => !o)}
           className={`w-full flex items-center gap-3 px-3 py-2 mx-2 rounded-md text-sm transition-colors ${
             isChildActive
-              ? 'text-primary-700 font-medium'
-              : 'text-dark-600 hover:bg-dark-50 hover:text-dark-800'
+              ? 'text-primary-600 font-semibold'
+              : 'text-content-secondary font-semibold hover:bg-subtle hover:text-content-primary'
           }`}
           style={{ width: 'calc(100% - 16px)' }}
         >
-          <Icon size={17} className={isChildActive ? 'text-primary-600' : 'text-dark-400'} />
+          <Icon size={17} className={isChildActive ? 'text-primary-600' : 'text-content-muted'} />
           <span className="flex-1 text-left">{item.label}</span>
           <ChevronDown
             size={14}
-            className={`text-dark-300 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+            className={`text-content-muted transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
           />
         </button>
         {open && (
@@ -77,12 +78,12 @@ function SidebarNavItem({ item }: { item: NavItem }) {
       href={item.href!}
       className={`flex items-center gap-3 px-3 py-2 mx-2 rounded-md text-sm transition-colors ${
         isDirectActive
-          ? 'bg-primary-50 text-primary-700 font-medium'
-          : 'text-dark-600 hover:bg-dark-50 hover:text-dark-800'
+          ? 'bg-primary-500/10 text-primary-600 font-semibold'
+          : 'text-content-secondary font-semibold hover:bg-subtle hover:text-content-primary'
       }`}
       style={{ display: 'flex', marginLeft: '8px', marginRight: '8px' }}
     >
-      <Icon size={17} className={isDirectActive ? 'text-primary-600' : 'text-dark-400'} />
+      <Icon size={17} className={isDirectActive ? 'text-primary-600' : 'text-content-muted'} />
       <span>{item.label}</span>
     </Link>
   );
@@ -91,6 +92,7 @@ function SidebarNavItem({ item }: { item: NavItem }) {
 export default function Sidebar() {
   const router = useRouter();
   const { user, logout, init } = useAuthStore();
+  const { theme, toggleTheme } = useTheme();
   const [schemaChildren, setSchemaChildren] = useState<{ label: string; href: string; icon: LucideIcon }[]>([]);
 
   useEffect(() => { init(); }, [init]);
@@ -113,15 +115,15 @@ export default function Sidebar() {
   })), [schemaChildren]);
 
   return (
-    <aside className="flex flex-col h-screen w-64 bg-white border-r border-dark-200 select-none">
+    <aside className="flex flex-col h-screen w-64 bg-sidebar border-r border-default select-none transition-colors duration-200">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-5 py-5 border-b border-dark-200">
+      <div className="flex items-center gap-3 px-5 py-5 border-b border-default">
         <div className="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center text-white font-bold text-sm">
           F
         </div>
         <div>
-          <p className="text-dark-800 font-bold text-sm tracking-wide leading-tight">FOXAI – NATIVE</p>
-          <p className="text-dark-400 text-[10px] tracking-widest uppercase">Your trust partner</p>
+          <p className="text-content-primary font-bold text-sm tracking-wide leading-tight">FOXAI – NATIVE</p>
+          <p className="text-content-muted text-[10px] tracking-widest uppercase font-medium">Your trust partner</p>
         </div>
       </div>
 
@@ -129,7 +131,7 @@ export default function Sidebar() {
       <nav className="flex-1 overflow-y-auto py-3">
         {dynamicNavConfig.map((section) => (
           <div key={section.section} className="mb-3">
-            <p className="px-5 py-1.5 text-[10px] font-semibold tracking-widest text-dark-400 uppercase">
+            <p className="px-5 py-1.5 text-[10px] font-bold tracking-widest text-content-muted uppercase">
               {section.section}
             </p>
             <div className="space-y-0.5">
@@ -142,18 +144,25 @@ export default function Sidebar() {
       </nav>
 
       {/* User */}
-      <div className="border-t border-dark-200 px-4 py-3 flex items-center gap-3">
+      <div className="border-t border-default px-4 py-3 flex items-center gap-3">
         <div className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
           {user?.fullName ? user.fullName.charAt(0).toUpperCase() : '?'}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-dark-800 text-sm font-medium truncate">{user?.fullName ?? 'Người dùng'}</p>
-          <p className="text-dark-400 text-[11px] truncate">{user?.roles?.[0] ?? 'Chưa xác định'}</p>
+          <p className="text-content-primary text-sm font-medium truncate">{user?.fullName ?? 'Người dùng'}</p>
+          <p className="text-content-muted text-[11px] truncate font-medium">{user?.roles?.[0] ?? 'Chưa xác định'}</p>
         </div>
+        <button
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Chuyển sang nền sáng' : 'Chuyển sang nền tối'}
+          className="shrink-0 text-content-muted hover:text-primary-600 transition-colors p-1"
+        >
+          {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+        </button>
         <button
           onClick={async () => { await logout(); router.replace('/dang-nhap'); }}
           title="Đăng xuất"
-          className="shrink-0 text-dark-400 hover:text-danger-600 transition-colors"
+          className="shrink-0 text-content-muted hover:text-danger-600 transition-colors p-1"
         >
           <LogOut size={16} />
         </button>
