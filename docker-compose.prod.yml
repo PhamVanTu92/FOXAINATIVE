@@ -155,7 +155,7 @@ services:
       OCR_PROVIDER: ${OCR_PROVIDER:-gemini}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       WORKER_CONCURRENCY: 3
-      UPLOAD_DIR: ./uploads
+      UPLOAD_DIR: /app/apps/ocr-service/uploads
     volumes:
       - ocr_uploads:/app/apps/ocr-service/uploads
     networks:
@@ -190,7 +190,7 @@ services:
       OCR_PROVIDER: ${OCR_PROVIDER:-gemini}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       WORKER_CONCURRENCY: 15
-      UPLOAD_DIR: ./uploads
+      UPLOAD_DIR: /app/apps/ocr-service/uploads
     volumes:
       - ocr_uploads:/app/apps/ocr-service/uploads
     networks:
