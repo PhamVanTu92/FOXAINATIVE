@@ -184,7 +184,7 @@ export function useBaoCao() {
       totalPdfFiles,
       chatbots:    botList,
       botPurposeBreakdown,
-      userTotal:   usersR.status  === 'fulfilled' ? Number(usersR.value.page.totalItems) : 0,
+      userTotal:   allUsers.status === 'fulfilled' ? allUsers.value.length : 0,
       userActive:  usrsActiveR.status === 'fulfilled' ? Number(usrsActiveR.value.page.totalItems) : 0,
       roleCount:   rolesR.status  === 'fulfilled' ? rolesR.value.items.length : 0,
       userDeptBreakdown,
