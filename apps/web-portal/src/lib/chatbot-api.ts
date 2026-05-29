@@ -170,6 +170,7 @@ export interface UpdateChatbotPayload {
   purpose?: ChatbotPurpose;
   mode?: ChatbotMode;
   active?: boolean;
+  saveHistory?: boolean;
   systemPrompt?: string;
   faqs?: FAQItem[];
   knowledgeBaseIds?: string[];
