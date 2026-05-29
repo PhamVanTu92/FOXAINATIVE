@@ -440,6 +440,89 @@ const KB_MOCK: KnowledgeBase[] = [
   { id: 'kb-leg',  name: 'Tri thức Pháp chế',             ownerOrg: 'Phòng Pháp chế' },
 ];
 
+// ─── Conversations ────────────────────────────────────────────────────────────
+
+export interface ConversationItem {
+  id: string;
+  title: string;
+  chatbotId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ConvOut {
+  id: string;
+  title?: string | null;
+  chatbot_id?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  deleted?: boolean;
+}
+
+interface MsgOut {
+  message?: {
+    id: string;
+    type: 'human' | 'ai' | string;
+    contents?: string;
+    created_at?: string;
+  };
+}
+
+function toConv(c: ConvOut): ConversationItem {
+  return {
+    id:         c.id,
+    title:      c.title ?? '',
+    chatbotId:  c.chatbot_id ?? null,
+    createdAt:  c.created_at ?? '',
+    updatedAt:  c.updated_at ?? c.created_at ?? '',
+  };
+}
+
+export const conversationsApi = {
+  /** Liệt kê conversations của user hiện tại. Filter theo chatbotId ở client. */
+  async list(opts: { chatbotId?: string; pageSize?: number } = {}): Promise<ConversationItem[]> {
+    const q = new URLSearchParams();
+    q.set('page', '1');
+    q.set('page_size', String(opts.pageSize ?? 50));
+    const body = await req<{ info?: { data?: { conversations?: ConvOut[] } } }>(
+      `/v1/conversations?${q}`,
+    );
+    const items = (body.info?.data?.conversations ?? []).map(toConv);
+    return opts.chatbotId
+      ? items.filter(c => c.chatbotId === opts.chatbotId)
+      : items;
+  },
+
+  /** Load toàn bộ messages của 1 conversation (sắp xếp theo thời gian tăng dần). */
+  async getMessages(conversationId: string): Promise<ChatMessage[]> {
+    const q = new URLSearchParams();
+    q.set('page', '1');
+    q.set('page_size', '200');
+    const body = await req<{ info?: { data?: { messages?: MsgOut[] } } }>(
+      `/v1/conversations/${conversationId}/messages?${q}`,
+    );
+    const items = body.info?.data?.messages ?? [];
+    return items
+      .map(it => {
+        const m = it.message;
+        if (!m) return null;
+        return {
+          id:        m.id,
+          role:      (m.type === 'human' ? 'user' : 'assistant') as ChatRole,
+          content:   m.contents ?? '',
+          createdAt: m.created_at ?? new Date().toISOString(),
+        } satisfies ChatMessage;
+      })
+      .filter((m): m is ChatMessage => m !== null);
+  },
+
+  async remove(conversationId: string): Promise<void> {
+    await req<void>(`/v1/conversations/${conversationId}`, { method: 'DELETE' });
+  },
+};
+
+// ─── Knowledge bases (legacy mock) ────────────────────────────────────────────
+
 export const knowledgeBasesApi = {
   async list(): Promise<KnowledgeBase[]> {
     // TODO: thay bằng GET /api/knowledge/collections khi knowledge-service ready

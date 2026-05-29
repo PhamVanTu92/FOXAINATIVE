@@ -3,13 +3,15 @@
 import { useRef } from 'react';
 import {
   ChevronRight, MessageSquare, Plus, Trash2, Download, Mic, MicOff, Send, AlertCircle,
-  BookOpen, Volume2, VolumeX,
+  BookOpen, Volume2, VolumeX, MessageCircle,
 } from 'lucide-react';
 import { useChatbotChat } from '../hooks/useChatbotChat';
 import type { BotLookup } from '../hooks/useChatbotChat';
 import { useChatbotSTT } from '../hooks/useChatbotSTT';
 import { PURPOSE_LABELS } from '@/lib/chatbot-api';
-import type { ChatbotItem, ChatMessage, ChatbotMode } from '@/lib/chatbot-api';
+import type {
+  ChatbotItem, ChatMessage, ChatbotMode, ConversationItem,
+} from '@/lib/chatbot-api';
 
 interface Props {
   lookup: BotLookup;
@@ -57,37 +59,147 @@ export function ChatbotChatView({ lookup }: Props) {
     <div className="flex flex-col h-full bg-white">
       <Breadcrumb botName={c.bot.name} />
 
-      <div className="flex-1 flex flex-col min-h-0 max-w-5xl w-full mx-auto px-6">
-        <BotHeader
-          bot={c.bot}
-          onNewSession={c.newSession}
-          canClear={!c.isEmpty}
-          speaking={c.speaking}
-          onStopSpeaking={c.stopSpeaking}
+      <div className="flex-1 flex min-h-0">
+        {/* Sidebar GẦN ĐÂY — danh sách phiên chat của bot */}
+        <RecentSidebar
+          conversations={c.conversations}
+          activeId={c.conversationId}
+          loading={c.loadingHistory}
+          onSelect={c.selectConversation}
+          onNew={c.newSession}
+          onDelete={c.deleteConversation}
         />
 
-        {/* Messages / Empty */}
-        <div className="flex-1 overflow-y-auto py-4">
-          {c.isEmpty
-            ? <EmptyState bot={c.bot} onPick={c.sendMessage} />
-            : <MessageList messages={c.messages} sending={c.sending} bot={c.bot} />}
-          <div ref={c.scrollAnchorRef} />
+        {/* Main chat column */}
+        <div className="flex-1 flex flex-col min-h-0 max-w-4xl w-full mx-auto px-6">
+          <BotHeader
+            bot={c.bot}
+            onNewSession={c.newSession}
+            canClear={!c.isEmpty}
+            speaking={c.speaking}
+            onStopSpeaking={c.stopSpeaking}
+          />
+
+          {/* Messages / Empty */}
+          <div className="flex-1 overflow-y-auto py-4">
+            {c.loadingMessages ? (
+              <div className="h-full flex items-center justify-center text-sm text-dark-400">
+                Đang tải tin nhắn...
+              </div>
+            ) : c.isEmpty ? (
+              <EmptyState bot={c.bot} onPick={c.sendMessage} />
+            ) : (
+              <MessageList messages={c.messages} sending={c.sending} bot={c.bot} />
+            )}
+            <div ref={c.scrollAnchorRef} />
+          </div>
+
+          <Composer
+            value={c.input}
+            onChange={c.setInput}
+            onSubmit={c.submitInput}
+            onVoiceFinal={(text) => c.sendMessage(text)}
+            sending={c.sending}
+            mode={c.bot.mode}
+          />
         </div>
-
-        <Composer
-          value={c.input}
-          onChange={c.setInput}
-          onSubmit={c.submitInput}
-          onVoiceFinal={(text) => c.sendMessage(text)}
-          sending={c.sending}
-          mode={c.bot.mode}
-        />
       </div>
     </div>
   );
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
+
+function RecentSidebar({
+  conversations, activeId, loading, onSelect, onNew, onDelete,
+}: {
+  conversations: ConversationItem[];
+  activeId: string | null;
+  loading: boolean;
+  onSelect: (id: string) => void;
+  onNew: () => void;
+  onDelete: (id: string) => void;
+}) {
+  return (
+    <aside className="w-[280px] shrink-0 border-r border-dark-200 bg-white flex flex-col">
+      {/* CTA — Đoạn chat mới */}
+      <div className="p-3 border-b border-dark-100">
+        <button
+          type="button"
+          onClick={onNew}
+          className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-semibold
+            bg-primary-600 hover:bg-primary-700 text-white rounded-lg shadow-sm transition-colors"
+        >
+          <Plus size={14} /> Đoạn chat mới
+        </button>
+      </div>
+
+      <p className="px-4 pt-3 pb-1 text-[10px] font-semibold tracking-widest text-dark-400 uppercase">
+        Gần đây
+      </p>
+
+      <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-0.5">
+        {loading && conversations.length === 0 ? (
+          <div className="text-center text-xs text-dark-400 py-6">Đang tải…</div>
+        ) : conversations.length === 0 ? (
+          <div className="text-center text-xs text-dark-400 py-6">
+            Chưa có đoạn chat nào.
+          </div>
+        ) : (
+          conversations.map(conv => (
+            <ConversationRow
+              key={conv.id}
+              conv={conv}
+              active={conv.id === activeId}
+              onSelect={() => onSelect(conv.id)}
+              onDelete={() => onDelete(conv.id)}
+            />
+          ))
+        )}
+      </div>
+    </aside>
+  );
+}
+
+function ConversationRow({
+  conv, active, onSelect, onDelete,
+}: {
+  conv: ConversationItem;
+  active: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelect(); }}
+      className={`group flex items-center gap-2 px-2.5 py-2 rounded-md text-sm cursor-pointer
+        transition-colors
+        ${active
+          ? 'bg-primary-50 text-primary-700'
+          : 'text-dark-700 hover:bg-dark-50'}`}
+    >
+      <MessageCircle size={13} className={active ? 'text-primary-600' : 'text-dark-400'} />
+      <span className="flex-1 truncate text-[13px]">
+        {conv.title || 'Đoạn chat'}
+      </span>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (confirm('Xóa đoạn chat này?')) onDelete();
+        }}
+        className="p-1 rounded text-dark-400 opacity-0 group-hover:opacity-100
+          hover:text-danger-600 hover:bg-danger-50 transition-all"
+        title="Xóa đoạn chat"
+      >
+        <Trash2 size={12} />
+      </button>
+    </div>
+  );
+}
 
 function Breadcrumb({ botName }: { botName: string }) {
   return (

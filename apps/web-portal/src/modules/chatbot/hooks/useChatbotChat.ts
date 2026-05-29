@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { chatbotApi, chatApi } from '@/lib/chatbot-api';
-import type { ChatbotItem, ChatMessage, ChatbotPurpose } from '@/lib/chatbot-api';
+import { chatbotApi, chatApi, conversationsApi } from '@/lib/chatbot-api';
+import type {
+  ChatbotItem, ChatMessage, ChatbotPurpose, ConversationItem,
+} from '@/lib/chatbot-api';
 
 /**
  * Hint để hook tự tìm bot tương ứng trên backend, vì route không biết UUID thật:
@@ -18,25 +20,35 @@ export interface BotLookup {
 }
 
 /**
- * Quản lý state cho 1 phiên chat: load bot info, gửi tin nhắn, nhận chunk SSE
- * và accumulate vào assistant message hiện hành. Nếu bot.mode ∈ {voice, both}
- * → sau khi assistant trả xong sẽ auto TTS đọc lại câu trả lời.
+ * Quản lý state cho phiên chat của 1 bot:
+ *  - Load bot info + danh sách conversations đã tạo cho bot đó
+ *  - Auto-load phiên mới nhất khi mount (persist khi navigate đi & quay lại)
+ *  - "+ Đoạn chat mới" → reset state cục bộ, conversation_id=null;
+ *    backend sẽ tạo conversation mới khi user gửi tin đầu tiên
+ *  - selectConversation(id) → load messages cũ của phiên đó để xem/tiếp tục
+ *  - TTS auto-play nếu bot.mode ∈ {voice, both}
  */
 export function useChatbotChat(lookup: BotLookup) {
   const [bot, setBot] = useState<ChatbotItem | null>(null);
   const [loadingBot, setLoadingBot] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Conversations list
+  const [conversations, setConversations] = useState<ConversationItem[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  // Current session
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [loadingMessages, setLoadingMessages] = useState(false);
 
   const scrollAnchorRef = useRef<HTMLDivElement | null>(null);
-  const cancelRef = useRef<(() => void) | null>(null);
-  const audioRef  = useRef<HTMLAudioElement | null>(null);
-  const audioUrlRef = useRef<string | null>(null);
+  const cancelRef       = useRef<(() => void) | null>(null);
+  const audioRef        = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef     = useRef<string | null>(null);
 
   // ── Resolve bot từ lookup hint ──────────────────────────────────────────────
   useEffect(() => {
@@ -47,7 +59,6 @@ export function useChatbotChat(lookup: BotLookup) {
     (async () => {
       try {
         let found: ChatbotItem | null = null;
-
         if (lookup.byId) {
           found = await chatbotApi.get(lookup.byId);
         } else {
@@ -59,10 +70,8 @@ export function useChatbotChat(lookup: BotLookup) {
             const needle = lookup.byNameContains.toLowerCase();
             found = list.find(b => b.name.toLowerCase().includes(needle)) ?? null;
           }
-          // Fallback cuối: bot đầu tiên trong danh sách
           if (!found && list.length > 0) found = list[0] ?? null;
         }
-
         if (!cancelled) setBot(found);
       } catch (e: unknown) {
         if (!cancelled) setError((e as Error).message);
@@ -73,6 +82,45 @@ export function useChatbotChat(lookup: BotLookup) {
 
     return () => { cancelled = true; };
   }, [lookup.byId, lookup.byPurpose, lookup.byNameContains]);
+
+  // ── Load conversations + messages của phiên mới nhất ────────────────────────
+  useEffect(() => {
+    if (!bot) return;
+    let cancelled = false;
+    setLoadingHistory(true);
+
+    (async () => {
+      try {
+        const list = await conversationsApi.list({ chatbotId: bot.id });
+        if (cancelled) return;
+        // Sort theo updated_at giảm dần (mới nhất lên đầu)
+        list.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+        setConversations(list);
+
+        const latest = list[0];
+        if (latest) {
+          setConversationId(latest.id);
+          setLoadingMessages(true);
+          try {
+            const msgs = await conversationsApi.getMessages(latest.id);
+            if (!cancelled) setMessages(msgs);
+          } finally {
+            if (!cancelled) setLoadingMessages(false);
+          }
+        } else {
+          // Bot này chưa từng có conversation → state trống
+          setConversationId(null);
+          setMessages([]);
+        }
+      } catch {
+        // Không fatal — chỉ là không load được history
+      } finally {
+        if (!cancelled) setLoadingHistory(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [bot]);
 
   // ── Auto-scroll ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -114,10 +162,39 @@ export function useChatbotChat(lookup: BotLookup) {
       setSpeaking(true);
       await audio.play();
     } catch (e: unknown) {
-      // Lỗi TTS không phải fatal — log và bỏ qua, text vẫn hiển thị bình thường
       console.warn('[TTS] Failed:', (e as Error).message);
       stopSpeakingNow();
     }
+  }, []);
+
+  // ── Switch sang 1 conversation cũ trong sidebar ─────────────────────────────
+  const selectConversation = useCallback(async (id: string) => {
+    if (id === conversationId) return;
+    cancelRef.current?.();
+    cancelRef.current = null;
+    stopSpeakingNow();
+    setConversationId(id);
+    setLoadingMessages(true);
+    try {
+      const msgs = await conversationsApi.getMessages(id);
+      setMessages(msgs);
+    } catch (e: unknown) {
+      setMessages([]);
+      console.warn('[Conversation] load failed:', (e as Error).message);
+    } finally {
+      setLoadingMessages(false);
+    }
+  }, [conversationId]);
+
+  // ── Tạo phiên mới: reset state, backend sẽ tạo conversation khi gửi tin đầu ─
+  const newSession = useCallback(() => {
+    cancelRef.current?.();
+    cancelRef.current = null;
+    stopSpeakingNow();
+    setMessages([]);
+    setInput('');
+    setConversationId(null);
+    setSending(false);
   }, []);
 
   // ── Send ────────────────────────────────────────────────────────────────────
@@ -125,28 +202,28 @@ export function useChatbotChat(lookup: BotLookup) {
     const trimmed = text.trim();
     if (!trimmed || sending || !bot) return;
 
-    // Ngắt audio đang phát trước khi gửi tin mới
     stopSpeakingNow();
 
     const userMsg: ChatMessage = {
-      id: `msg-u-${Date.now()}`,
-      role: 'user',
-      content: trimmed,
+      id:        `msg-u-${Date.now()}`,
+      role:      'user',
+      content:   trimmed,
       createdAt: new Date().toISOString(),
     };
     const assistantId = `msg-a-${Date.now()}`;
     const assistantMsg: ChatMessage = {
-      id: assistantId,
-      role: 'assistant',
-      content: '',
+      id:        assistantId,
+      role:      'assistant',
+      content:   '',
       createdAt: new Date().toISOString(),
     };
     setMessages(prev => [...prev, userMsg, assistantMsg]);
     setInput('');
     setSending(true);
 
-    // Accumulator song song với state — để onDone có full text gọi TTS
     let accumulated = '';
+    // Đây có phải tin đầu của phiên mới? Cần biết để refresh sidebar sau onDone.
+    const wasNewConversation = conversationId == null;
 
     cancelRef.current = chatApi.stream({
       botId: bot.id,
@@ -164,15 +241,14 @@ export function useChatbotChat(lookup: BotLookup) {
       onDone: () => {
         setSending(false);
         cancelRef.current = null;
-        if (accumulated.trim()) {
-          void speak(accumulated, bot);
-        }
+        if (accumulated.trim()) void speak(accumulated, bot);
+        // Refresh conversations list để hiển thị phiên mới (hoặc cập nhật title)
+        if (wasNewConversation) void refreshConversations(bot.id);
+        else                    void refreshConversations(bot.id, /*silent*/ true);
       },
       onError: (err) => {
         setMessages(prev => prev.map(m =>
-          m.id === assistantId
-            ? { ...m, content: `⚠️ Lỗi: ${err.message}` }
-            : m,
+          m.id === assistantId ? { ...m, content: `⚠️ Lỗi: ${err.message}` } : m,
         ));
         setSending(false);
         cancelRef.current = null;
@@ -180,18 +256,31 @@ export function useChatbotChat(lookup: BotLookup) {
     });
   }, [bot, conversationId, sending, speak]);
 
+  async function refreshConversations(botId: string, silent = false) {
+    try {
+      const list = await conversationsApi.list({ chatbotId: botId });
+      list.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+      setConversations(list);
+    } catch {
+      if (!silent) {/* ignore */}
+    }
+  }
+
+  const deleteConversation = useCallback(async (id: string) => {
+    if (!bot) return;
+    try {
+      await conversationsApi.remove(id);
+      // Nếu xoá đúng phiên đang xem → reset về phiên mới
+      if (id === conversationId) {
+        newSession();
+      }
+      await refreshConversations(bot.id);
+    } catch (e: unknown) {
+      alert((e as Error).message);
+    }
+  }, [bot, conversationId, newSession]);
+
   const submitInput = () => sendMessage(input);
-
-  const newSession = () => {
-    cancelRef.current?.();
-    cancelRef.current = null;
-    stopSpeakingNow();
-    setMessages([]);
-    setInput('');
-    setConversationId(null);
-    setSending(false);
-  };
-
   const stopSpeaking = () => stopSpeakingNow();
 
   return {
@@ -202,6 +291,9 @@ export function useChatbotChat(lookup: BotLookup) {
     messages,
     isEmpty: messages.length === 0,
     conversationId,
+    conversations,
+    loadingHistory,
+    loadingMessages,
     // input
     input,
     setInput,
@@ -213,6 +305,8 @@ export function useChatbotChat(lookup: BotLookup) {
     sendMessage,
     submitInput,
     newSession,
+    selectConversation,
+    deleteConversation,
     stopSpeaking,
   };
 }
