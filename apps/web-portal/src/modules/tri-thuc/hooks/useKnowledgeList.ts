@@ -94,6 +94,20 @@ export function useKnowledgeList() {
     }
   }
 
+  async function deleteKb(id: string) {
+    try {
+      await knowledgeBasesApi.remove(id);
+      setAllItems(prev => prev.filter(kb => kb.id !== id));
+      setStats(prev => prev
+        ? { ...prev, totalKnowledgeBases: prev.totalKnowledgeBases - 1 }
+        : prev
+      );
+      showSuccess('Đã xóa bộ tri thức thành công');
+    } catch (e: unknown) {
+      setError((e as Error).message);
+    }
+  }
+
   function exportExcel() {
     const rows = [['Mã', 'Tên bộ tri thức', 'Phòng ban quản lý', 'Tổng tệp', 'Ngày cập nhật']];
     items.forEach(kb => rows.push([
@@ -115,6 +129,7 @@ export function useKnowledgeList() {
     departments,
     showCreate, setShowCreate,
     creating, createKb,
+    deleteKb,
     orgDepts,
     exportExcel,
   };

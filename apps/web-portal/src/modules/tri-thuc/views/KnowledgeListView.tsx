@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   BookOpen, FileText, Users, Calendar, Search, Download,
   Plus, X, Check, Loader2, AlertCircle, ChevronRight, Lock,
-  Database, FileArchive,
+  Database, FileArchive, Trash2,
 } from 'lucide-react';
 import { useKnowledgeList } from '../hooks/useKnowledgeList';
 import type { DeptOption } from '../hooks/useKnowledgeList';
@@ -442,9 +442,54 @@ function AllFilesModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ─── Confirm Delete Modal ─────────────────────────────────────────────────────
+
+function ConfirmDeleteModal({
+  name, onConfirm, onCancel,
+}: {
+  name: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+        <div className="px-6 pt-6 pb-4">
+          <div className="flex items-start gap-3">
+            <div className="shrink-0 p-2 rounded-full bg-danger-50">
+              <Trash2 size={18} className="text-danger-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-dark-800">Xóa bộ tri thức</h3>
+              <p className="text-sm text-dark-500 mt-1.5">
+                Bạn có chắc muốn xóa{' '}
+                <span className="font-medium text-dark-800">&quot;{name}&quot;</span>?
+                <br />
+                <span className="text-danger-600 text-xs">Hành động này không thể hoàn tác.</span>
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 px-6 py-4 border-t border-dark-100">
+          <button onClick={onCancel}
+            className="px-4 py-2 text-sm border border-dark-200 text-dark-600 rounded-lg
+              hover:bg-dark-50 transition-colors">
+            Hủy
+          </button>
+          <button onClick={onConfirm}
+            className="px-4 py-2 text-sm font-medium bg-danger-600 text-white rounded-lg
+              hover:bg-danger-700 transition-colors">
+            Xóa
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── KB Card ──────────────────────────────────────────────────────────────────
 
-function KBCard({ kb, onClick }: { kb: KnowledgeBase; onClick: () => void }) {
+function KBCard({ kb, onClick, onDelete }: { kb: KnowledgeBase; onClick: () => void; onDelete: () => void }) {
   const totalFiles = kb.totalFiles ?? (kb.fileCounts
     ? (kb.fileCounts.word + kb.fileCounts.excel + kb.fileCounts.pdf + kb.fileCounts.image)
     : 0);
@@ -465,6 +510,14 @@ function KBCard({ kb, onClick }: { kb: KnowledgeBase; onClick: () => void }) {
             <p className="text-xs text-content-muted mt-1 line-clamp-2">{kb.description}</p>
           )}
         </div>
+        <button
+          onClick={e => { e.stopPropagation(); onDelete(); }}
+          className="shrink-0 p-1.5 text-dark-400 hover:text-danger-600 hover:bg-danger-50
+            rounded-lg transition-colors"
+          title="Xóa bộ tri thức"
+        >
+          <Trash2 size={14} />
+        </button>
       </div>
 
       {/* Meta */}
@@ -515,11 +568,13 @@ export function KnowledgeListView() {
     departments,
     showCreate, setShowCreate,
     creating, createKb,
+    deleteKb,
     orgDepts,
     exportExcel,
   } = useKnowledgeList();
 
   const [showAllFiles, setShowAllFiles] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const canCreate = useRoutePermission('CREATE');
   const canExport = useRoutePermission('EXPORT');
@@ -617,6 +672,7 @@ export function KnowledgeListView() {
                   key={kb.id}
                   kb={kb}
                   onClick={() => router.push(`/tri-thuc/${kb.id}`)}
+                  onDelete={() => setDeleteTarget({ id: kb.id, name: kb.name })}
                 />
               ))
             )}
@@ -637,6 +693,17 @@ export function KnowledgeListView() {
 
       {showAllFiles && (
         <AllFilesModal onClose={() => setShowAllFiles(false)} />
+      )}
+
+      {deleteTarget && (
+        <ConfirmDeleteModal
+          name={deleteTarget.name}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={async () => {
+            await deleteKb(deleteTarget.id);
+            setDeleteTarget(null);
+          }}
+        />
       )}
     </div>
   );

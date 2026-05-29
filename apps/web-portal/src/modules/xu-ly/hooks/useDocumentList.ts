@@ -71,8 +71,8 @@ export function useDocumentList() {
     try {
       const params: Record<string, string | string[]> = { page: String(page), pageSize: '25' };
       if (search)        params.search        = search;
-      // Mặc định ẩn PROCESSED (OCR xong nhưng chưa được user lưu); chỉ hiện khi user tự chọn filter
-      params.status = statusFilter || ['DRAFT', 'CONFIRMED', 'TRANSFERRED', 'ERROR'];
+      // PROCESSED = user đã lưu (Nháp/Chờ xác nhận); DRAFT = đang xử lý OCR
+      params.status = statusFilter || ['PROCESSED', 'CONFIRMED', 'TRANSFERRED', 'ERROR'];
       if (typeFilter)    params.type          = typeFilter;
       if (dateFrom)      params.dateFrom      = dateFrom;
       if (dateTo)        params.dateTo        = dateTo;

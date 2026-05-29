@@ -5,12 +5,37 @@ import {
   Search, FileText, Loader2, AlertCircle, Check, ChevronRight,
   Clock, Eye, Archive, RotateCcw, Edit2, X, BookOpen,
   CheckCircle2, Circle, ArrowLeftRight, Download, Send,
+  User, CalendarDays, Layers, StickyNote,
 } from 'lucide-react';
 import { useKiemDuyet } from '../hooks/useKiemDuyet';
 import { knowledgeDocumentsApi } from '@/lib/knowledge-api';
 import type { KnowledgeDocument, DocStatus, DocumentVersion } from '@/lib/knowledge-api';
 import type { DocDetailTab } from '../hooks/useKiemDuyet';
 import { useRoutePermission } from '@/hooks/usePermission';
+
+// ─── InfoRow helper ───────────────────────────────────────────────────────────
+
+function InfoRow({
+  icon, label, value, bold,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: React.ReactNode;
+  bold?: boolean;
+}) {
+  return (
+    <div className="flex items-start gap-2">
+      <span className="text-content-muted mt-0.5 shrink-0">{icon}</span>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-content-muted mb-0.5">{label}</p>
+        {typeof value === 'string' || typeof value === 'number'
+          ? <p className={`text-sm text-content-primary truncate ${bold ? 'font-semibold' : ''}`}>{value}</p>
+          : value
+        }
+      </div>
+    </div>
+  );
+}
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -38,29 +63,50 @@ const TIMELINE_STEPS: DocStatus[] = ['Draft', 'Review', 'Approved', 'Archived'];
 function ApprovalTimeline({ status }: { status: DocStatus }) {
   const currentIdx = TIMELINE_STEPS.indexOf(status);
   return (
-    <div className="flex items-center justify-center gap-0 py-6">
+    <div className="flex items-center px-8 py-6">
       {TIMELINE_STEPS.map((step, idx) => {
-        const isDone = idx < currentIdx;
-        const isActive = idx === currentIdx;
-        const cfg = STATUS_CFG[step];
+        const isDone    = idx < currentIdx;
+        const isActive  = idx === currentIdx;
+        const cfg       = STATUS_CFG[step];
         return (
           <React.Fragment key={step}>
-            <div className="flex flex-col items-center gap-2 w-28">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors ${
-                isActive
-                  ? 'bg-primary-600 border-primary-600 text-white'
-                  : isDone
-                  ? 'bg-subtle border-strong text-content-secondary'
-                  : 'bg-surface border-default text-content-muted'
-              }`}>
-                {isActive ? <cfg.Icon size={18} /> : isDone ? <Check size={16} /> : <Circle size={16} />}
+            {/* Step node */}
+            <div className="flex flex-col items-center gap-2 shrink-0">
+              {/* Circle + ring */}
+              <div className="relative">
+                {isActive && (
+                  <span className="absolute inset-0 rounded-full bg-primary-400/30 scale-150 animate-ping" />
+                )}
+                <div className={`relative w-11 h-11 rounded-full flex items-center justify-center
+                  border-2 transition-all shadow-sm
+                  ${isActive
+                    ? 'bg-primary-600 border-primary-600 text-white shadow-primary-200 shadow-md'
+                    : isDone
+                    ? 'bg-primary-100 border-primary-400 text-primary-700'
+                    : 'bg-white border-dark-200 text-dark-300'
+                  }`}>
+                  {isActive
+                    ? <cfg.Icon size={18} />
+                    : isDone
+                    ? <Check size={16} strokeWidth={2.5} />
+                    : <Circle size={14} />
+                  }
+                </div>
               </div>
-              <span className={`text-xs font-medium ${isActive ? 'text-primary-700' : isDone ? 'text-content-secondary' : 'text-content-muted'}`}>
+              <span className={`text-xs font-semibold whitespace-nowrap
+                ${isActive ? 'text-primary-700' : isDone ? 'text-dark-600' : 'text-dark-300'}`}>
                 {cfg.label}
               </span>
             </div>
+
+            {/* Connector line */}
             {idx < TIMELINE_STEPS.length - 1 && (
-              <div className={`flex-1 h-0.5 mb-5 ${idx < currentIdx ? 'bg-strong' : 'bg-default'}`} />
+              <div className="flex-1 mx-1 mb-5 h-[3px] rounded-full overflow-hidden bg-dark-100">
+                <div
+                  className="h-full rounded-full bg-primary-500 transition-all duration-500"
+                  style={{ width: isDone ? '100%' : isActive ? '50%' : '0%' }}
+                />
+              </div>
             )}
           </React.Fragment>
         );
@@ -548,29 +594,67 @@ function DetailPanel({
             </div>
 
             {/* Doc info */}
-            <div className="bg-surface rounded-xl border border-default px-5 py-4">
-              <p className="text-xs font-semibold text-content-secondary uppercase tracking-wide mb-3">Thông tin tài liệu</p>
-              <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-content-muted">Người tạo:</span>
-                  <span className="text-content-primary font-medium">{doc.authorName}</span>
+            <div className="bg-surface rounded-xl border border-default overflow-hidden">
+              {/* Header */}
+              <div className="flex items-center gap-2 px-5 py-3 border-b border-default bg-subtle">
+                <FileText size={14} className="text-primary-600" />
+                <span className="text-xs font-semibold text-content-secondary uppercase tracking-wide">
+                  Thông tin tài liệu
+                </span>
+              </div>
+
+              <div className="px-5 py-4 space-y-3">
+                {/* Row 1 */}
+                <div className="grid grid-cols-2 gap-4">
+                  <InfoRow icon={<User size={13} />} label="Người tạo" value={doc.authorName} bold />
+                  <InfoRow icon={<CalendarDays size={13} />} label="Ngày nộp"
+                    value={doc.submittedAt?.slice(0, 10) ?? doc.updatedAt?.slice(0, 10)} />
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-content-muted">Ngày nộp:</span>
-                  <span className="text-content-primary">{doc.submittedAt?.slice(0, 10) ?? doc.updatedAt?.slice(0, 10)}</span>
+
+                {/* Row 2 */}
+                <div className="grid grid-cols-2 gap-4">
+                  <InfoRow icon={<FileText size={13} />} label="Loại tệp"
+                    value={
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-md
+                        ${doc.fileType === 'PDF'   ? 'bg-danger-50 text-danger-700'
+                        : doc.fileType === 'Word'  ? 'bg-primary-50 text-primary-700'
+                        : doc.fileType === 'Excel' ? 'bg-success-50 text-success-700'
+                        : 'bg-dark-100 text-dark-600'}`}>
+                        {doc.fileType}
+                      </span>
+                    }
+                  />
+                  <InfoRow icon={<Layers size={13} />} label="Số phiên bản"
+                    value={<span className="font-semibold text-dark-800">{doc.versionCount}</span>} />
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-content-muted">Loại tệp:</span>
-                  <span className="text-content-primary">{doc.fileType}</span>
+
+                {/* KB row */}
+                <div className="pt-1 border-t border-default">
+                  <InfoRow icon={<BookOpen size={13} />} label="Bộ tri thức"
+                    value={
+                      <span className="text-sm font-medium text-violet-700 bg-violet-50
+                        px-2 py-0.5 rounded-md border border-violet-200 truncate max-w-xs block">
+                        {doc.knowledgeBaseName}
+                      </span>
+                    }
+                  />
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-content-muted">Số phiên bản:</span>
-                  <span className="text-content-primary">{doc.versionCount}</span>
-                </div>
-                <div className="col-span-2 flex justify-between">
-                  <span className="text-content-muted">Bộ tri thức:</span>
-                  <span className="text-content-primary font-medium text-right max-w-[220px] truncate">{doc.knowledgeBaseName}</span>
-                </div>
+
+                {/* Note row */}
+                {doc.note && (
+                  <div className="pt-1 border-t border-default">
+                    <div className="flex items-start gap-2">
+                      <StickyNote size={13} className="text-warning-500 mt-0.5 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs text-content-muted mb-1">Ghi chú phiên bản</p>
+                        <p className="text-sm text-content-primary bg-warning-50/60 border border-warning-200/60
+                          rounded-lg px-3 py-2 leading-relaxed">
+                          {doc.note}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
