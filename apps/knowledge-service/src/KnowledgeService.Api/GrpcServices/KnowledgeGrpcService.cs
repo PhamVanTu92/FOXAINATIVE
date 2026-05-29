@@ -24,6 +24,7 @@ using KnowledgeService.Application.Features.KnowledgeFiles.Delete;
 using KnowledgeService.Application.Features.KnowledgeFiles.Dtos;
 using KnowledgeService.Application.Features.KnowledgeFiles.Get;
 using KnowledgeService.Application.Features.KnowledgeFiles.List;
+using KnowledgeService.Application.Features.KnowledgeFiles.ListAll;
 using KnowledgeService.Application.Features.KnowledgeFiles.Update;
 using KnowledgeService.Application.Features.KnowledgeFiles.UpdatePermissions;
 using MediatR;
@@ -202,6 +203,35 @@ public class KnowledgeGrpcService : Protos.KnowledgeService.KnowledgeServiceBase
         return ToProto(result);
     }
 
+    public override async Task<ListAllKnowledgeFilesResponse> ListAllKnowledgeFiles(
+        ListAllKnowledgeFilesRequest request, ServerCallContext context)
+    {
+        var result = await _mediator.Send(new ListAllKnowledgeFilesQuery(
+            string.IsNullOrEmpty(request.Search) ? null : request.Search,
+            string.IsNullOrEmpty(request.FileType) ? null : request.FileType,
+            request.Page > 0 ? request.Page : 1,
+            request.PageSize > 0 ? request.PageSize : 50));
+
+        var response = new ListAllKnowledgeFilesResponse
+        {
+            Total = result.Total,
+            Page = result.Page,
+            PageSize = result.PageSize,
+            Counts = new AllFileCountsMessage
+            {
+                Word = result.Counts.Word,
+                Excel = result.Counts.Excel,
+                Pdf = result.Counts.Pdf,
+                Image = result.Counts.Image,
+                PowerPoint = result.Counts.PowerPoint,
+                Text = result.Counts.Text,
+                Total = result.Counts.Total
+            }
+        };
+        response.Items.AddRange(result.Items.Select(ToProto));
+        return response;
+    }
+
     // ─── Knowledge Documents ─────────────────────────────────────────────────
 
     public override async Task<KnowledgeDocumentMessage> UploadDocument(
@@ -354,6 +384,7 @@ public class KnowledgeGrpcService : Protos.KnowledgeService.KnowledgeServiceBase
         {
             Id = dto.Id.ToString(),
             KnowledgeBaseId = dto.KnowledgeBaseId.ToString(),
+            KnowledgeBaseName = dto.KnowledgeBaseName ?? "",
             FileName = dto.FileName,
             FileType = dto.FileType,
             FileSizeMb = (double)dto.FileSizeMb,

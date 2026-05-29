@@ -80,6 +80,13 @@ export class ListKnowledgeFilesQueryDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(200) pageSize?: number;
 }
 
+export class ListAllKnowledgeFilesQueryDto {
+  @IsOptional() @IsString() @MaxLength(200) search?: string;
+  @IsOptional() @IsIn(FILE_TYPES) fileType?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(200) pageSize?: number;
+}
+
 export class AddKnowledgeFileDto {
   @IsOptional() @IsString() @MaxLength(500) fileName?: string;
 

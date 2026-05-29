@@ -5,6 +5,7 @@ import { KNOWLEDGE_PACKAGE } from '../grpc/knowledge-grpc.module';
 import { callGrpc } from '../common/grpc/grpc-error-mapper';
 import {
   AddKnowledgeFileRequest,
+  AllFileCountsMessage,
   GetKnowledgeFileRequest,
   CreateDocumentVersionRequest,
   CreateKnowledgeBaseRequest,
@@ -20,6 +21,8 @@ import {
   KnowledgeDocumentVersionMessage,
   KnowledgeFileMessage,
   KnowledgeGrpcService,
+  ListAllKnowledgeFilesRequest,
+  ListAllKnowledgeFilesResponse,
   ListDocumentsRequest,
   ListDocumentsResponse,
   ListDocumentVersionsRequest,
@@ -73,6 +76,10 @@ export class KnowledgeService implements OnModuleInit {
   }
 
   // ─── Knowledge Files ───────────────────────────────────────────────────────
+
+  listAllKnowledgeFiles(req: ListAllKnowledgeFilesRequest, md?: Metadata): Promise<ListAllKnowledgeFilesResponse> {
+    return callGrpc(this.grpc.listAllKnowledgeFiles(req, md));
+  }
 
   listKnowledgeFiles(req: ListKnowledgeFilesRequest, md?: Metadata): Promise<ListKnowledgeFilesResponse> {
     return callGrpc(this.grpc.listKnowledgeFiles(req, md));

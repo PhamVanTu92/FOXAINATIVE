@@ -5,6 +5,7 @@ using KnowledgeService.Application.Features.KnowledgeBases.Get;
 using KnowledgeService.Application.Features.KnowledgeBases.List;
 using KnowledgeService.Application.Features.KnowledgeBases.Stats;
 using KnowledgeService.Application.Features.KnowledgeBases.Update;
+using KnowledgeService.Application.Features.KnowledgeFiles.ListAll;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -33,6 +34,18 @@ public class KnowledgeBasesController : ControllerBase
     public async Task<IActionResult> Stats(CancellationToken ct)
     {
         var result = await _mediator.Send(new GetStatsQuery(), ct);
+        return Ok(result);
+    }
+
+    [HttpGet("files")]
+    public async Task<IActionResult> ListAllFiles(
+        [FromQuery] string? search,
+        [FromQuery] string? fileType,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken ct = default)
+    {
+        var result = await _mediator.Send(new ListAllKnowledgeFilesQuery(search, fileType, page, pageSize), ct);
         return Ok(result);
     }
 

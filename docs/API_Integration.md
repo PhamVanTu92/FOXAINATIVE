@@ -16,6 +16,9 @@
 6. [Tài liệu tri thức (Workflow kiểm duyệt)](#6-tài-liệu-tri-thức--workflow-kiểm-duyệt)
 7. [Quy ước chung](#7-quy-ước-chung)
 
+> **Xem nhanh endpoint mới:**  
+> `GET /api/knowledge-bases/files` — [4.7 Danh sách tệp toàn bộ bộ tri thức](#47-danh-sách-tệp-toàn-bộ-bộ-tri-thức)
+
 ---
 
 ## 1. Xác thực & Token
@@ -570,6 +573,67 @@ DELETE /api/knowledge-bases/:id
 
 ---
 
+### 4.7 Danh sách tệp toàn bộ bộ tri thức
+
+```
+GET /api/knowledge-bases/files
+```
+
+Trả về danh sách tệp trên **tất cả** bộ tri thức kèm thống kê số lượng theo từng định dạng file. Dùng để hiển thị dashboard tổng quan hoặc tìm kiếm file xuyên bộ tri thức.
+
+**Query params:**
+
+| Param | Kiểu | Mặc định | Mô tả |
+|-------|------|----------|-------|
+| `search` | string | — | Tìm theo tên file |
+| `fileType` | string | — | `Word` \| `Excel` \| `PDF` \| `Image` \| `PowerPoint` \| `Text` — lọc kết quả phân trang, **không** ảnh hưởng đến `counts` |
+| `page` | number | 1 | Trang |
+| `pageSize` | number | 50 | Số bản ghi/trang (max 200) |
+
+**Ví dụ:**
+```
+GET /api/knowledge-bases/files?search=quy+trinh&page=1&pageSize=20
+GET /api/knowledge-bases/files?fileType=PDF&page=1
+```
+
+**Response 200:**
+```json
+{
+  "items": [
+    {
+      "id": "file-uuid-001",
+      "knowledgeBaseId": "kb-uuid-001",
+      "knowledgeBaseName": "Tri thức Kế toán – Tài chính",
+      "fileName": "Quy trình kế toán nội bộ 2025.docx",
+      "fileType": "Word",
+      "fileSizeMb": 1.8,
+      "storagePath": "http://localhost:3001/uploads/knowledge-files/1748230000-abc123.docx",
+      "uploadedAt": "2026-05-20T10:00:00Z",
+      "updatedAt": "2026-05-20T10:00:00Z",
+      "permissions": [
+        { "departmentId": "dept-uuid-ketoan", "departmentName": "Phòng Kế toán – Tài chính" }
+      ]
+    }
+  ],
+  "total": 42,
+  "page": 1,
+  "pageSize": 50,
+  "counts": {
+    "word": 15,
+    "excel": 8,
+    "pdf": 12,
+    "image": 3,
+    "powerPoint": 4,
+    "text": 0,
+    "total": 42
+  }
+}
+```
+
+> **Lưu ý:** `counts` luôn phản ánh số lượng theo từng định dạng của **toàn bộ** dữ liệu (theo `search` nếu có), bất kể đang lọc `fileType` hay không. `total` trong `counts` là tổng số file thực, còn `total` ngoài cùng là tổng kết quả **sau khi lọc** `fileType`.
+
+---
+
 ## 5. Tệp tri thức
 
 Base path: `/api/knowledge-bases/:kbId/files`
@@ -596,6 +660,7 @@ GET /api/knowledge-bases/:kbId/files
     {
       "id": "file-uuid-001",
       "knowledgeBaseId": "kb-uuid-001",
+      "knowledgeBaseName": "Tri thức Kế toán – Tài chính",
       "fileName": "Quy trình kế toán nội bộ 2025.docx",
       "fileType": "Word",
       "fileSizeMb": 1.8,

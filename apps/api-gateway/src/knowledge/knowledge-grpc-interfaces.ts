@@ -36,6 +36,7 @@ export interface KnowledgeBaseMessage {
 export interface KnowledgeFileMessage {
   id: string;
   knowledgeBaseId: string;
+  knowledgeBaseName: string;
   fileName: string;
   fileType: string;
   fileSizeMb: number;
@@ -43,6 +44,31 @@ export interface KnowledgeFileMessage {
   uploadedAt: string;
   updatedAt: string;
   permissions: DepartmentRef[];
+}
+
+export interface AllFileCountsMessage {
+  word: number;
+  excel: number;
+  pdf: number;
+  image: number;
+  powerPoint: number;
+  text: number;
+  total: number;
+}
+
+export interface ListAllKnowledgeFilesRequest {
+  search?: string;
+  fileType?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface ListAllKnowledgeFilesResponse {
+  items: KnowledgeFileMessage[];
+  total: number;
+  page: number;
+  pageSize: number;
+  counts: AllFileCountsMessage;
 }
 
 export interface StatsMessage {
@@ -230,6 +256,7 @@ export interface KnowledgeGrpcService {
   updateKnowledgeBase(req: UpdateKnowledgeBaseRequest, md?: Metadata): Observable<KnowledgeBaseMessage>;
   deleteKnowledgeBase(req: DeleteKnowledgeBaseRequest, md?: Metadata): Observable<DeleteResponse>;
   getStats(req: GetStatsRequest, md?: Metadata): Observable<StatsMessage>;
+  listAllKnowledgeFiles(req: ListAllKnowledgeFilesRequest, md?: Metadata): Observable<ListAllKnowledgeFilesResponse>;
   listKnowledgeFiles(req: ListKnowledgeFilesRequest, md?: Metadata): Observable<ListKnowledgeFilesResponse>;
   getKnowledgeFile(req: GetKnowledgeFileRequest, md?: Metadata): Observable<KnowledgeFileMessage>;
   addKnowledgeFile(req: AddKnowledgeFileRequest, md?: Metadata): Observable<KnowledgeFileMessage>;

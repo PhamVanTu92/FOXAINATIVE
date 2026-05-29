@@ -17,6 +17,7 @@ import { RequirePermission } from '../common/auth/require-permission.decorator';
 import { buildForwardMetadata } from '../common/grpc/grpc-metadata.helper';
 import {
   CreateKnowledgeBaseDto,
+  ListAllKnowledgeFilesQueryDto,
   ListKnowledgeBasesQueryDto,
   UpdateKnowledgeBaseDto,
 } from './dto/knowledge.dto';
@@ -33,6 +34,24 @@ export class KnowledgeBasesController {
     @CurrentUser() user: AuthenticatedRequestUser,
   ) {
     return this.knowledge.getStats({}, buildForwardMetadata(token, user));
+  }
+
+  @Get('files')
+  @RequirePermission('KNOWLEDGE_MGMT', 'READ')
+  listAllFiles(
+    @Query() q: ListAllKnowledgeFilesQueryDto,
+    @AccessToken() token: string,
+    @CurrentUser() user: AuthenticatedRequestUser,
+  ) {
+    return this.knowledge.listAllKnowledgeFiles(
+      {
+        search: q.search,
+        fileType: q.fileType,
+        page: q.page ?? 1,
+        pageSize: q.pageSize ?? 50,
+      },
+      buildForwardMetadata(token, user),
+    );
   }
 
   @Get()
