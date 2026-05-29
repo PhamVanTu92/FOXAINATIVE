@@ -58,6 +58,25 @@ services:
       timeout: 5s
       retries: 5
 
+  # ─── Index DB ───────────────────────────────────────────────────────────────
+  index-db:
+    image: postgres:17.0-alpine
+    container_name: foxai-index-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${INDEX_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${INDEX_DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${INDEX_DB_NAME:-index_py_db}
+    volumes:
+      - index_db_data:/var/lib/postgresql/data
+    networks:
+      - foxai-internal
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${INDEX_DB_USER:-postgres} -d ${INDEX_DB_NAME:-index_py_db}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # ─── Knowledge DB ───────────────────────────────────────────────────────────
   knowledge-db:
     image: postgres:16-alpine
@@ -245,6 +264,62 @@ services:
       chatbot-db:
         condition: service_healthy
 
+  # ─── Index Migration Runner ─────────────────────────────────────────────────
+  index-py-migration:
+    build:
+      context: apps/index-service
+      dockerfile: Dockerfile.migration
+    container_name: foxai-index-py-migration
+    restart: 'no'
+    environment:
+      POSTGRES__HOST: index-db
+      POSTGRES__PORT: 5432
+      POSTGRES__USERNAME: ${INDEX_DB_USER:-postgres}
+      POSTGRES__PASSWORD: ${INDEX_DB_PASSWORD:-postgres}
+      POSTGRES__DB: ${INDEX_DB_NAME:-index_py_db}
+    networks:
+      - foxai-internal
+    depends_on:
+      index-db:
+        condition: service_healthy
+
+  # ─── Index Service (Python/FastAPI) ─────────────────────────────────────────
+  index-service:
+    build:
+      context: apps/index-service
+      dockerfile: Dockerfile
+    image: foxai-index-service:latest
+    container_name: foxai-index-service
+    restart: unless-stopped
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ISSUER: foxai-system-service
+      JWT_AUDIENCE: foxai-platform
+      POSTGRES__HOST: index-db
+      POSTGRES__PORT: 5432
+      POSTGRES__USERNAME: ${INDEX_DB_USER:-postgres}
+      POSTGRES__PASSWORD: ${INDEX_DB_PASSWORD:-postgres}
+      POSTGRES__DB: ${INDEX_DB_NAME:-index_py_db}
+      ROOT_PATH: /api/index
+      AUTH_SERVICE_URL: http://api-gateway:3001
+      QDRANT_URL: ${QDRANT_URL}
+      MINIO__ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO__USERNAME: ${MINIO_ROOT_USER}
+      MINIO__PASSWORD: ${MINIO_ROOT_PASSWORD}
+      REDIS_HOST: ${REDIS_HOST:-host.docker.internal}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      OPENAI__API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI__API_KEY: ${GEMINI_API_KEY:-}
+    networks:
+      - foxai-internal
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    depends_on:
+      index-db:
+        condition: service_healthy
+      index-py-migration:
+        condition: service_completed_successfully
+
   # ─── API Gateway (NestJS) ────────────────────────────────────────────────────
   api-gateway:
     build:
@@ -311,6 +386,7 @@ volumes:
   ocr_db_data:
   chatbot_db_data:
   knowledge_db_data:
+  index_db_data:
   ocr_uploads:
 
 networks:
