@@ -23,11 +23,10 @@ public class KnowledgeDocumentConfiguration : IEntityTypeConfiguration<Knowledge
         builder.HasIndex(x => x.Status);
         builder.HasIndex(x => x.UploadedAt);
 
-        // Restrict delete: documents survive independently; KB cannot be deleted while it has documents
         builder.HasOne<KnowledgeBase>()
             .WithMany()
             .HasForeignKey(x => x.KnowledgeBaseId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasMany(x => x.Versions)
             .WithOne(v => v.Document)
