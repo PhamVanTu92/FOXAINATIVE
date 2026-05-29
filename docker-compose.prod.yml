@@ -292,24 +292,37 @@ services:
     container_name: foxai-index-service
     restart: unless-stopped
     environment:
+      # JWT
       JWT_SECRET: ${JWT_SECRET}
       JWT_ISSUER: foxai-system-service
       JWT_AUDIENCE: foxai-platform
+      ROOT_PATH: /api/index
+      AUTH_SERVICE_URL: http://api-gateway:3001
+      # PostgreSQL
       POSTGRES__HOST: index-db
       POSTGRES__PORT: 5432
       POSTGRES__USERNAME: ${INDEX_DB_USER:-postgres}
       POSTGRES__PASSWORD: ${INDEX_DB_PASSWORD:-postgres}
       POSTGRES__DB: ${INDEX_DB_NAME:-index_py_db}
-      ROOT_PATH: /api/index
-      AUTH_SERVICE_URL: http://api-gateway:3001
-      QDRANT_URL: ${QDRANT_URL}
-      MINIO__ENDPOINT: ${MINIO_ENDPOINT}
+      # FoxAI LLM (required)
+      FOXAILLM__API_KEY: ${FOXAILLM_API_KEY}
+      FOXAILLM__BASE_URL: ${FOXAILLM_BASE_URL}
+      # MinIO (required)
+      MINIO__HOST: ${MINIO_HOST}
       MINIO__USERNAME: ${MINIO_ROOT_USER}
       MINIO__PASSWORD: ${MINIO_ROOT_PASSWORD}
-      REDIS_HOST: ${REDIS_HOST:-host.docker.internal}
-      REDIS_PORT: ${REDIS_PORT:-6379}
-      OPENAI__API_KEY: ${OPENAI_API_KEY:-}
+      MINIO__PUBLIC_URL_BASE: ${MINIO_PUBLIC_URL_BASE}
+      # Qdrant (required)
+      QDRANT__HOST: ${QDRANT_HOST}
+      QDRANT__COLLECTION_NAME: ${QDRANT_COLLECTION_NAME:-foxai}
+      QDRANT__API_KEY: ${QDRANT_API_KEY:-}
+      # Redis
+      REDIS__HOST: ${REDIS_HOST:-host.docker.internal}
+      REDIS__PORT: ${REDIS_PORT:-6379}
+      REDIS__PASSWORD: ${REDIS_PASSWORD:-}
+      # Gemini / OpenAI (tuỳ provider dùng để embed)
       GEMINI__API_KEY: ${GEMINI_API_KEY:-}
+      OPENAI__API_KEY: ${OPENAI_API_KEY:-}
     networks:
       - foxai-internal
     extra_hosts:
