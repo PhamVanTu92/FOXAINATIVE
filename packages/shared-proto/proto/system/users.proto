@@ -20,6 +20,9 @@ service UsersService {
   // Permission overrides per user (UI grid "Phân quyền: <user>")
   rpc GetUserPermissions(GetUserPermissionsRequest) returns (UserPermissionsResponse);
   rpc SetUserPermissions(SetUserPermissionsRequest) returns (UserPermissionsResponse);
+
+  // Dashboard statistics
+  rpc GetSystemStats(GetSystemStatsRequest) returns (SystemStatsResponse);
 }
 
 message UserDto {
@@ -137,4 +140,20 @@ message UserPermissionsResponse {
   repeated UserPermissionCell role_grants = 2;
   repeated UserPermissionOverrideCell overrides = 3;
   repeated UserPermissionCell effective = 4;
+}
+
+// ===== System stats =====
+
+message GetSystemStatsRequest {}
+
+message DepartmentUserCount {
+  string department_name = 1;
+  int32  user_count      = 2;
+}
+
+message SystemStatsResponse {
+  int32  total_users    = 1;
+  int32  active_users   = 2;
+  int32  total_roles    = 3;
+  repeated DepartmentUserCount users_by_department = 4;
 }

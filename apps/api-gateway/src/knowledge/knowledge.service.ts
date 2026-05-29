@@ -7,6 +7,7 @@ import {
   AddKnowledgeFileRequest,
   AllFileCountsMessage,
   GetKnowledgeFileRequest,
+  MoveKnowledgeFileRequest,
   CreateDocumentVersionRequest,
   CreateKnowledgeBaseRequest,
   DeleteKnowledgeBaseRequest,
@@ -103,6 +104,10 @@ export class KnowledgeService implements OnModuleInit {
 
   updateFilePermissions(req: UpdateFilePermissionsRequest, md?: Metadata): Promise<KnowledgeFileMessage> {
     return callGrpc(this.grpc.updateFilePermissions(req, md));
+  }
+
+  moveKnowledgeFile(req: MoveKnowledgeFileRequest, md?: Metadata): Promise<KnowledgeFileMessage> {
+    return callGrpc(this.grpc.moveKnowledgeFile(req, md));
   }
 
   // ─── Knowledge Documents ───────────────────────────────────────────────────

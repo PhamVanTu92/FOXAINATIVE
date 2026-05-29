@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Put,
   Query,
@@ -19,6 +20,7 @@ import {
   CreateKnowledgeBaseDto,
   ListAllKnowledgeFilesQueryDto,
   ListKnowledgeBasesQueryDto,
+  MoveKnowledgeFileDto,
   UpdateKnowledgeBaseDto,
 } from './dto/knowledge.dto';
 import { KnowledgeService } from './knowledge.service';
@@ -34,6 +36,24 @@ export class KnowledgeBasesController {
     @CurrentUser() user: AuthenticatedRequestUser,
   ) {
     return this.knowledge.getStats({}, buildForwardMetadata(token, user));
+  }
+
+  @Patch('files/:fileId')
+  @RequirePermission('KNOWLEDGE_MGMT', 'UPDATE')
+  moveFile(
+    @Param('fileId', new ParseUUIDPipe()) fileId: string,
+    @Body() dto: MoveKnowledgeFileDto,
+    @AccessToken() token: string,
+    @CurrentUser() user: AuthenticatedRequestUser,
+  ) {
+    return this.knowledge.moveKnowledgeFile(
+      {
+        id: fileId,
+        fileName: dto.fileName,
+        targetKnowledgeBaseId: dto.targetKnowledgeBaseId,
+      },
+      buildForwardMetadata(token, user),
+    );
   }
 
   @Get('files')

@@ -25,6 +25,7 @@ using KnowledgeService.Application.Features.KnowledgeFiles.Dtos;
 using KnowledgeService.Application.Features.KnowledgeFiles.Get;
 using KnowledgeService.Application.Features.KnowledgeFiles.List;
 using KnowledgeService.Application.Features.KnowledgeFiles.ListAll;
+using KnowledgeService.Application.Features.KnowledgeFiles.Move;
 using KnowledgeService.Application.Features.KnowledgeFiles.Update;
 using KnowledgeService.Application.Features.KnowledgeFiles.UpdatePermissions;
 using MediatR;
@@ -112,13 +113,21 @@ public class KnowledgeGrpcService : Protos.KnowledgeService.KnowledgeServiceBase
     public override async Task<StatsMessage> GetStats(GetStatsRequest request, ServerCallContext context)
     {
         var stats = await _mediator.Send(new GetStatsQuery());
-        return new StatsMessage
+        var msg = new StatsMessage
         {
             TotalKnowledgeBases = stats.TotalKnowledgeBases,
             TotalFiles = stats.TotalFiles,
             DepartmentsUsingCount = stats.DepartmentsUsingCount,
+            PdfFilesCount = stats.PdfFilesCount,
             LastUpdatedAt = stats.LastUpdatedAt?.ToString("O") ?? ""
         };
+        msg.FilesByKnowledgeBase.AddRange(
+            stats.FilesByKnowledgeBase.Select(x => new KnowledgeBaseFileCount
+            {
+                Name = x.KnowledgeBaseName,
+                Count = x.FileCount
+            }));
+        return msg;
     }
 
     // ─── Knowledge Files ─────────────────────────────────────────────────────
@@ -230,6 +239,19 @@ public class KnowledgeGrpcService : Protos.KnowledgeService.KnowledgeServiceBase
         };
         response.Items.AddRange(result.Items.Select(ToProto));
         return response;
+    }
+
+    public override async Task<KnowledgeFileMessage> MoveKnowledgeFile(
+        MoveKnowledgeFileRequest request, ServerCallContext context)
+    {
+        Guid? targetKbId = Guid.TryParse(request.TargetKnowledgeBaseId, out var kbId) ? kbId : null;
+
+        var result = await _mediator.Send(new MoveKnowledgeFileCommand(
+            Guid.Parse(request.Id),
+            string.IsNullOrEmpty(request.FileName) ? null : request.FileName,
+            targetKbId));
+
+        return ToProto(result);
     }
 
     // ─── Knowledge Documents ─────────────────────────────────────────────────

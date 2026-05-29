@@ -140,6 +140,12 @@ export interface ListKnowledgeFilesResponse {
 
 export interface GetKnowledgeFileRequest { id: string; knowledgeBaseId: string; }
 
+export interface MoveKnowledgeFileRequest {
+  id: string;
+  fileName?: string;
+  targetKnowledgeBaseId?: string;
+}
+
 export interface AddKnowledgeFileRequest {
   knowledgeBaseId: string;
   fileName: string;
@@ -263,6 +269,7 @@ export interface KnowledgeGrpcService {
   updateKnowledgeFile(req: UpdateKnowledgeFileRequest, md?: Metadata): Observable<KnowledgeFileMessage>;
   deleteKnowledgeFile(req: DeleteKnowledgeFileRequest, md?: Metadata): Observable<DeleteResponse>;
   updateFilePermissions(req: UpdateFilePermissionsRequest, md?: Metadata): Observable<KnowledgeFileMessage>;
+  moveKnowledgeFile(req: MoveKnowledgeFileRequest, md?: Metadata): Observable<KnowledgeFileMessage>;
   // Knowledge Documents
   uploadDocument(req: UploadDocumentRequest, md?: Metadata): Observable<KnowledgeDocumentMessage>;
   getDocument(req: GetDocumentRequest, md?: Metadata): Observable<KnowledgeDocumentMessage>;

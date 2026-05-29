@@ -119,11 +119,15 @@ public sealed partial class IndexServiceClient(
             using var processRequest = new HttpRequestMessage(HttpMethod.Post,
                 $"/v1/collections/{collectionId}/documents/batch-process");
             AddAuth(processRequest);
+            var processingType = fileExtension.ToLower() is "xls" or "xlsx" ? "excel" : "document_structured_llm";
+            var now = DateTime.UtcNow;
             processRequest.Content = JsonContent.Create(new
             {
                 document_ids = documentIds,
-                processing_type = "document_structured_llm",
-                version
+                processing_type = processingType,
+                version,
+                effective_from = now,
+                effective_to = now.AddDays(10)
             });
 
             using var processResponse = await http.SendAsync(processRequest, ct);
@@ -144,6 +148,18 @@ public sealed partial class IndexServiceClient(
     private string ResolveInternalUrl(string url)
     {
         var internalBase = config["FILE_BASE_URL_INTERNAL"];
+
+        // Relative path (stored after storagePath refactor): prefix with internal base or PUBLIC_URL
+        if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+            !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            var baseUrl = !string.IsNullOrEmpty(internalBase)
+                ? internalBase.TrimEnd('/')
+                : (config["PUBLIC_URL"] ?? "http://localhost:3001").TrimEnd('/');
+            return $"{baseUrl}/{url.TrimStart('/')}";
+        }
+
+        // Absolute URL: replace host with internal base if configured (backward compat with old data)
         if (string.IsNullOrEmpty(internalBase)) return url;
         var uri = new Uri(url);
         var internalUri = new Uri(internalBase);

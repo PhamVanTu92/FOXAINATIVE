@@ -6,6 +6,7 @@ using KnowledgeService.Application.Features.KnowledgeBases.List;
 using KnowledgeService.Application.Features.KnowledgeBases.Stats;
 using KnowledgeService.Application.Features.KnowledgeBases.Update;
 using KnowledgeService.Application.Features.KnowledgeFiles.ListAll;
+using KnowledgeService.Application.Features.KnowledgeFiles.Move;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -34,6 +35,17 @@ public class KnowledgeBasesController : ControllerBase
     public async Task<IActionResult> Stats(CancellationToken ct)
     {
         var result = await _mediator.Send(new GetStatsQuery(), ct);
+        return Ok(result);
+    }
+
+    [HttpPatch("files/{fileId:guid}")]
+    public async Task<IActionResult> MoveFile(
+        Guid fileId,
+        [FromBody] MoveFileRequest req,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new MoveKnowledgeFileCommand(fileId, req.FileName, req.TargetKnowledgeBaseId), ct);
         return Ok(result);
     }
 
@@ -104,3 +116,7 @@ public record UpdateKnowledgeBaseRequest(
     Guid ManagingDepartmentId,
     string ManagingDepartmentName,
     List<DepartmentRefDto> PermittedDepartments);
+
+public record MoveFileRequest(
+    string? FileName,
+    Guid? TargetKnowledgeBaseId);
