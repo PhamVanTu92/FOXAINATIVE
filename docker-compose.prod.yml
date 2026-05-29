@@ -320,9 +320,15 @@ services:
       REDIS__HOST: ${REDIS_HOST:-host.docker.internal}
       REDIS__PORT: ${REDIS_PORT:-6379}
       REDIS__PASSWORD: ${REDIS_PASSWORD:-}
-      # Gemini / OpenAI (tuỳ provider dùng để embed)
+      # LLM providers (set real keys for providers you use; empty = disabled)
       GEMINI__API_KEY: ${GEMINI_API_KEY:-}
       OPENAI__API_KEY: ${OPENAI_API_KEY:-}
+      CLAUDE__API_KEY: ${CLAUDE_API_KEY:-}
+      # Trigger section construction so pydantic sees these sections as present
+      CONVERTER__IMAGES_SCALE: '1.0'
+      CHUNKER__MAX_TOKENS: '500'
+      SECURITY__ALGORITHM: HS256
+      KEYCLOAK__BASE_URL: ''
     networks:
       - foxai-internal
     extra_hosts:
