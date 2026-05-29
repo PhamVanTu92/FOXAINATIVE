@@ -4750,7 +4750,7 @@ packages:
   /msgpackr@2.0.1:
     resolution: {integrity: sha512-9J+tqTEsbHqY8YohazYgty7LgerFIWxvMLpUjqETSmjHojtJm2WnX2kK/2a1fLI7CO7ERP1YSEUXMucz4j+yBA==}
     optionalDependencies:
-      msgpackr-extract: 3.0.3
+      msgpackr-extract: 3.0.4
     dev: false
 
   /multer@1.4.5-lts.2:
