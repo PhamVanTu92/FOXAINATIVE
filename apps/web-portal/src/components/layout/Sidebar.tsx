@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
-import { ChevronDown, ScanLine, LogOut, Sun, Moon } from 'lucide-react';
+import { ChevronDown, ScanLine, LogOut, Sun, Moon, MessageSquare } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { navConfig } from './nav-config';
 import type { NavItem, NavSection } from './nav-config';
@@ -107,8 +107,13 @@ export default function Sidebar() {
     }).catch(() => {});
   }, []);
 
-  // Load chatbots cho section "CHATBOT AI THÔNG MINH" — refresh khi nhận event
+  // Load chatbots cho section "CHATBOT AI THÔNG MINH" — refresh khi nhận event,
+  // và re-fetch khi `user` đổi từ null → đăng nhập (tránh race với auth init).
   useEffect(() => {
+    if (!user) {
+      setChatbotItems([]);
+      return;
+    }
     const loadChatbots = () => {
       chatbotApi.list().then(list => {
         setChatbotItems(
@@ -119,7 +124,7 @@ export default function Sidebar() {
     loadChatbots();
     window.addEventListener('chatbots:updated', loadChatbots);
     return () => window.removeEventListener('chatbots:updated', loadChatbots);
-  }, []);
+  }, [user]);
 
   const dynamicNavConfig = useMemo<NavSection[]>(() => navConfig.map(section => {
     // Section CHATBOT: thay toàn bộ items bằng danh sách thật từ API

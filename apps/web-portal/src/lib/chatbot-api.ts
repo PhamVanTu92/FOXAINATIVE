@@ -494,26 +494,40 @@ export const conversationsApi = {
   },
 
   /** Load toàn bộ messages của 1 conversation (sắp xếp theo thời gian tăng dần). */
+  /**
+   * Load toàn bộ messages của 1 conversation.
+   * Backend cap page_size ≤ 100 nên tự paginate khi conv dài.
+   */
   async getMessages(conversationId: string): Promise<ChatMessage[]> {
-    const q = new URLSearchParams();
-    q.set('page', '1');
-    q.set('page_size', '200');
-    const body = await req<{ info?: { data?: { messages?: MsgOut[] } } }>(
-      `/v1/conversations/${conversationId}/messages?${q}`,
-    );
-    const items = body.info?.data?.messages ?? [];
-    return items
-      .map(it => {
-        const m = it.message;
-        if (!m) return null;
-        return {
-          id:        m.id,
-          role:      (m.type === 'human' ? 'user' : 'assistant') as ChatRole,
-          content:   m.contents ?? '',
-          createdAt: m.created_at ?? new Date().toISOString(),
-        } satisfies ChatMessage;
-      })
-      .filter((m): m is ChatMessage => m !== null);
+    const PAGE_SIZE = 100;
+    const acc: ChatMessage[] = [];
+    let page = 1;
+    while (true) {
+      const q = new URLSearchParams();
+      q.set('page', String(page));
+      q.set('page_size', String(PAGE_SIZE));
+      const body = await req<{ info?: { data?: { messages?: MsgOut[] } } }>(
+        `/v1/conversations/${conversationId}/messages?${q}`,
+      );
+      const items = body.info?.data?.messages ?? [];
+      const mapped = items
+        .map(it => {
+          const m = it.message;
+          if (!m) return null;
+          return {
+            id:        m.id,
+            role:      (m.type === 'human' ? 'user' : 'assistant') as ChatRole,
+            content:   m.contents ?? '',
+            createdAt: m.created_at ?? new Date().toISOString(),
+          } satisfies ChatMessage;
+        })
+        .filter((m): m is ChatMessage => m !== null);
+      acc.push(...mapped);
+      if (items.length < PAGE_SIZE) break;
+      page += 1;
+      if (page > 20) break; // hard cap 2000 messages — đủ cho mọi case thực tế
+    }
+    return acc;
   },
 
   async remove(conversationId: string): Promise<void> {

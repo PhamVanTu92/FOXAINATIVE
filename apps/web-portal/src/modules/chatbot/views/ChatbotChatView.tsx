@@ -74,15 +74,25 @@ export function ChatbotChatView({ lookup }: Props) {
         <div className="flex-1 flex flex-col min-h-0 max-w-4xl w-full mx-auto px-6">
           <BotHeader
             bot={c.bot}
-            onNewSession={c.newSession}
-            canClear={!c.isEmpty}
+            activeTitle={c.activeConversation?.title ?? null}
             speaking={c.speaking}
             onStopSpeaking={c.stopSpeaking}
           />
 
-          {/* Messages / Empty */}
+          {/* Messages / Empty / Error */}
           <div className="flex-1 overflow-y-auto py-4">
-            {c.loadingMessages ? (
+            {c.messagesError ? (
+              <div className="h-full flex items-center justify-center p-4">
+                <div className="flex items-start gap-2 bg-danger-50 border border-danger-200
+                  text-danger-700 rounded-lg px-4 py-3 text-sm max-w-md">
+                  <AlertCircle size={15} className="shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium">Không tải được tin nhắn</p>
+                    <p className="mt-0.5 text-danger-600/80">{c.messagesError}</p>
+                  </div>
+                </div>
+              </div>
+            ) : c.loadingMessages ? (
               <div className="h-full flex items-center justify-center text-sm text-dark-400">
                 Đang tải tin nhắn...
               </div>
@@ -213,11 +223,10 @@ function Breadcrumb({ botName }: { botName: string }) {
 }
 
 function BotHeader({
-  bot, onNewSession, canClear, speaking, onStopSpeaking,
+  bot, activeTitle, speaking, onStopSpeaking,
 }: {
   bot: ChatbotItem;
-  onNewSession: () => void;
-  canClear: boolean;
+  activeTitle: string | null;
   speaking: boolean;
   onStopSpeaking: () => void;
 }) {
@@ -229,8 +238,12 @@ function BotHeader({
         <MessageSquare size={20} className={tone.fg} />
       </div>
       <div className="min-w-0 flex-1">
-        <h1 className="text-base font-semibold text-dark-800 truncate">{bot.name}</h1>
+        <h1 className="text-base font-semibold text-dark-800 truncate">
+          {activeTitle || bot.name}
+        </h1>
         <p className="text-xs text-dark-500 mt-0.5 inline-flex items-center gap-1.5">
+          <span className="text-dark-600 font-medium">{bot.name}</span>
+          <span className="text-dark-300">·</span>
           {PURPOSE_LABELS[bot.purpose]}
           <span className="text-dark-300">·</span>
           <BookOpen size={11} />
@@ -258,26 +271,8 @@ function BotHeader({
           </button>
         )}
         <button
-          onClick={onNewSession}
-          disabled={!canClear}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium
-            bg-primary-600 hover:bg-primary-700 text-white rounded-lg
-            disabled:opacity-50 disabled:hover:bg-primary-600 transition-colors"
-          title="Bắt đầu đoạn chat mới"
-        >
-          <Plus size={13} /> Đoạn chat mới
-        </button>
-        <button
-          className="p-2 text-dark-400 hover:text-danger-600 hover:bg-danger-50 rounded-lg transition-colors"
-          title="Xóa đoạn chat"
-          disabled={!canClear}
-          onClick={onNewSession}
-        >
-          <Trash2 size={15} />
-        </button>
-        <button
           className="p-2 text-dark-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-          title="Tải xuống"
+          title="Tải xuống đoạn chat"
         >
           <Download size={15} />
         </button>
