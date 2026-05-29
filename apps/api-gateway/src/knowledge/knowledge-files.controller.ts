@@ -131,7 +131,7 @@ export class KnowledgeFilesController {
   }
 
   @Get(':fileId/file')
-  @RequirePermission('KNOWLEDGE_UPLOAD', 'READ')
+  @RequirePermission('KNOWLEDGE_MGMT', 'READ')
   async downloadFile(
     @Param('kbId', new ParseUUIDPipe()) kbId: string,
     @Param('fileId', new ParseUUIDPipe()) fileId: string,

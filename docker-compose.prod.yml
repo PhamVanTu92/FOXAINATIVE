@@ -264,6 +264,38 @@ services:
       chatbot-db:
         condition: service_healthy
 
+  # ─── MinIO (S3-compatible object storage) ───────────────────────────────────
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: foxai-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio_password}
+    command: server /data --console-address ":9001"
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - minio_data:/data
+    networks:
+      - foxai-internal
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ─── Qdrant (vector DB) ─────────────────────────────────────────────────────
+  qdrant:
+    image: qdrant/qdrant:v1.16.3
+    container_name: foxai-qdrant
+    restart: unless-stopped
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - foxai-internal
+
   # ─── Index Migration Runner ─────────────────────────────────────────────────
   index-py-migration:
     build:
@@ -308,9 +340,9 @@ services:
       FOXAILLM__API_KEY: ${FOXAILLM_API_KEY}
       FOXAILLM__BASE_URL: ${FOXAILLM_BASE_URL}
       # MinIO (required)
-      MINIO__HOST: ${MINIO_HOST}
-      MINIO__USERNAME: ${MINIO_ROOT_USER}
-      MINIO__PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO__HOST: minio:9000
+      MINIO__USERNAME: ${MINIO_ROOT_USER:-minio}
+      MINIO__PASSWORD: ${MINIO_ROOT_PASSWORD:-minio_password}
       MINIO__PUBLIC_URL_BASE: ${MINIO_PUBLIC_URL_BASE}
       # Qdrant (required)
       QDRANT__HOST: ${QDRANT_HOST}
@@ -338,6 +370,10 @@ services:
         condition: service_healthy
       index-py-migration:
         condition: service_completed_successfully
+      minio:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
 
   # ─── API Gateway (NestJS) ────────────────────────────────────────────────────
   api-gateway:
@@ -407,6 +443,8 @@ volumes:
   knowledge_db_data:
   index_db_data:
   ocr_uploads:
+  minio_data:
+  qdrant_data:
 
 networks:
   foxai-internal:

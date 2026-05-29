@@ -1,3 +1,4 @@
+using System.IO;
 using KnowledgeService.Application.Common.Abstractions;
 using KnowledgeService.Application.Common.Exceptions;
 using KnowledgeService.Application.Features.KnowledgeDocuments.Dtos;
@@ -77,7 +78,7 @@ public class ApproveDocumentCommandHandler : IRequestHandler<ApproveDocumentComm
 
         if (kb?.CollectionId is Guid collectionId && doc.StoragePath is not null)
         {
-            var ext = doc.FileType.ToString().ToLower();
+            var ext = Path.GetExtension(doc.StoragePath).TrimStart('.').ToLower();
             _logger.LogInformation(
                 "ApproveDocument → sending to index-service collectionId={CollectionId}, ext={Ext}, version={Version}",
                 collectionId, ext, doc.CurrentVersion);
