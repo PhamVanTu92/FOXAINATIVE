@@ -42,6 +42,8 @@ export function useOcrSchemas() {
         ...prev,
         activeSchemas: prev.activeSchemas + (schema.isActive ? -1 : 1),
       }));
+      // Notify sidebar to refresh schema list
+      window.dispatchEvent(new CustomEvent('schemas:updated'));
     } catch (e: unknown) { alert((e as Error).message); }
   };
 

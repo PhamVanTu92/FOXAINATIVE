@@ -100,11 +100,18 @@ export default function Sidebar() {
   useEffect(() => { init(); }, [init]);
 
   useEffect(() => {
-    ocrApi.getSchemas().then(list => {
-      setSchemaChildren(
-        list.map(s => ({ label: s.name, href: `/xu-ly/nhan-dang/${s.code}`, icon: ScanLine }))
-      );
-    }).catch(() => {});
+    const loadSchemas = () => {
+      ocrApi.getSchemas().then(list => {
+        setSchemaChildren(
+          list
+            .filter(s => s.isActive)
+            .map(s => ({ label: s.name, href: `/xu-ly/nhan-dang/${s.code}`, icon: ScanLine }))
+        );
+      }).catch(() => {});
+    };
+    loadSchemas();
+    window.addEventListener('schemas:updated', loadSchemas);
+    return () => window.removeEventListener('schemas:updated', loadSchemas);
   }, []);
 
   // Load chatbots cho section "CHATBOT AI THÔNG MINH" — refresh khi nhận event,
