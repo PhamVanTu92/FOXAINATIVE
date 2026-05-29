@@ -216,6 +216,7 @@ export const ocrApi = {
     body: {
       values?: Array<{ fieldId: string; stringValue: string }>;
       lineItems?: Array<{ stt: number; tableKey?: string | null; name?: string | null; unit?: string | null; quantity?: number | null; unitPrice?: number | null; amount?: number | null; extraData?: Record<string, unknown> | null }>;
+      status?: 'DRAFT' | 'PROCESSED';
     },
   ) => req<DocDetail>(`/documents/${id}`, {
     method: 'PATCH',

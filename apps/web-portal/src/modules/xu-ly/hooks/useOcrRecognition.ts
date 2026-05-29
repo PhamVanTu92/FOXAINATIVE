@@ -180,14 +180,13 @@ export function useOcrRecognition(schemaCode: string) {
     if (!doc || !activeId) return;
     setConfirming(true);
     try {
-      if (dirty) {
-        const updated = await ocrApi.updateDocument(doc.id, {
-          values: Object.entries(fieldValues).map(([fieldId, stringValue]) => ({ fieldId, stringValue })),
-          lineItems: lineItems.map(({ stt, tableKey, name, unit, quantity, unitPrice, amount, extraData }) =>
-            ({ stt, tableKey, name, unit, quantity, unitPrice, amount, extraData })),
-        });
-        updateItem(activeId, { doc: updated, dirty: false });
-      }
+      const updated = await ocrApi.updateDocument(doc.id, {
+        values: Object.entries(fieldValues).map(([fieldId, stringValue]) => ({ fieldId, stringValue })),
+        lineItems: lineItems.map(({ stt, tableKey, name, unit, quantity, unitPrice, amount, extraData }) =>
+          ({ stt, tableKey, name, unit, quantity, unitPrice, amount, extraData })),
+        status: 'PROCESSED',
+      });
+      updateItem(activeId, { doc: updated, dirty: false });
       router.push('/xu-ly/chung-tu');
     } catch (e: unknown) { console.error(e); }
     finally { setConfirming(false); }

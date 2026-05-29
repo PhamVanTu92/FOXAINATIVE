@@ -1,7 +1,5 @@
+import { DashboardView } from '@/modules/dashboard';
+
 export default function DashboardPage() {
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold text-gray-800">Dashboard</h1>
-    </div>
-  );
+  return <DashboardView />;
 }

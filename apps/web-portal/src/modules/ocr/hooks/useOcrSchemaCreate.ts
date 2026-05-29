@@ -163,13 +163,18 @@ export function useOcrSchemaCreate() {
     setSaveError(null);
     if (!code.trim()) { setSaveError('Vui lòng nhập mã chứng từ.'); return; }
     if (!name.trim()) { setSaveError('Vui lòng nhập tên chứng từ.'); return; }
-    if (fields.some(f => !f.label.trim())) { setSaveError('Vui lòng nhập tên cho tất cả các trường OCR.'); return; }
+    // Chỉ validate các field đã được nhập một phần (không bỏ qua field hoàn toàn trống)
+    const startedFields = fields.filter(f => f.label.trim() || f.fieldKey.trim());
+    if (startedFields.some(f => !f.label.trim())) { setSaveError('Vui lòng nhập tên cho tất cả các trường OCR đã khai báo.'); return; }
     for (const t of tables) {
       if (!t.name.trim()) { setSaveError('Vui lòng nhập tên cho tất cả các bảng OCR.'); return; }
       if (t.columns.some(c => !c.label.trim())) { setSaveError(`Bảng "${t.name}" còn cột chưa nhập tên. Vui lòng nhập đầy đủ.`); return; }
     }
-    const validFields = fields.filter(f => f.label.trim() && f.fieldKey.trim());
-    if (validFields.length === 0) { setSaveError('Cần ít nhất 1 trường OCR hợp lệ.'); return; }
+    const validFields = startedFields.filter(f => f.fieldKey.trim());
+    const validTablesCheck = tables.filter(t => t.name.trim() && t.tableKey.trim() && t.columns.some(c => c.label.trim()));
+    if (validFields.length === 0 && validTablesCheck.length === 0) {
+      setSaveError('Cần ít nhất 1 trường OCR hoặc 1 bảng (có ít nhất 1 cột) hợp lệ.'); return;
+    }
 
     const fkSeen = new Set<string>();
     for (const f of validFields) {
@@ -207,10 +212,14 @@ export function useOcrSchemaCreate() {
     }
   };
 
+  const hasValidField = fields.some(f => f.label.trim() && f.fieldKey.trim());
+  const hasValidTable = tables.some(
+    t => t.name.trim() && t.tableKey.trim() && t.columns.some(c => c.label.trim() && c.columnKey.trim())
+  );
   const canSave =
     code.trim() !== '' &&
     name.trim() !== '' &&
-    fields.every(f => f.label.trim() !== '') &&
+    (hasValidField || hasValidTable) &&
     tables.every(t => t.name.trim() !== '' && t.columns.every(c => c.label.trim() !== ''));
 
   return {

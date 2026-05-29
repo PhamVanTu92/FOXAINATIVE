@@ -34,6 +34,10 @@ export class UpdateDocumentDto {
 
   @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => UpdateDocumentLineItemDto)
   lineItems?: UpdateDocumentLineItemDto[];
+
+  /** Cho phép frontend hạ status PROCESSED → DRAFT khi người dùng "Lưu bản nháp". */
+  @IsOptional() @IsEnum(DocumentStatus)
+  status?: DocumentStatus;
 }
 
 export class ConfirmDocumentDto {

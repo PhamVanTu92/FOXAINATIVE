@@ -133,6 +133,11 @@ export class DocumentService {
           });
         }
       }
+      // Cho phép PROCESSED → DRAFT khi user click "Lưu chứng từ" từ trang OCR
+      if (dto.status === DocumentStatus.DRAFT && doc.status === DocumentStatus.PROCESSED) {
+        await tx.document.update({ where: { id }, data: { status: DocumentStatus.DRAFT } });
+        await tx.documentAuditLog.create({ data: { documentId: id, action: 'STATUS_CHANGE', oldStatus: doc.status, newStatus: DocumentStatus.DRAFT, changedBy, note: 'Người dùng lưu bản nháp từ trang OCR.' } });
+      }
       await tx.documentAuditLog.create({ data: { documentId: id, action: 'EDIT_FIELD', changedBy, note: 'Người dùng chỉnh sửa giá trị.' } });
     });
     return this.findOne(id);
