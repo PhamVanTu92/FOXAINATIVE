@@ -61,7 +61,7 @@ COPY --from=builder /app/node_modules/.pnpm node_modules/.pnpm
 COPY --from=builder /app/node_modules/.modules.yaml node_modules/.modules.yaml
 
 COPY apps/ocr-service/start.sh apps/ocr-service/start.sh
-RUN chmod +x apps/ocr-service/start.sh
+RUN sed -i 's/\r$//' apps/ocr-service/start.sh && chmod +x apps/ocr-service/start.sh
 
 WORKDIR /app/apps/ocr-service
 

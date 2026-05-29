@@ -16,6 +16,8 @@ public class KnowledgeBaseConfiguration : IEntityTypeConfiguration<KnowledgeBase
         builder.Property(x => x.Description).HasMaxLength(1000);
         builder.Property(x => x.ManagingDepartmentName).IsRequired().HasMaxLength(200);
 
+        builder.Property(x => x.CollectionId); // nullable, không index
+
         builder.HasIndex(x => x.Code).IsUnique();
         builder.HasIndex(x => x.ManagingDepartmentId);
         builder.HasIndex(x => x.UpdatedAt);

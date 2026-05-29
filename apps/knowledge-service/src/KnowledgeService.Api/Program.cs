@@ -35,7 +35,8 @@ if (!builder.Environment.IsEnvironment("Test"))
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers(opts =>
+    opts.Filters.Add<KnowledgeService.Api.Filters.AppExceptionFilter>());
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddGrpc(options =>

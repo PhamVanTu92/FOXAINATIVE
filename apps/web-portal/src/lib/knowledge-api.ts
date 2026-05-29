@@ -6,6 +6,11 @@ function authHeader(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+function parseError(json: unknown, status: number): string {
+  const j = json as { message?: string; error?: string };
+  return j.message ?? j.error ?? `HTTP ${status}`;
+}
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...init,
@@ -16,18 +21,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((json as { message?: string }).message ?? `HTTP ${res.status}`);
-  return json as T;
-}
-
-async function reqMultipart<T>(path: string, formData: FormData): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    method: 'POST',
-    headers: authHeader(),
-    body: formData,
-  });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((json as { message?: string }).message ?? `HTTP ${res.status}`);
+  if (!res.ok) throw new Error(parseError(json, res.status));
   return json as T;
 }
 
@@ -86,6 +80,8 @@ export interface KnowledgeDocument {
   title: string;
   status: DocStatus;
   fileType: FileType;
+  fileSizeMb?: number;
+  storagePath?: string;
   currentVersion: string;
   versionCount: number;
   knowledgeBaseId: string;
@@ -102,9 +98,12 @@ export interface KnowledgeDocument {
 
 export interface DocumentVersion {
   id: string;
-  version: string;
+  documentId: string;
+  versionNumber: string;
   changeNote: string;
-  authorName: string;
+  contentSummary: string;
+  status: DocStatus;
+  createdBy: string;
   createdAt: string;
 }
 
@@ -167,13 +166,27 @@ export const knowledgeFilesApi = {
   get: (kbId: string, fileId: string) =>
     req<KnowledgeFile>(`/knowledge-bases/${kbId}/files/${fileId}`),
 
-  add: (kbId: string, file: File, payload: { fileType?: string; permittedDepartments?: DepartmentRef[] }) => {
+  add: async (kbId: string, payload: {
+    file: File;
+    fileName?: string;
+    fileType?: string;
+    permittedDepartments?: DepartmentRef[];
+  }): Promise<KnowledgeFile> => {
     const form = new FormData();
-    form.append('file', file);
+    form.append('file', payload.file);
+    if (payload.fileName) form.append('fileName', payload.fileName);
     if (payload.fileType) form.append('fileType', payload.fileType);
-    if (payload.permittedDepartments)
+    if (payload.permittedDepartments?.length) {
       form.append('permittedDepartments', JSON.stringify(payload.permittedDepartments));
-    return reqMultipart<KnowledgeFile>(`/knowledge-bases/${kbId}/files`, form);
+    }
+    const res = await fetch(`${BASE}/knowledge-bases/${kbId}/files`, {
+      method: 'POST',
+      headers: authHeader(),
+      body: form,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(parseError(json, res.status));
+    return json as KnowledgeFile;
   },
 
   remove: (kbId: string, fileId: string) =>
@@ -192,6 +205,31 @@ export const knowledgeFilesApi = {
 // ─── Knowledge Documents ──────────────────────────────────────────────────────
 
 export const knowledgeDocumentsApi = {
+  create: async (payload: {
+    knowledgeBaseId: string;
+    title: string;
+    file?: File;
+    fileType?: string;
+    contentSummary?: string;
+    note?: string;
+  }): Promise<KnowledgeDocument> => {
+    const form = new FormData();
+    form.append('knowledgeBaseId', payload.knowledgeBaseId);
+    form.append('title', payload.title);
+    if (payload.file) form.append('file', payload.file);
+    if (payload.fileType) form.append('fileType', payload.fileType);
+    if (payload.contentSummary) form.append('contentSummary', payload.contentSummary);
+    if (payload.note) form.append('note', payload.note);
+    const res = await fetch(`${BASE}/knowledge-documents`, {
+      method: 'POST',
+      headers: authHeader(),
+      body: form,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(parseError(json, res.status));
+    return json as KnowledgeDocument;
+  },
+
   list: (params?: {
     knowledgeBaseId?: string;
     status?: DocStatus;
@@ -214,6 +252,9 @@ export const knowledgeDocumentsApi = {
   versions: (id: string) =>
     req<{ items: DocumentVersion[] }>(`/knowledge-documents/${id}/versions`),
 
+  submitReview: (id: string) =>
+    req<KnowledgeDocument>(`/knowledge-documents/${id}/submit-review`, { method: 'POST' }),
+
   approve: (id: string) =>
     req<KnowledgeDocument>(`/knowledge-documents/${id}/approve`, { method: 'POST' }),
 
@@ -231,4 +272,7 @@ export const knowledgeDocumentsApi = {
 
   archive: (id: string) =>
     req<KnowledgeDocument>(`/knowledge-documents/${id}/archive`, { method: 'POST' }),
+
+  fileUrl: (id: string) =>
+    `${BASE}/knowledge-documents/${id}/file`,
 };

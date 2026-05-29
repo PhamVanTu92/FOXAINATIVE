@@ -126,6 +126,8 @@ services:
       HTTP_PORT: '3005'
       KNOWLEDGE_SERVICE_AUTOMIGRATE: 'true'
       KNOWLEDGE_SERVICE_SEED: 'true'
+      INDEX_SERVICE_URL: http://index-service:8000
+      FILE_BASE_URL_INTERNAL: http://api-gateway:3001
     ports:
       - '52052:50052'
       - '3005:3005'

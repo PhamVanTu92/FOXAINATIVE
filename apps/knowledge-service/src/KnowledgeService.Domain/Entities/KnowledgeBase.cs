@@ -17,6 +17,9 @@ public class KnowledgeBase : BaseEntity, IAggregateRoot
     /// <summary>Người tạo (userId từ system-service).</summary>
     public Guid? CreatedBy { get; set; }
 
+    /// <summary>ID collection tương ứng trong index-service (null nếu chưa đồng bộ).</summary>
+    public Guid? CollectionId { get; set; }
+
     public ICollection<KnowledgeBasePermission> Permissions { get; set; } = new List<KnowledgeBasePermission>();
     public ICollection<KnowledgeFile> Files { get; set; } = new List<KnowledgeFile>();
 }

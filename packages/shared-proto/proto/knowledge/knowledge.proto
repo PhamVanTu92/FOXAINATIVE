@@ -30,6 +30,7 @@ message KnowledgeBaseMessage {
   int32          total_files              = 9;
   string         created_at               = 10;
   string         updated_at               = 11;
+  string         collection_id            = 12;
 }
 
 message KnowledgeFileMessage {
