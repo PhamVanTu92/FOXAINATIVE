@@ -30,22 +30,23 @@ public class UpdateKnowledgeBaseCommandHandler : IRequestHandler<UpdateKnowledge
         kb.ManagingDepartmentName = cmd.ManagingDepartmentName;
         kb.UpdatedAt = now;
 
-        kb.Permissions.Clear();
-        foreach (var d in cmd.PermittedDepartments)
-        {
-            kb.Permissions.Add(new KnowledgeBasePermission
-            {
-                KnowledgeBaseId = kb.Id,
-                DepartmentId = d.DepartmentId,
-                DepartmentName = d.DepartmentName,
-                CreatedAt = now,
-                UpdatedAt = now
-            });
-        }
+        // Xóa permission cũ qua DbSet.RemoveRange → đảm bảo trạng thái Deleted
+        _repo.RemovePermissions(kb.Permissions.ToList());
 
-        _repo.Update(kb);
+        // Thêm permission mới qua DbSet.AddRange → đảm bảo trạng thái Added
+        var newPermissions = cmd.PermittedDepartments.Select(d => new KnowledgeBasePermission
+        {
+            KnowledgeBaseId = kb.Id,
+            DepartmentId = d.DepartmentId,
+            DepartmentName = d.DepartmentName,
+            CreatedAt = now,
+            UpdatedAt = now
+        }).ToList();
+        await _repo.AddPermissionsAsync(newPermissions, ct);
+
         await _uow.SaveChangesAsync(ct);
 
+        kb.Permissions = newPermissions;
         return kb.Adapt<KnowledgeBaseDto>();
     }
 }

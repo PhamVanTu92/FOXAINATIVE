@@ -104,11 +104,11 @@ public class KnowledgeDocument : BaseEntity, IAggregateRoot
         };
     }
 
-    public void CreateNewVersion(string changeNote, string? contentSummary, Guid? createdBy)
+    public KnowledgeDocumentVersion CreateNewVersion(string changeNote, string? contentSummary, Guid? createdBy)
     {
         var next = IncrementVersion(CurrentVersion);
 
-        Versions.Add(new KnowledgeDocumentVersion
+        var version = new KnowledgeDocumentVersion
         {
             DocumentId = Id,
             VersionNumber = next,
@@ -116,11 +116,13 @@ public class KnowledgeDocument : BaseEntity, IAggregateRoot
             ContentSummary = contentSummary,
             Status = DocumentStatus.Draft,
             CreatedBy = createdBy,
-        });
+        };
 
         CurrentVersion = next;
         Status = DocumentStatus.Draft;
         VersionCount++;
+
+        return version;
     }
 
     private static string IncrementVersion(string current)

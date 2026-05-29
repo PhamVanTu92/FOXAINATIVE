@@ -50,4 +50,10 @@ public class KnowledgeFileRepository : IKnowledgeFileRepository
 
     public void Delete(KnowledgeFile file)
         => _db.KnowledgeFiles.Remove(file);
+
+    public void RemovePermissions(IEnumerable<KnowledgeFilePermission> permissions)
+        => _db.KnowledgeFilePermissions.RemoveRange(permissions);
+
+    public async Task AddPermissionsAsync(IEnumerable<KnowledgeFilePermission> permissions, CancellationToken ct)
+        => await _db.KnowledgeFilePermissions.AddRangeAsync(permissions, ct);
 }

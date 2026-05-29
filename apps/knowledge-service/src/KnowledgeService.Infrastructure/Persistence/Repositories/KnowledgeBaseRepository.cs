@@ -78,4 +78,10 @@ public class KnowledgeBaseRepository : IKnowledgeBaseRepository
 
     public void Delete(KnowledgeBase kb)
         => _db.KnowledgeBases.Remove(kb);
+
+    public void RemovePermissions(IEnumerable<KnowledgeBasePermission> permissions)
+        => _db.KnowledgeBasePermissions.RemoveRange(permissions);
+
+    public async Task AddPermissionsAsync(IEnumerable<KnowledgeBasePermission> permissions, CancellationToken ct)
+        => await _db.KnowledgeBasePermissions.AddRangeAsync(permissions, ct);
 }
