@@ -3,7 +3,6 @@
 import { ChevronRight, MessageSquare, AlertCircle } from 'lucide-react';
 import { useChatbots } from '../hooks/useChatbots';
 import { ChatbotSidebar } from './ChatbotSidebar';
-import { ChatbotDetailView } from './ChatbotDetailView';
 import { ChatbotCreateForm } from './ChatbotCreateForm';
 
 /**
@@ -70,14 +69,9 @@ export function ChatbotConfigView() {
             onSaved={c.handleEdited}
             onCancel={c.cancelEdit}
           />
-        ) : c.selected ? (
-          <ChatbotDetailView
-            bot={c.selected}
-            onUpdateConfig={c.handleUpdateConfig}
-            onEdit={() => c.startEdit(c.selected!)}
-          />
         ) : (
-          // Không có gì chọn → để trống. Sidebar đã có nút "+ Thêm chatbot mới".
+          // Click bot trong sidebar chỉ highlight, panel phải luôn để trống.
+          // User dùng pencil-icon trong sidebar để mở form chỉnh sửa.
           <div className="flex-1" />
         )}
       </div>
