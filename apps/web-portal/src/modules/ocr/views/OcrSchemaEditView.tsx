@@ -8,6 +8,7 @@ import {
 import { useOcrSchemaEdit } from '../hooks/useOcrSchemaEdit';
 import { TYPE_OPTIONS, DATA_TYPE_OPTIONS, POSITION_OPTIONS, PROMPT_TEMPLATES, toKey } from '../constants';
 import type { DataType, FieldPosition, DocType } from '@/lib/ocr-api';
+import { useRoutePermission } from '@/hooks/usePermission';
 
 interface Props {
   id: string;
@@ -32,6 +33,9 @@ export function OcrSchemaEditView({ id }: Props) {
     handleAddTable, handleRemoveTable, toggleExpand,
     addPendingCol, updatePendingCol, removePendingCol, handleRemoveColumn,
   } = useOcrSchemaEdit(id);
+
+  const canUpdate = useRoutePermission('UPDATE');
+  const canDelete = useRoutePermission('DELETE');
 
   if (loading) return (
     <div className="min-h-screen bg-subtle flex items-center justify-center">
@@ -75,14 +79,16 @@ export function OcrSchemaEditView({ id }: Props) {
           <button onClick={() => router.push('/he-thong/ocr')} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-content-secondary border border-default rounded-lg hover:bg-subtle">
             <X className="w-4 h-4" /> Hủy
           </button>
-          <button
-            onClick={handleSaveMeta}
-            disabled={metaSaving || !canSave}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-gradient-primary text-white rounded-lg shadow-sm hover:shadow-md hover:opacity-95 disabled:opacity-50 transition-all"
-          >
-            <Save className="w-4 h-4" />
-            {metaSaving ? 'Đang lưu...' : 'Lưu cấu hình'}
-          </button>
+          {canUpdate && (
+            <button
+              onClick={handleSaveMeta}
+              disabled={metaSaving || !canSave}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-gradient-primary text-white rounded-lg shadow-sm hover:shadow-md hover:opacity-95 disabled:opacity-50 transition-all"
+            >
+              <Save className="w-4 h-4" />
+              {metaSaving ? 'Đang lưu...' : 'Lưu cấu hình'}
+            </button>
+          )}
         </div>
       </div>
 

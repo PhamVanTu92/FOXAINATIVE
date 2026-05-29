@@ -9,6 +9,7 @@ import {
 import { useKnowledgeList } from '../hooks/useKnowledgeList';
 import type { DeptOption } from '../hooks/useKnowledgeList';
 import type { KnowledgeBase, KbFileCounts, CreateKbPayload } from '@/lib/knowledge-api';
+import { useRoutePermission } from '@/hooks/usePermission';
 
 // ─── File type badges ─────────────────────────────────────────────────────────
 
@@ -296,6 +297,9 @@ export function KnowledgeListView() {
     exportExcel,
   } = useKnowledgeList();
 
+  const canCreate = useRoutePermission('CREATE');
+  const canExport = useRoutePermission('EXPORT');
+
   return (
     <div className="flex flex-col h-full bg-subtle">
 
@@ -355,14 +359,18 @@ export function KnowledgeListView() {
               {departments.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
             <div className="flex-1" />
-            <button onClick={exportExcel}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors">
-              <Download size={14} /> Xuất Excel
-            </button>
-            <button onClick={() => setShowCreate(true)}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
-              <Plus size={14} /> Tạo bộ tri thức
-            </button>
+            {canExport && (
+              <button onClick={exportExcel}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors">
+                <Download size={14} /> Xuất Excel
+              </button>
+            )}
+            {canCreate && (
+              <button onClick={() => setShowCreate(true)}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+                <Plus size={14} /> Tạo bộ tri thức
+              </button>
+            )}
           </div>
 
           {/* Cards */}

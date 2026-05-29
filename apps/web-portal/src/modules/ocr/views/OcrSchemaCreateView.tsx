@@ -9,6 +9,7 @@ import {
 import { useOcrSchemaCreate } from '../hooks/useOcrSchemaCreate';
 import { TYPE_OPTIONS, DATA_TYPE_OPTIONS, POSITION_OPTIONS, PROMPT_TEMPLATES } from '../constants';
 import type { DocType } from '@/lib/ocr-api';
+import { useRoutePermission } from '@/hooks/usePermission';
 
 export function OcrSchemaCreateView() {
   const router = useRouter();
@@ -23,6 +24,8 @@ export function OcrSchemaCreateView() {
     addColumn, updateColumnLabel, updateColumnKey, updateColumn, removeColumn, reorderColumns,
     handleSave,
   } = useOcrSchemaCreate();
+
+  const canCreate = useRoutePermission('CREATE');
 
   return (
     <div className="min-h-screen bg-subtle">
@@ -56,14 +59,16 @@ export function OcrSchemaCreateView() {
           >
             <X className="w-4 h-4" /> Hủy
           </button>
-          <button
-            onClick={handleSave}
-            disabled={saving || !canSave}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-gradient-primary text-white rounded-lg shadow-sm hover:shadow-md hover:opacity-95 disabled:opacity-50 transition-all"
-          >
-            <Save className="w-4 h-4" />
-            {saving ? 'Đang lưu...' : 'Lưu cấu hình'}
-          </button>
+          {canCreate && (
+            <button
+              onClick={handleSave}
+              disabled={saving || !canSave}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-gradient-primary text-white rounded-lg shadow-sm hover:shadow-md hover:opacity-95 disabled:opacity-50 transition-all"
+            >
+              <Save className="w-4 h-4" />
+              {saving ? 'Đang lưu...' : 'Lưu cấu hình'}
+            </button>
+          )}
         </div>
       </div>
 

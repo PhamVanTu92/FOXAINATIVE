@@ -9,6 +9,7 @@ import {
 import { useKnowledgeDetail } from '../hooks/useKnowledgeDetail';
 import { knowledgeFilesApi } from '@/lib/knowledge-api';
 import type { KnowledgeBase, KnowledgeFile, DepartmentRef, CreateKbPayload } from '@/lib/knowledge-api';
+import { useRoutePermission } from '@/hooks/usePermission';
 
 // ─── File type config ─────────────────────────────────────────────────────────
 
@@ -386,6 +387,11 @@ export function KnowledgeDetailView({ kbId }: { kbId: string }) {
     savingKb, updateKb,
   } = useKnowledgeDetail(kbId);
 
+  const canCreate = useRoutePermission('CREATE');
+  const canUpdate = useRoutePermission('UPDATE');
+  const canDelete = useRoutePermission('DELETE');
+  const canExport = useRoutePermission('EXPORT');
+
   const TYPE_STATS = [
     { key: 'Word',  label: 'Word',     color: 'text-primary-600',  bg: 'bg-primary-50',  border: 'border-primary-200' },
     { key: 'Excel', label: 'Excel',    color: 'text-success-600',  bg: 'bg-success-50',  border: 'border-success-200' },
@@ -428,15 +434,19 @@ export function KnowledgeDetailView({ kbId }: { kbId: string }) {
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={() => setShowEditKb(true)}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors">
-                <Edit2 size={14} /> Sửa bộ tri thức
-              </button>
-              <button onClick={() => setShowUpload(true)}
-                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
-                <Upload size={14} /> Tải lên tệp
-              </button>
+              {canUpdate && (
+                <button
+                  onClick={() => setShowEditKb(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors">
+                  <Edit2 size={14} /> Sửa bộ tri thức
+                </button>
+              )}
+              {canCreate && (
+                <button onClick={() => setShowUpload(true)}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+                  <Upload size={14} /> Tải lên tệp
+                </button>
+              )}
             </div>
           </div>
 
@@ -548,29 +558,35 @@ export function KnowledgeDetailView({ kbId }: { kbId: string }) {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
-                          <a
-                            href={knowledgeFilesApi.downloadUrl(kbId, file.id)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="p-1.5 text-success-600 hover:bg-success-50/10 rounded-md transition-colors"
-                            title="Tải xuống"
-                          >
-                            <Download size={14} />
-                          </a>
-                          <button
-                            onClick={() => setPermFile(file)}
-                            className="p-1.5 text-content-muted hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors"
-                            title="Phân quyền"
-                          >
-                            <Shield size={14} />
-                          </button>
-                          <button
-                            onClick={() => setDeletingFile(file)}
-                            className="p-1.5 text-content-muted hover:text-danger-600 hover:bg-danger-50/10 rounded-md transition-colors"
-                            title="Xóa"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          {canExport && (
+                            <a
+                              href={knowledgeFilesApi.downloadUrl(kbId, file.id)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-1.5 text-success-600 hover:bg-success-50/10 rounded-md transition-colors"
+                              title="Tải xuống"
+                            >
+                              <Download size={14} />
+                            </a>
+                          )}
+                          {canUpdate && (
+                            <button
+                              onClick={() => setPermFile(file)}
+                              className="p-1.5 text-content-muted hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors"
+                              title="Phân quyền"
+                            >
+                              <Shield size={14} />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              onClick={() => setDeletingFile(file)}
+                              className="p-1.5 text-content-muted hover:text-danger-600 hover:bg-danger-50/10 rounded-md transition-colors"
+                              title="Xóa"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

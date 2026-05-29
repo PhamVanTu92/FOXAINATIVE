@@ -8,6 +8,7 @@ import {
 import { useOcrSchemas } from '../hooks/useOcrSchemas';
 import { TYPE_CONFIG, TYPE_OPTIONS } from '../constants';
 import type { DocType } from '@/lib/ocr-api';
+import { useRoutePermission } from '@/hooks/usePermission';
 
 function StatusToggle({ active, onToggle }: { active: boolean; onToggle: () => void }) {
   return (
@@ -33,6 +34,11 @@ export function OcrSchemaListView() {
     search, setSearch, typeFilter, setTypeFilter,
     load, toggleActive, handleDelete,
   } = useOcrSchemas();
+
+  const canCreate = useRoutePermission('CREATE');
+  const canUpdate = useRoutePermission('UPDATE');
+  const canDelete = useRoutePermission('DELETE');
+  const canExport = useRoutePermission('EXPORT');
 
   return (
     <div className="min-h-screen bg-subtle">
@@ -105,20 +111,24 @@ export function OcrSchemaListView() {
 
           <div className="flex-1" />
 
-          <button
-            onClick={() => alert('Tính năng xuất Excel đang phát triển.')}
-            className="flex items-center gap-2 px-4 py-2 text-sm text-content-secondary border border-default rounded-lg hover:bg-subtle transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            Xuất Excel
-          </button>
-          <button
-            onClick={() => router.push('/he-thong/ocr/tao-moi')}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-gradient-to-r from-primary-600 to-indigo-600 text-white rounded-lg shadow-sm hover:shadow-md hover:opacity-95 transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            Tạo mới chứng từ OCR
-          </button>
+          {canExport && (
+            <button
+              onClick={() => alert('Tính năng xuất Excel đang phát triển.')}
+              className="flex items-center gap-2 px-4 py-2 text-sm text-content-secondary border border-default rounded-lg hover:bg-subtle transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Xuất Excel
+            </button>
+          )}
+          {canCreate && (
+            <button
+              onClick={() => router.push('/he-thong/ocr/tao-moi')}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-gradient-to-r from-primary-600 to-indigo-600 text-white rounded-lg shadow-sm hover:shadow-md hover:opacity-95 transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              Tạo mới chứng từ OCR
+            </button>
+          )}
         </div>
 
         {/* ── Error ── */}
@@ -202,20 +212,24 @@ export function OcrSchemaListView() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1">
-                        <button
-                          onClick={() => router.push(`/he-thong/ocr/${schema.id}`)}
-                          className="p-1.5 text-content-muted hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                          title="Chỉnh sửa"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(schema)}
-                          className="p-1.5 text-content-muted hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                          title={schema._count.documents > 0 ? `Đang dùng bởi ${schema._count.documents} chứng từ` : 'Xóa'}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {canUpdate && (
+                          <button
+                            onClick={() => router.push(`/he-thong/ocr/${schema.id}`)}
+                            className="p-1.5 text-content-muted hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                            title="Chỉnh sửa"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            onClick={() => handleDelete(schema)}
+                            className="p-1.5 text-content-muted hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            title={schema._count.documents > 0 ? `Đang dùng bởi ${schema._count.documents} chứng từ` : 'Xóa'}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

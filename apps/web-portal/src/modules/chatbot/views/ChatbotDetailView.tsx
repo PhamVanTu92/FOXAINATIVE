@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { buildEmbedSnippet } from '@/lib/chatbot-api';
 import type { ChatbotItem, EmbedKind, OverlapType, UpdateChatbotPayload } from '@/lib/chatbot-api';
+import { useRoutePermission } from '@/hooks/usePermission';
 
 interface Props {
   bot: ChatbotItem;
@@ -26,6 +27,8 @@ export function ChatbotDetailView({ bot, onUpdateConfig, onEdit }: Props) {
 }
 
 function BotHeader({ bot, onEdit }: { bot: ChatbotItem; onEdit: () => void }) {
+  const canUpdate = useRoutePermission('UPDATE');
+
   return (
     <div className="bg-white rounded-xl border border-dark-200 shadow-sm px-5 py-4
       flex items-center justify-between gap-3">
@@ -39,15 +42,17 @@ function BotHeader({ bot, onEdit }: { bot: ChatbotItem; onEdit: () => void }) {
           {bot.faqs.length} FAQ
         </p>
       </div>
-      <button
-        type="button"
-        onClick={onEdit}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium
-          border border-primary-200 text-primary-700 bg-primary-50 hover:bg-primary-100
-          rounded-lg transition-colors shrink-0"
-      >
-        <Pencil size={13} /> Chỉnh sửa
-      </button>
+      {canUpdate && (
+        <button
+          type="button"
+          onClick={onEdit}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium
+            border border-primary-200 text-primary-700 bg-primary-50 hover:bg-primary-100
+            rounded-lg transition-colors shrink-0"
+        >
+          <Pencil size={13} /> Chỉnh sửa
+        </button>
+      )}
     </div>
   );
 }

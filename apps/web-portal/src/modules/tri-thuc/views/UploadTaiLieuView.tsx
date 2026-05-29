@@ -7,6 +7,7 @@ import {
 import Link from 'next/link';
 import { useUploadTaiLieu, QueueItem, UploadStatus } from '../hooks/useUploadTaiLieu';
 import { KnowledgeBase } from '@/lib/knowledge-api';
+import { useRoutePermission } from '@/hooks/usePermission';
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
 
@@ -173,6 +174,9 @@ export function UploadTaiLieuView() {
     openFilePicker, handleDrop, handleDragOver, handleDragLeave, handleFileInput,
   } = useUploadTaiLieu();
 
+  const canCreate = useRoutePermission('CREATE');
+  const canDelete = useRoutePermission('DELETE');
+
   const actionCount = pendingCount + errorCount;
 
   return (
@@ -277,7 +281,7 @@ export function UploadTaiLieuView() {
               }`}>
                 {totalCount}
               </span>
-              {doneCount > 0 && (
+              {canDelete && doneCount > 0 && (
                 <button
                   onClick={clearDone}
                   className="flex items-center gap-1 text-xs text-content-muted hover:text-danger-500 px-1.5 py-0.5 rounded hover:bg-danger-50/10 transition-colors ml-1"
@@ -287,17 +291,19 @@ export function UploadTaiLieuView() {
               )}
             </div>
 
-            <button
-              onClick={processAll}
-              disabled={processing || actionCount === 0}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium
-                bg-primary-600 text-white rounded-lg hover:bg-primary-700
-                transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {processing
-                ? <><Loader2 size={14} className="animate-spin" /> Đang xử lý...</>
-                : <><Play size={14} /> Xử lý tất cả</>}
-            </button>
+            {canCreate && (
+              <button
+                onClick={processAll}
+                disabled={processing || actionCount === 0}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium
+                  bg-primary-600 text-white rounded-lg hover:bg-primary-700
+                  transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {processing
+                  ? <><Loader2 size={14} className="animate-spin" /> Đang xử lý...</>
+                  : <><Play size={14} /> Xử lý tất cả</>}
+              </button>
+            )}
           </div>
 
           {/* Queue items / empty state */}

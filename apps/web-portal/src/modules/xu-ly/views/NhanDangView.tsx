@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import type { DataType, LineItem } from '@/lib/ocr-api';
 import { useOcrRecognition, type QueueItem, type QueueStatus } from '../hooks/useOcrRecognition';
+import { useRoutePermission } from '@/hooks/usePermission';
 
 const DATA_TYPE_LABEL: Record<DataType, string> = {
   TEXT: 'Text', DATE: 'Date', NUMBER: 'Number',
@@ -77,6 +78,9 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
     handleSave, handleSaveAndExit, handleExport,
   } = ocr;
 
+  const canUpdate = useRoutePermission('UPDATE');
+  const canExport = useRoutePermission('EXPORT');
+
   if (schemaLoading) return (
     <div className="flex items-center justify-center h-full">
       <Loader2 className="w-6 h-6 animate-spin text-content-muted" />
@@ -120,18 +124,18 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
             )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {doc && (
+            {canExport && doc && (
               <button onClick={handleExport} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-content-secondary border border-default rounded-lg hover:bg-subtle transition-colors">
                 <Download className="w-3.5 h-3.5" /> Xuất JSON
               </button>
             )}
-            {doc && !isConfirmed && dirty && (
+            {canUpdate && doc && !isConfirmed && dirty && (
               <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-primary-700 border border-primary-200 bg-primary-50 rounded-lg hover:bg-primary-100 disabled:opacity-50 transition-colors">
                 <Save className="w-3.5 h-3.5" />
                 {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
               </button>
             )}
-            {doc && !isConfirmed && (
+            {canUpdate && doc && !isConfirmed && (
               <button onClick={handleSaveAndExit} disabled={confirming || saving} className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-gradient-primary text-white rounded-lg shadow-sm hover:shadow-md hover:opacity-95 disabled:opacity-50 transition-all">
                 <Save className="w-4 h-4" />
                 {confirming ? 'Đang lưu...' : 'Lưu chứng từ'}

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useToChuc } from '../hooks/useToChuc';
 import type { OrgNode, OrgUserItem } from '../hooks/useToChuc';
+import { useRoutePermission } from '@/hooks/usePermission';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
@@ -23,10 +24,14 @@ function TreeNode({
   node,
   onEdit,
   onDelete,
+  canUpdate,
+  canDelete,
 }: {
   node: OrgNode;
   onEdit: (n: OrgNode) => void;
   onDelete: (n: OrgNode) => void;
+  canUpdate: boolean;
+  canDelete: boolean;
 }) {
   const [open, setOpen] = useState(true);
   const hasChildren = (node.children?.length ?? 0) > 0;
@@ -52,14 +57,20 @@ function TreeNode({
           <p className="text-sm font-semibold text-content-primary leading-tight">{node.name}</p>
           {node.managerName && <p className="text-xs text-primary-500 mt-0.5">{node.managerName}</p>}
         </div>
-        <div className="hidden group-hover:flex items-center gap-1">
-          <button onClick={() => onEdit(node)} className="p-1.5 text-warning-500 hover:bg-warning-50/10 rounded-lg transition-colors">
-            <Pencil size={13} />
-          </button>
-          <button onClick={() => onDelete(node)} className="p-1.5 text-danger-400 hover:bg-danger-50/10 rounded-lg transition-colors">
-            <Trash2 size={13} />
-          </button>
-        </div>
+        {(canUpdate || canDelete) && (
+          <div className="hidden group-hover:flex items-center gap-1">
+            {canUpdate && (
+              <button onClick={() => onEdit(node)} className="p-1.5 text-warning-500 hover:bg-warning-50/10 rounded-lg transition-colors">
+                <Pencil size={13} />
+              </button>
+            )}
+            {canDelete && (
+              <button onClick={() => onDelete(node)} className="p-1.5 text-danger-400 hover:bg-danger-50/10 rounded-lg transition-colors">
+                <Trash2 size={13} />
+              </button>
+            )}
+          </div>
+        )}
         <span className="text-xs font-mono text-content-secondary bg-subtle border border-default px-2 py-0.5 rounded shrink-0">
           {node.code}
         </span>
@@ -252,6 +263,11 @@ export function ToChucView() {
     exportExcel,
   } = useToChuc();
 
+  const canCreate = useRoutePermission('CREATE');
+  const canUpdate = useRoutePermission('UPDATE');
+  const canDelete = useRoutePermission('DELETE');
+  const canExport = useRoutePermission('EXPORT');
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -287,14 +303,18 @@ export function ToChucView() {
 
         <div className="flex-1" />
 
-        <button onClick={exportExcel}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-default rounded-lg hover:bg-subtle text-content-secondary transition-colors">
-          <Download size={14} /> Xuất Excel
-        </button>
-        <button onClick={() => setEditingNode(null)}
-          className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700">
-          <Plus size={14} /> Thêm phòng ban
-        </button>
+        {canExport && (
+          <button onClick={exportExcel}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-default rounded-lg hover:bg-subtle text-content-secondary transition-colors">
+            <Download size={14} /> Xuất Excel
+          </button>
+        )}
+        {canCreate && (
+          <button onClick={() => setEditingNode(null)}
+            className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700">
+            <Plus size={14} /> Thêm phòng ban
+          </button>
+        )}
       </div>
 
       {/* Content */}
@@ -309,7 +329,9 @@ export function ToChucView() {
               tree.map((n) => (
                 <TreeNode key={n.id} node={n}
                   onEdit={(node) => setEditingNode(node)}
-                  onDelete={(node) => setDeletingNode(node)} />
+                  onDelete={(node) => setDeletingNode(node)}
+                  canUpdate={canUpdate}
+                  canDelete={canDelete} />
               ))
             )}
           </div>
@@ -362,12 +384,16 @@ export function ToChucView() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => setEditingNode(node)} className="p-1.5 text-warning-500 hover:bg-warning-50/10 rounded-lg" title="Chỉnh sửa">
-                            <Pencil size={15} />
-                          </button>
-                          <button onClick={() => setDeletingNode(node)} className="p-1.5 text-danger-400 hover:bg-danger-50/10 rounded-lg" title="Xóa">
-                            <Trash2 size={15} />
-                          </button>
+                          {canUpdate && (
+                            <button onClick={() => setEditingNode(node)} className="p-1.5 text-warning-500 hover:bg-warning-50/10 rounded-lg" title="Chỉnh sửa">
+                              <Pencil size={15} />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button onClick={() => setDeletingNode(node)} className="p-1.5 text-danger-400 hover:bg-danger-50/10 rounded-lg" title="Xóa">
+                              <Trash2 size={15} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

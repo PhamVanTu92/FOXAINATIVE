@@ -9,6 +9,7 @@ import { ocrApi } from '@/lib/ocr-api';
 import type { DocListItem, DocDetail } from '@/lib/ocr-api';
 import { useDocumentList } from '../hooks/useDocumentList';
 import { useDocumentDetail } from '../hooks/useDocumentDetail';
+import { useRoutePermission } from '@/hooks/usePermission';
 import { STATUS_CONFIG_FULL, TYPE_CONFIG, STANDARD_FIELD_KEYS, fmtDate, fmtNum } from '../constants';
 
 function getFileIconDetail(mimeType: string | null | undefined, fileName: string) {
@@ -347,6 +348,10 @@ export function ChungTuView() {
 
   const { openDetailPanel } = detail;
 
+  const canUpdate = useRoutePermission('UPDATE');
+  const canDelete = useRoutePermission('DELETE');
+  const canExport = useRoutePermission('EXPORT');
+
   return (
     <div className="min-h-full bg-subtle">
       {/* Header */}
@@ -359,14 +364,16 @@ export function ChungTuView() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleExportExcel}
-            disabled={exporting}
-            className="flex items-center gap-2 border border-default bg-surface text-content-secondary px-4 py-2 rounded-lg text-sm font-medium hover:bg-subtle disabled:opacity-50 transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            {exporting ? 'Đang xuất...' : (selectedIds.size > 0 ? `Xuất Excel (${selectedIds.size})` : 'Xuất Excel')}
-          </button>
+          {canExport && (
+            <button
+              onClick={handleExportExcel}
+              disabled={exporting}
+              className="flex items-center gap-2 border border-default bg-surface text-content-secondary px-4 py-2 rounded-lg text-sm font-medium hover:bg-subtle disabled:opacity-50 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              {exporting ? 'Đang xuất...' : (selectedIds.size > 0 ? `Xuất Excel (${selectedIds.size})` : 'Xuất Excel')}
+            </button>
+          )}
           {(() => {
             const confirmedCount = selectedIds.size > 0
               ? [...selectedIds].filter(id => docs?.items.find(d => d.id === id)?.status === 'CONFIRMED').length
@@ -471,15 +478,21 @@ export function ChungTuView() {
         {selectedIds.size > 0 && (
           <div className="bg-primary-50/10 border border-primary-500/30 rounded-xl shadow-sm px-4 py-3 flex items-center gap-4">
             <span className="text-sm font-medium text-primary-700">Đã chọn {selectedIds.size} chứng từ</span>
-            <button onClick={handleBulkConfirm} className="flex items-center gap-1.5 text-sm text-emerald-600 hover:text-emerald-500 font-medium">
-              <Check className="w-4 h-4" /> Xác nhận hàng loạt
-            </button>
-            <button onClick={() => openTransferModal([...selectedIds])} className="flex items-center gap-1.5 text-sm text-teal-600 hover:text-teal-500 font-medium">
-              <Database className="w-4 h-4" /> Chuyển vào kho tri thức
-            </button>
-            <button onClick={handleBulkDelete} className="flex items-center gap-1.5 text-sm text-danger-600 hover:text-danger-500 font-medium">
-              <Trash2 className="w-4 h-4" /> Xóa hàng loạt
-            </button>
+            {canUpdate && (
+              <button onClick={handleBulkConfirm} className="flex items-center gap-1.5 text-sm text-emerald-600 hover:text-emerald-500 font-medium">
+                <Check className="w-4 h-4" /> Xác nhận hàng loạt
+              </button>
+            )}
+            {canUpdate && (
+              <button onClick={() => openTransferModal([...selectedIds])} className="flex items-center gap-1.5 text-sm text-teal-600 hover:text-teal-500 font-medium">
+                <Database className="w-4 h-4" /> Chuyển vào kho tri thức
+              </button>
+            )}
+            {canDelete && (
+              <button onClick={handleBulkDelete} className="flex items-center gap-1.5 text-sm text-danger-600 hover:text-danger-500 font-medium">
+                <Trash2 className="w-4 h-4" /> Xóa hàng loạt
+              </button>
+            )}
             <button onClick={() => list.setSelectedIds(new Set())} className="ml-auto flex items-center gap-1 text-sm text-content-muted hover:text-content-secondary">
               <X className="w-3.5 h-3.5" /> Bỏ chọn
             </button>
@@ -560,12 +573,16 @@ export function ChungTuView() {
                         <button onClick={() => openDetailPanel(doc.id)} className="p-1.5 text-content-muted hover:text-violet-500 hover:bg-violet-500/10 rounded-lg transition-colors" title="Xem chi tiết">
                           <Eye className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => openEditModal(doc)} className="p-1.5 text-content-muted hover:text-primary-500 hover:bg-primary-500/10 rounded-lg transition-colors" title="Sửa chứng từ">
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button onClick={() => deleteDoc(doc.id)} className="p-1.5 text-content-muted hover:text-danger-500 hover:bg-danger-500/10 rounded-lg transition-colors" title="Xóa chứng từ">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {canUpdate && (
+                          <button onClick={() => openEditModal(doc)} className="p-1.5 text-content-muted hover:text-primary-500 hover:bg-primary-500/10 rounded-lg transition-colors" title="Sửa chứng từ">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button onClick={() => deleteDoc(doc.id)} className="p-1.5 text-content-muted hover:text-danger-500 hover:bg-danger-500/10 rounded-lg transition-colors" title="Xóa chứng từ">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

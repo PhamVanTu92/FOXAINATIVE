@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import type { LineItem } from '@/lib/ocr-api';
 import { useInvoiceList } from '../hooks/useInvoiceList';
+import { useRoutePermission } from '@/hooks/usePermission';
 
 const STATUS_CONFIG = {
   DRAFT:     { label: 'Nháp',        cls: 'bg-subtle        text-content-secondary border-default' },
@@ -69,6 +70,10 @@ export function HoaDonVatView() {
     addLineItem, removeLineItem, updateLi, closeUpload,
   } = inv;
 
+  const canCreate = useRoutePermission('CREATE');
+  const canUpdate = useRoutePermission('UPDATE');
+  const canDelete = useRoutePermission('DELETE');
+
   return (
     <div className="flex h-full bg-subtle">
       {/* Main content */}
@@ -90,13 +95,15 @@ export function HoaDonVatView() {
             >
               <RefreshCw className="w-4 h-4" />
             </button>
-            <button
-              onClick={() => setUploadOpen(true)}
-              className="flex items-center gap-2 bg-gradient-primary text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm hover:shadow-md hover:opacity-95 transition-all"
-            >
-              <Upload className="w-4 h-4" />
-              Tải lên hóa đơn
-            </button>
+            {canCreate && (
+              <button
+                onClick={() => setUploadOpen(true)}
+                className="flex items-center gap-2 bg-gradient-primary text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm hover:shadow-md hover:opacity-95 transition-all"
+              >
+                <Upload className="w-4 h-4" />
+                Tải lên hóa đơn
+              </button>
+            )}
           </div>
         </div>
 
@@ -163,12 +170,16 @@ export function HoaDonVatView() {
           {selectedIds.size > 0 && (
             <div className="bg-primary-50/10 border border-primary-500/30 rounded-lg px-4 py-2.5 flex items-center gap-4">
               <span className="text-sm font-medium text-primary-700">Đã chọn {selectedIds.size} chứng từ</span>
-              <button onClick={bulkConfirm} className="flex items-center gap-1.5 text-sm text-success-600 hover:text-success-500 font-medium">
-                <CheckCircle className="w-4 h-4" /> Xác nhận tất cả
-              </button>
-              <button onClick={bulkDelete} className="flex items-center gap-1.5 text-sm text-danger-600 hover:text-danger-500 font-medium">
-                <Trash2 className="w-4 h-4" /> Xóa tất cả
-              </button>
+              {canUpdate && (
+                <button onClick={bulkConfirm} className="flex items-center gap-1.5 text-sm text-success-600 hover:text-success-500 font-medium">
+                  <CheckCircle className="w-4 h-4" /> Xác nhận tất cả
+                </button>
+              )}
+              {canDelete && (
+                <button onClick={bulkDelete} className="flex items-center gap-1.5 text-sm text-danger-600 hover:text-danger-500 font-medium">
+                  <Trash2 className="w-4 h-4" /> Xóa tất cả
+                </button>
+              )}
               <button onClick={() => inv.setSelectedIds(new Set())} className="ml-auto text-sm text-content-muted hover:text-content-secondary">Bỏ chọn</button>
             </div>
           )}
@@ -231,9 +242,11 @@ export function HoaDonVatView() {
                     <td className="px-4 py-3 text-content-muted whitespace-nowrap">{fmtDate(doc.issueDate)}</td>
                     <td className="px-4 py-3"><StatusBadge status={doc.status} /></td>
                     <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
-                      <button onClick={() => deleteDoc(doc.id)} className="p-1.5 text-content-muted hover:text-danger-500 hover:bg-danger-500/10 rounded transition-colors" title="Xóa">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {canDelete && (
+                        <button onClick={() => deleteDoc(doc.id)} className="p-1.5 text-content-muted hover:text-danger-500 hover:bg-danger-500/10 rounded transition-colors" title="Xóa">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -413,21 +426,23 @@ export function HoaDonVatView() {
               </div>
               {selectedDoc.status !== 'CONFIRMED' && (
                 <div className="border-t border-default p-4 flex gap-2 bg-surface">
-                  {editDirty && (
+                  {canUpdate && editDirty && (
                     <button onClick={saveEdits} disabled={saveLoading} className="flex-1 flex items-center justify-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50 transition-colors">
                       <Save className="w-4 h-4" />
                       {saveLoading ? 'Đang lưu...' : 'Lưu thay đổi'}
                     </button>
                   )}
-                  {(selectedDoc.status === 'DRAFT' || selectedDoc.status === 'PROCESSED') && (
+                  {canUpdate && (selectedDoc.status === 'DRAFT' || selectedDoc.status === 'PROCESSED') && (
                     <button onClick={confirmDoc} disabled={confirmLoading || editDirty} title={editDirty ? 'Lưu thay đổi trước khi xác nhận' : undefined} className="flex-1 flex items-center justify-center gap-2 bg-success-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-success-700 disabled:opacity-50 transition-colors">
                       <Check className="w-4 h-4" />
                       {confirmLoading ? 'Đang xác nhận...' : 'Xác nhận'}
                     </button>
                   )}
-                  <button onClick={() => deleteDoc(selectedDoc.id)} className="p-2 text-content-muted hover:text-danger-500 hover:bg-danger-500/10 rounded-lg border border-default transition-colors" title="Xóa chứng từ">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {canDelete && (
+                    <button onClick={() => deleteDoc(selectedDoc.id)} className="p-2 text-content-muted hover:text-danger-500 hover:bg-danger-500/10 rounded-lg border border-default transition-colors" title="Xóa chứng từ">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               )}
             </>

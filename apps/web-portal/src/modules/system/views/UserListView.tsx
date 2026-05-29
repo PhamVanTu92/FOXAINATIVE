@@ -10,6 +10,7 @@ import { useUsers } from '../hooks/useUsers';
 import { UserPermissionsModal } from './UserPermissionsModal';
 import { usersApi } from '@/lib/users-api';
 import type { UserItem, RoleItem, OrgNode } from '@/lib/users-api';
+import { useRoutePermission } from '@/hooks/usePermission';
 
 // ─── Shared constants ─────────────────────────────────────────────────────────
 const inputCls = 'w-full border border-default rounded-lg px-3 py-2 text-sm text-content-primary placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-transparent bg-surface transition-colors [&:-webkit-autofill]:[box-shadow:0_0_0_1000px_var(--bg-surface)_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:var(--text-primary)]';
@@ -342,6 +343,11 @@ export function UserListView() {
     loadUsers, loadStats,
   } = useUsers();
 
+  const canCreate = useRoutePermission('CREATE');
+  const canUpdate = useRoutePermission('UPDATE');
+  const canDelete = useRoutePermission('DELETE');
+  const canExport = useRoutePermission('EXPORT');
+
   function exportCsv() {
     const rows = [['STT', 'Họ và tên', 'Tên đăng nhập', 'Email', 'Vai trò', 'Phòng ban', 'Trạng thái']];
     users.forEach((u, i) => rows.push([
@@ -427,14 +433,18 @@ export function UserListView() {
             className="p-2 rounded-lg text-content-muted hover:text-primary-600 hover:bg-primary-50 transition-colors" title="Làm mới">
             <RefreshCw size={16} />
           </button>
-          <button onClick={exportCsv}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors">
-            <Download size={14} /> Xuất Excel
-          </button>
-          <button onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg shadow-sm hover:shadow-md hover:opacity-95 transition-all">
-            <Plus size={14} /> Thêm người dùng
-          </button>
+          {canExport && (
+            <button onClick={exportCsv}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors">
+              <Download size={14} /> Xuất Excel
+            </button>
+          )}
+          {canCreate && (
+            <button onClick={() => setShowCreate(true)}
+              className="flex items-center gap-1.5 px-4 py-2 text-sm bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg shadow-sm hover:shadow-md hover:opacity-95 transition-all">
+              <Plus size={14} /> Thêm người dùng
+            </button>
+          )}
         </div>
 
         {/* Error */}
@@ -497,18 +507,24 @@ export function UserListView() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => setEditingUser(user)}
-                        className="p-1.5 text-content-muted hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors" title="Chỉnh sửa">
-                        <Pencil size={14} />
-                      </button>
-                      <button onClick={() => setPermissionsUser(user)}
-                        className="p-1.5 text-content-muted hover:text-warning-600 hover:bg-warning-50/10 rounded-lg transition-colors" title="Phân quyền">
-                        <Key size={14} />
-                      </button>
-                      <button onClick={() => setDeletingUser(user)}
-                        className="p-1.5 text-content-muted hover:text-danger-600 hover:bg-danger-50/10 rounded-lg transition-colors" title="Xóa">
-                        <Trash2 size={14} />
-                      </button>
+                      {canUpdate && (
+                        <button onClick={() => setEditingUser(user)}
+                          className="p-1.5 text-content-muted hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors" title="Chỉnh sửa">
+                          <Pencil size={14} />
+                        </button>
+                      )}
+                      {canUpdate && (
+                        <button onClick={() => setPermissionsUser(user)}
+                          className="p-1.5 text-content-muted hover:text-warning-600 hover:bg-warning-50/10 rounded-lg transition-colors" title="Phân quyền">
+                          <Key size={14} />
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button onClick={() => setDeletingUser(user)}
+                          className="p-1.5 text-content-muted hover:text-danger-600 hover:bg-danger-50/10 rounded-lg transition-colors" title="Xóa">
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

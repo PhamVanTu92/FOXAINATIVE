@@ -8,6 +8,7 @@ import {
 import { rolesApi } from '@/lib/users-api';
 import type { RoleItem } from '@/lib/users-api';
 import { useRoleConfig } from '../hooks/useRoleConfig';
+import { useRoutePermission } from '@/hooks/usePermission';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 function toKey(moduleId: string, actionId: string) {
@@ -243,6 +244,10 @@ export function RoleConfigView() {
     onRoleCreated, onRoleUpdated, onRoleDeleted,
   } = useRoleConfig();
 
+  const canCreate = useRoutePermission('CREATE');
+  const canUpdate = useRoutePermission('UPDATE');
+  const canDelete = useRoutePermission('DELETE');
+
   return (
     <div className="flex h-full bg-subtle">
 
@@ -252,12 +257,14 @@ export function RoleConfigView() {
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-default">
           <span className="text-sm font-semibold text-content-primary">Danh sách vai trò</span>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-          >
-            <Plus size={12} /> Thêm
-          </button>
+          {canCreate && (
+            <button
+              onClick={() => setShowCreate(true)}
+              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+            >
+              <Plus size={12} /> Thêm
+            </button>
+          )}
         </div>
 
         {/* Search */}
@@ -310,24 +317,28 @@ export function RoleConfigView() {
                   </div>
 
                   {/* Hover actions */}
-                  <div className={`flex items-center gap-0.5 shrink-0 transition-opacity ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                    <button
-                      onClick={e => { e.stopPropagation(); setEditRole(role); }}
-                      className="p-1 text-content-muted hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors"
-                      title="Sửa vai trò"
-                    >
-                      <Edit2 size={12} />
-                    </button>
-                    {!role.isSystem && (
-                      <button
-                        onClick={e => { e.stopPropagation(); setDeleteRole(role); }}
-                        className="p-1 text-content-muted hover:text-danger-600 hover:bg-danger-50/10 rounded-md transition-colors"
-                        title="Xóa vai trò"
-                      >
-                         <Trash2 size={12} />
-                      </button>
-                    )}
-                  </div>
+                  {(canUpdate || canDelete) && (
+                    <div className={`flex items-center gap-0.5 shrink-0 transition-opacity ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                      {canUpdate && (
+                        <button
+                          onClick={e => { e.stopPropagation(); setEditRole(role); }}
+                          className="p-1 text-content-muted hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors"
+                          title="Sửa vai trò"
+                        >
+                          <Edit2 size={12} />
+                        </button>
+                      )}
+                      {canDelete && !role.isSystem && (
+                        <button
+                          onClick={e => { e.stopPropagation(); setDeleteRole(role); }}
+                          className="p-1 text-content-muted hover:text-danger-600 hover:bg-danger-50/10 rounded-md transition-colors"
+                          title="Xóa vai trò"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </button>
               );
             })
@@ -368,20 +379,24 @@ export function RoleConfigView() {
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <button
-                  onClick={() => setEditRole(selectedRole)}
-                  className="flex items-center gap-1.5 px-3 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors"
-                >
-                  <Edit2 size={14} /> Sửa vai trò
-                </button>
-                <button
-                  onClick={savePermissions}
-                  disabled={saving || permLoading || !isDirty}
-                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors"
-                >
-                  {saving ? <Loader2 size={14} className="animate-spin" /> : <Key size={14} />}
-                  Lưu phân quyền
-                </button>
+                {canUpdate && (
+                  <button
+                    onClick={() => setEditRole(selectedRole)}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors"
+                  >
+                    <Edit2 size={14} /> Sửa vai trò
+                  </button>
+                )}
+                {canUpdate && (
+                  <button
+                    onClick={savePermissions}
+                    disabled={saving || permLoading || !isDirty}
+                    className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors"
+                  >
+                    {saving ? <Loader2 size={14} className="animate-spin" /> : <Key size={14} />}
+                    Lưu phân quyền
+                  </button>
+                )}
               </div>
             </div>
 

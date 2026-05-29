@@ -10,6 +10,7 @@ import { useKiemDuyet } from '../hooks/useKiemDuyet';
 import { knowledgeDocumentsApi } from '@/lib/knowledge-api';
 import type { KnowledgeDocument, DocStatus, DocumentVersion } from '@/lib/knowledge-api';
 import type { DocDetailTab } from '../hooks/useKiemDuyet';
+import { useRoutePermission } from '@/hooks/usePermission';
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -447,6 +448,8 @@ function DetailPanel({
   onSubmitReview: () => void;
   onArchive: () => void;
 }) {
+  const canUpdate = useRoutePermission('UPDATE');
+
   const tabs: { key: DocDetailTab; label: string }[] = [
     { key: 'info', label: 'Thông tin' },
     { key: 'versions', label: 'Version Control' },
@@ -596,7 +599,7 @@ function DetailPanel({
         </div>
         <div className="flex items-center gap-2">
           {/* Draft: chỉ nút Gửi duyệt */}
-          {doc.status === 'Draft' && (
+          {canUpdate && doc.status === 'Draft' && (
             <button
               onClick={onSubmitReview}
               disabled={actionLoading}
@@ -608,7 +611,7 @@ function DetailPanel({
           )}
 
           {/* Review: các nút kiểm duyệt */}
-          {doc.status === 'Review' && (
+          {canUpdate && doc.status === 'Review' && (
             <>
               <button
                 onClick={onRollback}
@@ -643,7 +646,7 @@ function DetailPanel({
           )}
 
           {/* Approved: Rollback + Archive */}
-          {doc.status === 'Approved' && (
+          {canUpdate && doc.status === 'Approved' && (
             <>
               <button
                 onClick={onRollback}
@@ -663,7 +666,7 @@ function DetailPanel({
           )}
 
           {/* Archived: chỉ Rollback */}
-          {doc.status === 'Archived' && (
+          {canUpdate && doc.status === 'Archived' && (
             <button
               onClick={onRollback}
               disabled={actionLoading}
