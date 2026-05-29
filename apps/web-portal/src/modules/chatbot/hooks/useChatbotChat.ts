@@ -131,8 +131,8 @@ export function useChatbotChat(lookup: BotLookup) {
           ? localStorage.getItem(LS_LAST_CONV(bot.id))
           : null;
         const initialId =
-          (urlConvId  && list.find(c => c.id === urlConvId))?.id  ??
-          (lsId       && list.find(c => c.id === lsId))?.id       ??
+          list.find(c => urlConvId && c.id === urlConvId)?.id ??
+          list.find(c => !!lsId    && c.id === lsId)?.id      ??
           list[0]?.id ?? null;
 
         if (initialId) {

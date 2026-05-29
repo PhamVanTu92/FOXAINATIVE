@@ -159,16 +159,15 @@ export function useBaoCao() {
     const usersList: UserItem[] = allUsers.status === 'fulfilled' ? allUsers.value : [];
     const deptMap: Record<string, number> = {};
     for (const u of usersList) {
-      const deptName = (u.organizationId && orgNameMap[u.organizationId])
-        ? orgNameMap[u.organizationId]
-        : 'Chưa phân công';
+      const deptName: string =
+        (u.organizationId && orgNameMap[u.organizationId]) || 'Chưa phân công';
       deptMap[deptName] = (deptMap[deptName] ?? 0) + 1;
     }
     const userDeptBreakdown: BarEntry[] = Object.entries(deptMap)
       .sort((a, b) => b[1] - a[1])
       .map(([label, value], i) => ({
         label, value,
-        color: DEPT_COLORS[i % DEPT_COLORS.length],
+        color: DEPT_COLORS[i % DEPT_COLORS.length] ?? 'bg-gray-400',
       }));
 
     // Total PDF files from KB list

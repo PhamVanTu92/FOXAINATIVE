@@ -78,7 +78,7 @@ function TreeNode({
       {open && hasChildren && (
         <div className="ml-7 pl-4 border-l border-dashed border-default">
           {node.children!.map((c) => (
-            <TreeNode key={c.id} node={c} onEdit={onEdit} onDelete={onDelete} />
+            <TreeNode key={c.id} node={c} onEdit={onEdit} onDelete={onDelete} canUpdate={canUpdate} canDelete={canDelete} />
           ))}
         </div>
       )}
