@@ -1,23 +1,30 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   BookOpen, FileText, Users, Calendar, Search, Download,
   Plus, X, Check, Loader2, AlertCircle, ChevronRight, Lock,
+  Database, FileArchive,
 } from 'lucide-react';
 import { useKnowledgeList } from '../hooks/useKnowledgeList';
 import type { DeptOption } from '../hooks/useKnowledgeList';
-import type { KnowledgeBase, KbFileCounts, CreateKbPayload } from '@/lib/knowledge-api';
+import type {
+  KnowledgeBase, KbFileCounts, CreateKbPayload,
+  KbGlobalStats, KnowledgeFile, AllFileCounts,
+} from '@/lib/knowledge-api';
+import { knowledgeBasesApi } from '@/lib/knowledge-api';
 import { useRoutePermission } from '@/hooks/usePermission';
 
 // ─── File type badges ─────────────────────────────────────────────────────────
 
 const FILE_TYPE_CFG: Record<string, { label: string; color: string }> = {
-  word:  { label: 'Word',  color: 'bg-primary-100 text-primary-700' },
-  excel: { label: 'Excel', color: 'bg-success-100 text-success-700' },
-  pdf:   { label: 'PDF',   color: 'bg-danger-100 text-danger-700' },
-  image: { label: 'Ảnh',   color: 'bg-violet-100 text-violet-700' },
+  word:       { label: 'Word',        color: 'bg-primary-100 text-primary-700' },
+  excel:      { label: 'Excel',       color: 'bg-success-100 text-success-700' },
+  pdf:        { label: 'PDF',         color: 'bg-danger-100 text-danger-700' },
+  image:      { label: 'Ảnh',         color: 'bg-violet-100 text-violet-700' },
+  powerPoint: { label: 'PowerPoint',  color: 'bg-orange-100 text-orange-700' },
+  text:       { label: 'Text',        color: 'bg-dark-100 text-dark-600' },
 };
 
 function FileTypeBadges({ fileCounts }: { fileCounts?: KbFileCounts }) {
@@ -220,6 +227,221 @@ function CreateKBModal({
   );
 }
 
+// ─── Total KB Card ────────────────────────────────────────────────────────────
+
+function TotalKbCard({ stats, onClick }: { stats: KbGlobalStats | null; onClick: () => void }) {
+  return (
+    <div
+      onClick={onClick}
+      className="bg-gradient-to-br from-teal-500 to-teal-600 rounded-xl p-5 flex flex-col gap-3
+        hover:shadow-lg transition-all cursor-pointer ring-2 ring-teal-400/20"
+    >
+      <div className="flex items-start gap-3">
+        <div className="p-2.5 rounded-xl bg-white/20 shrink-0">
+          <Database size={20} className="text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-sm font-semibold text-white leading-snug">Tổng tri thức</h3>
+          <p className="text-xs text-teal-100 mt-1">Tất cả bộ tri thức trong hệ thống</p>
+        </div>
+        <ChevronRight size={16} className="text-teal-200 shrink-0 mt-0.5" />
+      </div>
+
+      <div className="flex items-center gap-3 text-xs text-teal-100 border-t border-white/20 pt-2.5">
+        <span className="flex items-center gap-1 font-medium text-white">
+          <BookOpen size={11} /> {stats?.totalKnowledgeBases ?? '—'} bộ
+        </span>
+        <span className="flex items-center gap-1">
+          <FileText size={11} /> {stats?.totalFiles ?? '—'} tệp
+        </span>
+        <span className="flex items-center gap-1">
+          <Calendar size={11} /> {stats?.lastUpdatedAt?.slice(0, 10) ?? '—'}
+        </span>
+      </div>
+
+      {stats && (
+        <div className="flex items-center gap-1.5 text-xs text-teal-100">
+          <Users size={11} />
+          <span>{stats.departmentsUsingCount} phòng ban sử dụng</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── All Files Modal ───────────────────────────────────────────────────────────
+
+const FILE_TYPE_OPTIONS = [
+  { value: '', label: 'Tất cả' },
+  { value: 'Word', label: 'Word' },
+  { value: 'Excel', label: 'Excel' },
+  { value: 'PDF', label: 'PDF' },
+  { value: 'Image', label: 'Ảnh' },
+  { value: 'PowerPoint', label: 'PowerPoint' },
+  { value: 'Text', label: 'Text' },
+];
+
+function AllFilesModal({ onClose }: { onClose: () => void }) {
+  const [search, setSearch] = useState('');
+  const [fileType, setFileType] = useState('');
+  const [page, setPage] = useState(1);
+  const [items, setItems] = useState<KnowledgeFile[]>([]);
+  const [counts, setCounts] = useState<AllFileCounts | null>(null);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const PAGE_SIZE = 20;
+
+  useEffect(() => {
+    setLoading(true);
+    knowledgeBasesApi.allFiles({ search: search || undefined, fileType: fileType || undefined, page, pageSize: PAGE_SIZE })
+      .then(res => {
+        setItems(res.items);
+        setTotal(res.total);
+        setCounts(res.counts);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [search, fileType, page]);
+
+  useEffect(() => { setPage(1); }, [search, fileType]);
+
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-4 flex flex-col"
+        style={{ maxHeight: '90vh' }}>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-dark-200 shrink-0">
+          <div className="flex items-center gap-2">
+            <Database size={18} className="text-teal-600" />
+            <h2 className="font-semibold text-dark-800">Tổng tri thức — Tất cả tệp</h2>
+          </div>
+          <button onClick={onClose} className="text-dark-400 hover:text-dark-600 p-1 rounded">
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Counts bar */}
+        {counts && (
+          <div className="px-6 py-3 border-b border-dark-100 flex flex-wrap gap-2 shrink-0">
+            {Object.entries(counts).filter(([k]) => k !== 'total').map(([k, v]) => {
+              const cfg = FILE_TYPE_CFG[k];
+              if (!cfg || !v) return null;
+              return (
+                <span key={k} className={`text-xs font-medium px-2 py-0.5 rounded-md ${cfg.color}`}>
+                  {cfg.label} ×{v}
+                </span>
+              );
+            })}
+            <span className="text-xs text-dark-500 ml-1 self-center">
+              Tổng: {counts.total} tệp
+            </span>
+          </div>
+        )}
+
+        {/* Toolbar */}
+        <div className="px-6 py-3 border-b border-dark-100 flex items-center gap-3 shrink-0">
+          <div className="relative flex-1 max-w-xs">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Tìm theo tên tệp..."
+              className="w-full pl-9 pr-3 py-2 text-sm border border-dark-200 rounded-lg
+                focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
+          </div>
+          <select value={fileType} onChange={e => setFileType(e.target.value)}
+            className="px-3 py-2 text-sm border border-dark-200 rounded-lg
+              focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-dark-700">
+            {FILE_TYPE_OPTIONS.map(o => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* File list */}
+        <div className="flex-1 overflow-y-auto">
+          {loading ? (
+            <div className="flex items-center justify-center py-16 gap-2 text-dark-400">
+              <Loader2 size={18} className="animate-spin" /> Đang tải...
+            </div>
+          ) : items.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-2 text-dark-400">
+              <FileArchive size={36} className="opacity-40" />
+              <p className="text-sm">Không tìm thấy tệp nào.</p>
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-dark-50 border-b border-dark-200">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-dark-500 uppercase tracking-wide">Tên tệp</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-dark-500 uppercase tracking-wide">Bộ tri thức</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-dark-500 uppercase tracking-wide">Loại</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-dark-500 uppercase tracking-wide">Kích thước</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-dark-500 uppercase tracking-wide">Ngày tải</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map(f => {
+                  const typeLower = f.fileType.toLowerCase();
+                  const cfg = FILE_TYPE_CFG[typeLower === 'powerpoint' ? 'powerPoint' : typeLower];
+                  return (
+                    <tr key={f.id} className="border-b last:border-0 hover:bg-dark-50 transition-colors">
+                      <td className="px-4 py-3 text-dark-800 font-medium max-w-[220px] truncate">
+                        {f.fileName}
+                      </td>
+                      <td className="px-4 py-3 text-dark-500 text-xs max-w-[160px] truncate">
+                        {f.knowledgeBaseName ?? '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        {cfg && (
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-md ${cfg.color}`}>
+                            {cfg.label}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-dark-500 text-xs whitespace-nowrap">
+                        {f.fileSizeMb?.toFixed(1)} MB
+                      </td>
+                      <td className="px-4 py-3 text-dark-500 text-xs whitespace-nowrap">
+                        {f.uploadedAt?.slice(0, 10)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-3 border-t border-dark-100 shrink-0">
+            <span className="text-xs text-dark-500">
+              Hiển thị {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} / {total}
+            </span>
+            <div className="flex gap-1">
+              <button disabled={page <= 1} onClick={() => setPage(p => p - 1)}
+                className="px-2 py-1 border border-dark-200 rounded hover:bg-dark-50 disabled:opacity-40 text-sm">‹</button>
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                const p = Math.max(1, Math.min(page - 2, totalPages - 4)) + i;
+                return (
+                  <button key={p} onClick={() => setPage(p)}
+                    className={`px-2.5 py-1 border rounded text-sm ${p === page
+                      ? 'bg-primary-600 text-white border-primary-600'
+                      : 'border-dark-200 hover:bg-dark-50'}`}>{p}</button>
+                );
+              })}
+              <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}
+                className="px-2 py-1 border border-dark-200 rounded hover:bg-dark-50 disabled:opacity-40 text-sm">›</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── KB Card ──────────────────────────────────────────────────────────────────
 
 function KBCard({ kb, onClick }: { kb: KnowledgeBase; onClick: () => void }) {
@@ -296,6 +518,8 @@ export function KnowledgeListView() {
     orgDepts,
     exportExcel,
   } = useKnowledgeList();
+
+  const [showAllFiles, setShowAllFiles] = useState(false);
 
   const canCreate = useRoutePermission('CREATE');
   const canExport = useRoutePermission('EXPORT');
@@ -374,26 +598,29 @@ export function KnowledgeListView() {
           </div>
 
           {/* Cards */}
-          {loading ? (
-            <div className="flex items-center justify-center py-20 gap-2 text-content-muted">
-              <Loader2 size={20} className="animate-spin" /> Đang tải...
-            </div>
-          ) : items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-3 text-content-muted">
-              <BookOpen size={44} className="text-content-muted opacity-50" />
-              <p className="text-sm">Chưa có bộ tri thức nào.</p>
-            </div>
-          ) : (
-            <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
-              {items.map(kb => (
+          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+            {/* Khối tổng tri thức luôn hiển thị đầu tiên */}
+            <TotalKbCard stats={stats} onClick={() => setShowAllFiles(true)} />
+
+            {loading ? (
+              <div className="col-span-full flex items-center justify-center py-16 gap-2 text-content-muted">
+                <Loader2 size={20} className="animate-spin" /> Đang tải...
+              </div>
+            ) : items.length === 0 ? (
+              <div className="col-span-full flex flex-col items-center justify-center py-16 gap-3 text-content-muted">
+                <BookOpen size={44} className="text-content-muted opacity-50" />
+                <p className="text-sm">Chưa có bộ tri thức nào.</p>
+              </div>
+            ) : (
+              items.map(kb => (
                 <KBCard
                   key={kb.id}
                   kb={kb}
                   onClick={() => router.push(`/tri-thuc/${kb.id}`)}
                 />
-              ))}
-            </div>
-          )}
+              ))
+            )}
+          </div>
 
         </div>
       </div>
@@ -406,6 +633,10 @@ export function KnowledgeListView() {
           error={error}
           orgDepts={orgDepts}
         />
+      )}
+
+      {showAllFiles && (
+        <AllFilesModal onClose={() => setShowAllFiles(false)} />
       )}
     </div>
   );

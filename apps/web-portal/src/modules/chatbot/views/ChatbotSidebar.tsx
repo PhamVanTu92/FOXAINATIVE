@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, Pencil, Trash2, BookOpen, MessageSquare, Webhook, Users } from 'lucide-react';
+import { Plus, Trash2, BookOpen, MessageSquare, Webhook, Users } from 'lucide-react';
 import type { ChatbotItem } from '@/lib/chatbot-api';
 import { MODE_LABELS } from '@/lib/chatbot-api';
 
@@ -9,7 +9,6 @@ interface Props {
   selectedId: string | null;
   creating: boolean;
   editingId: string | null;
-  onSelect: (id: string) => void;
   onStartCreate: () => void;
   onStartEdit: (bot: ChatbotItem) => void;
   onDelete: (bot: ChatbotItem) => void;
@@ -17,7 +16,7 @@ interface Props {
 
 export function ChatbotSidebar({
   bots, selectedId, creating, editingId,
-  onSelect, onStartCreate, onStartEdit, onDelete,
+  onStartCreate, onStartEdit, onDelete,
 }: Props) {
   return (
     <aside className="w-[320px] shrink-0 border-r border-dark-200 bg-white flex flex-col">
@@ -48,7 +47,6 @@ export function ChatbotSidebar({
               bot={bot}
               isSelected={isActiveItem}
               isEditing={editingId === bot.id}
-              onSelect={() => onSelect(bot.id)}
               onEdit={() => onStartEdit(bot)}
               onDelete={() => onDelete(bot)}
             />
@@ -62,12 +60,11 @@ export function ChatbotSidebar({
 // ─── Sub-component ────────────────────────────────────────────────────────────
 
 function BotRow({
-  bot, isSelected, isEditing, onSelect, onEdit, onDelete,
+  bot, isSelected, isEditing, onEdit, onDelete,
 }: {
   bot: ChatbotItem;
   isSelected: boolean;
   isEditing: boolean;
-  onSelect: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -75,7 +72,7 @@ function BotRow({
   return (
     <button
       type="button"
-      onClick={onSelect}
+      onClick={onEdit}
       className={`w-full text-left rounded-lg border transition-all p-3 group
         ${highlight
           ? 'border-primary-500 bg-primary-50/60 shadow-sm ring-1 ring-primary-200'
@@ -94,16 +91,6 @@ function BotRow({
 
         {highlight && (
           <div className="flex items-center gap-0.5 shrink-0">
-            <button
-              onClick={(e) => { e.stopPropagation(); onEdit(); }}
-              className={`p-1 rounded transition-colors
-                ${isEditing
-                  ? 'text-primary-700 bg-primary-100'
-                  : 'text-dark-400 hover:text-primary-600 hover:bg-primary-50'}`}
-              title="Chỉnh sửa"
-            >
-              <Pencil size={13} />
-            </button>
             <button
               onClick={(e) => { e.stopPropagation(); onDelete(); }}
               className="p-1 text-dark-400 hover:text-danger-600 hover:bg-danger-50 rounded transition-colors"

@@ -36,7 +36,6 @@ export function ChatbotConfigView() {
           selectedId={c.selectedId}
           creating={c.creating}
           editingId={c.editingBot?.id ?? null}
-          onSelect={c.selectBot}
           onStartCreate={c.startCreate}
           onStartEdit={c.startEdit}
           onDelete={c.handleDelete}

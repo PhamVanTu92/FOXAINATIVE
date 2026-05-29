@@ -49,6 +49,14 @@ export function useChatbotForm(
   const updateFaq = (idx: number, patch: Partial<FAQItem>) =>
     setFaqs(prev => prev.map((f, i) => (i === idx ? { ...f, ...patch } : f)));
 
+  // ── Section 3b — bổ sung ──
+  const [saveHistory, setSaveHistory] = useState<boolean>(editing?.saveHistory ?? true);
+
+  // ── Chunk config ──
+  const [chunkSize, setChunkSize]     = useState<number>(editing?.chunkSize ?? 512);
+  const [overlapType, setOverlapType] = useState<'PERCENT' | 'CHARS'>(editing?.overlapType ?? 'PERCENT');
+  const [overlapValue, setOverlapValue] = useState<number>(editing?.overlapValue ?? 10);
+
   // ── Section 4 ──
   const [widget, setWidget] = useState<WidgetSettings>(editing?.widget ?? { ...DEFAULT_WIDGET });
   const patchWidget = (patch: Partial<WidgetSettings>) =>
@@ -93,11 +101,15 @@ export function useChatbotForm(
           purpose,
           mode,
           active,
+          saveHistory,
           knowledgeBaseIds: collectionIds,
           collections: cleanCollections,
           systemPrompt: systemPrompt.trim(),
           faqs: cleanFaqs,
           widget,
+          chunkSize,
+          overlapType,
+          overlapValue,
         };
         saved = await chatbotApi.update(editing.id, patch);
       } else {
@@ -107,6 +119,7 @@ export function useChatbotForm(
           purpose,
           mode,
           active,
+          saveHistory,
           knowledgeBaseIds: collectionIds,
           collections: cleanCollections,
           systemPrompt: systemPrompt.trim() || undefined,
@@ -137,6 +150,11 @@ export function useChatbotForm(
     // section 3
     systemPrompt, setSystemPrompt,
     faqs, addFaq, removeFaq, updateFaq,
+    saveHistory, setSaveHistory,
+    // chunk
+    chunkSize, setChunkSize,
+    overlapType, setOverlapType,
+    overlapValue, setOverlapValue,
     // section 4
     widget, patchWidget,
     // submit

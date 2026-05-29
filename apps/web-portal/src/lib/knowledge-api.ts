@@ -63,6 +63,7 @@ export interface KbGlobalStats {
 export interface KnowledgeFile {
   id: string;
   knowledgeBaseId: string;
+  knowledgeBaseName?: string;
   fileName: string;
   fileType: string;
   fileSizeMb: number;
@@ -70,6 +71,24 @@ export interface KnowledgeFile {
   uploadedAt: string;
   updatedAt: string;
   permissions: DepartmentRef[];
+}
+
+export interface AllFileCounts {
+  word: number;
+  excel: number;
+  pdf: number;
+  image: number;
+  powerPoint: number;
+  text: number;
+  total: number;
+}
+
+export interface KbAllFilesResult {
+  items: KnowledgeFile[];
+  total: number;
+  page: number;
+  pageSize: number;
+  counts: AllFileCounts;
 }
 
 export type DocStatus = 'Draft' | 'Review' | 'Approved' | 'Archived';
@@ -149,6 +168,15 @@ export const knowledgeBasesApi = {
 
   remove: (id: string) =>
     req<void>(`/knowledge-bases/${id}`, { method: 'DELETE' }),
+
+  allFiles: (params?: { search?: string; fileType?: string; page?: number; pageSize?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.search) q.set('search', params.search);
+    if (params?.fileType) q.set('fileType', params.fileType);
+    if (params?.page) q.set('page', String(params.page));
+    q.set('pageSize', String(params?.pageSize ?? 50));
+    return req<KbAllFilesResult>(`/knowledge-bases/files?${q}`);
+  },
 };
 
 // ─── Knowledge Files ──────────────────────────────────────────────────────────

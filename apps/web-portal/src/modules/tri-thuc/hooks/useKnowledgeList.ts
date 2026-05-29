@@ -81,6 +81,10 @@ export function useKnowledgeList() {
     try {
       const created = await knowledgeBasesApi.create(payload);
       setAllItems(prev => [created, ...prev]);
+      setStats(prev => prev
+        ? { ...prev, totalKnowledgeBases: prev.totalKnowledgeBases + 1, lastUpdatedAt: new Date().toISOString() }
+        : prev
+      );
       setShowCreate(false);
       showSuccess('Đã tạo bộ tri thức thành công');
     } catch (e: unknown) {
