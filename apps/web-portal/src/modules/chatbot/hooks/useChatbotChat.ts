@@ -336,7 +336,7 @@ export function useChatbotChat(lookup: BotLookup) {
     const re = /^([\s\S]{10,}?[.?!。！？])(\s+|$)/;
     let m;
     while ((m = rest.match(re)) !== null) {
-      const s = m[1].replace(/\n+/g, ' ').trim();
+      const s = (m[1] ?? '').replace(/\n+/g, ' ').trim();
       if (s) sentences.push(s);
       rest = rest.slice(m[0].length);
     }
