@@ -4,10 +4,13 @@ import {
   CheckCircle, AlertCircle, X, FileText, FileSpreadsheet,
   Image as ImageIcon, File, Link2, ScanLine, CheckCheck, Inbox,
 } from 'lucide-react';
+import { useCallback } from 'react';
 import Link from 'next/link';
 import { useUploadTaiLieu, QueueItem, UploadStatus } from '../hooks/useUploadTaiLieu';
-import { KnowledgeBase } from '@/lib/knowledge-api';
+import { knowledgeBasesApi } from '@/lib/knowledge-api';
 import { useRoutePermission } from '@/hooks/usePermission';
+import { InfiniteScrollSelect } from '@/components/InfiniteScrollSelect';
+import type { SelectOption } from '@/components/InfiniteScrollSelect';
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
 
@@ -65,10 +68,10 @@ function StatusBadge({ status, errorMsg }: { status: UploadStatus; errorMsg?: st
 }
 
 function QueueItemRow({
-  item, kbList, onUpdate, onRemove, onProcessOne,
+  item, loadKbOptions, onUpdate, onRemove, onProcessOne,
 }: {
   item: QueueItem;
-  kbList: KnowledgeBase[];
+  loadKbOptions: (search: string, page: number) => Promise<{ items: SelectOption[]; hasMore: boolean }>;
   onUpdate: (id: string, patch: Partial<Pick<QueueItem, 'knowledgeBaseId' | 'title' | 'contentSummary'>>) => void;
   onRemove: (id: string) => void;
   onProcessOne: (item: QueueItem) => void;
@@ -103,19 +106,14 @@ function QueueItemRow({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-content-secondary mb-1">
-                  Bộ tri thức <span className="text-danger-500">*</span>
+                  Bộ tri thức
                 </label>
-                <select
+                <InfiniteScrollSelect
                   value={item.knowledgeBaseId}
-                  onChange={e => onUpdate(item.id, { knowledgeBaseId: e.target.value })}
-                  className="w-full px-2.5 py-1.5 text-xs border border-default rounded-lg
-                    focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary"
-                >
-                  <option value="">-- Chọn bộ tri thức --</option>
-                  {kbList.map(kb => (
-                    <option key={kb.id} value={kb.id}>{kb.name}</option>
-                  ))}
-                </select>
+                  onChange={v => onUpdate(item.id, { knowledgeBaseId: v })}
+                  loadOptions={loadKbOptions}
+                  placeholder="-- Chọn bộ tri thức --"
+                />
               </div>
               <div>
                 <label className="block text-xs font-medium text-content-secondary mb-1">
@@ -168,7 +166,7 @@ function QueueItemRow({
 
 export function UploadTaiLieuView() {
   const {
-    queue, kbList, isDragging, processing, successMsg,
+    queue, isDragging, processing, successMsg,
     inputRef, pendingCount, errorCount, doneCount, totalCount,
     removeItem, updateItem, processOne, processAll, clearDone,
     openFilePicker, handleDrop, handleDragOver, handleDragLeave, handleFileInput,
@@ -176,6 +174,14 @@ export function UploadTaiLieuView() {
 
   const canCreate = useRoutePermission('CREATE');
   const canDelete = useRoutePermission('DELETE');
+
+  const loadKbOptions = useCallback(async (search: string, page: number) => {
+    const res = await knowledgeBasesApi.list({ search: search || undefined, page, pageSize: 10 });
+    return {
+      items: res.items.map((kb): SelectOption => ({ value: kb.id, label: kb.name })),
+      hasMore: page * res.pageSize < res.total,
+    };
+  }, []);
 
   const actionCount = pendingCount + errorCount;
 
@@ -318,7 +324,7 @@ export function UploadTaiLieuView() {
               <QueueItemRow
                 key={item.id}
                 item={item}
-                kbList={kbList}
+                loadKbOptions={loadKbOptions}
                 onUpdate={updateItem}
                 onRemove={removeItem}
                 onProcessOne={processOne}

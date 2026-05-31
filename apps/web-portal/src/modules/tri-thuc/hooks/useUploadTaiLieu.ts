@@ -1,6 +1,6 @@
 'use client';
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { knowledgeBasesApi, knowledgeDocumentsApi, KnowledgeBase, FileType } from '@/lib/knowledge-api';
+import { useState, useCallback, useRef } from 'react';
+import { knowledgeDocumentsApi, knowledgeFilesStandaloneApi, FileType } from '@/lib/knowledge-api';
 
 export type UploadStatus = 'pending' | 'uploading' | 'done' | 'error';
 
@@ -30,44 +30,28 @@ function detectFileType(name: string): FileType {
 
 export function useUploadTaiLieu() {
   const [queue, setQueue] = useState<QueueItem[]>([]);
-  const [kbList, setKbList] = useState<KnowledgeBase[]>([]);
-  const [kbLoading, setKbLoading] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const loadKbs = useCallback(async () => {
-    try {
-      const res = await knowledgeBasesApi.list({ pageSize: 100 });
-      setKbList(res.items);
-    } catch {
-      // non-blocking — KB list is optional
-    } finally {
-      setKbLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { loadKbs(); }, [loadKbs]);
-
   const addFiles = useCallback((files: FileList | File[]) => {
     const arr = Array.from(files);
     setQueue(prev => {
-      const defaultKbId = kbList[0]?.id ?? '';
       const newItems: QueueItem[] = arr.map(f => ({
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         file: f,
         fileName: f.name,
         fileType: detectFileType(f.name),
         fileSizeMb: +(f.size / 1024 / 1024).toFixed(2),
-        knowledgeBaseId: defaultKbId,
+        knowledgeBaseId: '',
         title: f.name.replace(/\.[^.]+$/, ''),
         contentSummary: '',
         status: 'pending',
       }));
       return [...prev, ...newItems];
     });
-  }, [kbList]);
+  }, []);
 
   const removeItem = useCallback((id: string) => {
     setQueue(prev => prev.filter(i => i.id !== id));
@@ -81,10 +65,10 @@ export function useUploadTaiLieu() {
   }, []);
 
   const processOne = useCallback(async (item: QueueItem): Promise<boolean> => {
-    if (!item.knowledgeBaseId || !item.title.trim()) {
+    if (!item.title.trim()) {
       setQueue(prev => prev.map(i =>
         i.id === item.id
-          ? { ...i, status: 'error' as UploadStatus, errorMsg: 'Chọn bộ tri thức và nhập tiêu đề' }
+          ? { ...i, status: 'error' as UploadStatus, errorMsg: 'Nhập tiêu đề tài liệu' }
           : i,
       ));
       return false;
@@ -93,13 +77,21 @@ export function useUploadTaiLieu() {
       i.id === item.id ? { ...i, status: 'uploading' as UploadStatus, errorMsg: undefined } : i,
     ));
     try {
-      await knowledgeDocumentsApi.create({
-        knowledgeBaseId: item.knowledgeBaseId,
-        title: item.title.trim(),
-        file: item.file,
-        fileType: item.fileType,
-        contentSummary: item.contentSummary || undefined,
-      });
+      if (item.knowledgeBaseId) {
+        await knowledgeDocumentsApi.create({
+          knowledgeBaseId: item.knowledgeBaseId,
+          title: item.title.trim(),
+          file: item.file,
+          fileType: item.fileType,
+          contentSummary: item.contentSummary || undefined,
+        });
+      } else {
+        await knowledgeFilesStandaloneApi.upload({
+          file: item.file,
+          fileName: item.title.trim(),
+          fileType: item.fileType,
+        });
+      }
       setQueue(prev => prev.map(i =>
         i.id === item.id ? { ...i, status: 'done' as UploadStatus } : i,
       ));
@@ -163,8 +155,6 @@ export function useUploadTaiLieu() {
 
   return {
     queue,
-    kbList,
-    kbLoading,
     isDragging,
     processing,
     successMsg,

@@ -72,6 +72,7 @@ Quy tắc:
 - confidence: 0.0–1.0 (mức độ chắc chắn)
 - Số tiền: chỉ chữ số, không dấu chấm/phẩy phân cách (vd: 87000000)
 - Ngày/giờ (DATE): giữ nguyên định dạng tìm thấy trong tài liệu — nếu có cả ngày lẫn giờ thì trả đủ (vd: "09:40 - 25/05/2026"), chỉ có ngày thì trả ngày (vd: "25/05/2026"), chỉ có giờ thì trả giờ (vd: "09:40")
+- BOOLEAN: ô có dấu X, x, ✓, v, có, yes, true → "true"; ô trống, dấu gạch (-), không, no, false → "false"
 - lineItems: danh sách hàng hóa/dữ liệu bảng (mảng rỗng nếu không có bảng)
 ${customPromptSection}
 ${tablesPrompt}`;
@@ -205,6 +206,11 @@ function buildTablesPrompt(request: OcrRequest): string {
     );
   }
   lines.push('\nVới bảng TÙY CHỈNH: đặt toàn bộ giá trị vào "extraData" (key = columnKey, không dùng name/unit/quantity/unitPrice/amount).');
+
+  const hasBoolCol = tables.some((t: OcrSchemaTable) => t.columns.some((c: OcrSchemaTableColumn) => c.dataType === 'BOOLEAN'));
+  if (hasBoolCol) {
+    lines.push('\nCột kiểu BOOLEAN: X/x/✓/v/có/yes/true → "true"; ô trống/dấu -/không/no/false → "false". Không được để trống hoặc trả về ký tự gốc.');
+  }
   return lines.join('\n');
 }
 

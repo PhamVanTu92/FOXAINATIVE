@@ -122,10 +122,10 @@ export function useKnowledgeDetail(kbId: string) {
     setDeleting(true);
     setError('');
     try {
-      await knowledgeFilesApi.remove(kbId, deletingFile.id);
+      await knowledgeFilesApi.unlink(deletingFile.id);
       setAllFiles(prev => prev.filter(f => f.id !== deletingFile.id));
       setDeletingFile(null);
-      showSuccess('Đã xóa tệp');
+      showSuccess('Đã gỡ tệp khỏi bộ tri thức');
       await reloadKb();
     } catch (e: unknown) {
       setError((e as Error).message);

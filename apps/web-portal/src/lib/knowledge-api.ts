@@ -217,6 +217,19 @@ export const knowledgeFilesApi = {
     return json as KnowledgeFile;
   },
 
+  update: (fileId: string, body: { fileName?: string; targetKnowledgeBaseId?: string }) =>
+    req<KnowledgeFile>(`/knowledge-bases/files/${fileId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+
+  /** Gỡ tệp khỏi bộ tri thức (không xóa hẳn — đặt knowledgeBaseId = null) */
+  unlink: (fileId: string) =>
+    req<KnowledgeFile>(`/knowledge-bases/files/${fileId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ targetKnowledgeBaseId: null }),
+    }),
+
   remove: (kbId: string, fileId: string) =>
     req<void>(`/knowledge-bases/${kbId}/files/${fileId}`, { method: 'DELETE' }),
 
@@ -228,6 +241,62 @@ export const knowledgeFilesApi = {
 
   downloadUrl: (kbId: string, fileId: string) =>
     `${BASE}/knowledge-bases/${kbId}/files/${fileId}/file`,
+};
+
+// ─── Knowledge Files Standalone (POST /api/knowledge-files) ──────────────────
+
+async function _postKnowledgeFile(form: FormData): Promise<KnowledgeFile> {
+  const res = await fetch(`${BASE}/knowledge-files`, {
+    method: 'POST',
+    headers: authHeader(),
+    body: form,
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(parseError(json, res.status));
+  return json as KnowledgeFile;
+}
+
+export const knowledgeFilesStandaloneApi = {
+  upload: async (payload: {
+    file: File;
+    knowledgeBaseId?: string;
+    fileName?: string;
+    fileType?: string;
+    permittedDepartments?: DepartmentRef[];
+  }): Promise<KnowledgeFile> => {
+    const form = new FormData();
+    form.append('file', payload.file);
+    if (payload.knowledgeBaseId) form.append('knowledgeBaseId', payload.knowledgeBaseId);
+    if (payload.fileName) form.append('fileName', payload.fileName);
+    if (payload.fileType) form.append('fileType', payload.fileType);
+    if (payload.permittedDepartments?.length) {
+      form.append('permittedDepartments', JSON.stringify(payload.permittedDepartments));
+    }
+    return _postKnowledgeFile(form);
+  },
+
+  /** Xóa vĩnh viễn tệp khỏi hệ thống (chỉ dùng từ Tổng tri thức) */
+  remove: (fileId: string) =>
+    req<void>(`/knowledge-files/${fileId}`, { method: 'DELETE' }),
+
+  /** Fetch file từ URL (có auth) rồi upload lên /api/knowledge-files */
+  uploadFromUrl: async (payload: {
+    fileUrl: string;
+    knowledgeBaseId?: string;
+    fileName?: string;
+    fileType?: string;
+  }): Promise<KnowledgeFile> => {
+    const fileRes = await fetch(payload.fileUrl, { headers: authHeader() });
+    if (!fileRes.ok) throw new Error(`Không thể tải file: HTTP ${fileRes.status}`);
+    const blob = await fileRes.blob();
+    const file = new File([blob], payload.fileName ?? 'document', { type: blob.type });
+    const form = new FormData();
+    form.append('file', file);
+    if (payload.knowledgeBaseId) form.append('knowledgeBaseId', payload.knowledgeBaseId);
+    if (payload.fileName) form.append('fileName', payload.fileName);
+    if (payload.fileType) form.append('fileType', payload.fileType);
+    return _postKnowledgeFile(form);
+  },
 };
 
 // ─── Knowledge Documents ──────────────────────────────────────────────────────

@@ -5,12 +5,105 @@ import {
   Pencil, Trash2, Download, X, Database, Check, Eye,
   ClipboardList, Clock, Loader2, ZoomIn, Table2, Image as ImageIcon,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { ocrApi } from '@/lib/ocr-api';
 import type { DocListItem, DocDetail } from '@/lib/ocr-api';
 import { useDocumentList } from '../hooks/useDocumentList';
 import { useDocumentDetail } from '../hooks/useDocumentDetail';
 import { useRoutePermission } from '@/hooks/usePermission';
 import { STATUS_CONFIG_FULL, TYPE_CONFIG, STANDARD_FIELD_KEYS, fmtDate, fmtNum } from '../constants';
+
+function WordPreview({ url }: { url: string }) {
+  const [html, setHtml] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setLoading(true); setHtml(null); setError(false);
+    fetch(url)
+      .then(r => r.arrayBuffer())
+      .then(buf => import('mammoth').then(m => m.convertToHtml({ arrayBuffer: buf })))
+      .then(({ value }) => setHtml(value))
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, [url]);
+
+  if (loading) return <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 text-neutral-500 animate-spin" /></div>;
+  if (error || !html) return <div className="flex items-center justify-center h-full text-neutral-500 text-sm">Không thể đọc nội dung file</div>;
+  return (
+    <div className="h-full overflow-auto p-6 bg-white text-sm text-neutral-800 leading-relaxed"
+      dangerouslySetInnerHTML={{ __html: html }} />
+  );
+}
+
+function ExcelPreview({ url }: { url: string }) {
+  const [sheets, setSheets] = useState<{ name: string; rows: (string | number | null)[][] }[]>([]);
+  const [activeSheet, setActiveSheet] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setLoading(true); setSheets([]); setError(false); setActiveSheet(0);
+    fetch(url)
+      .then(r => r.arrayBuffer())
+      .then(buf => import('xlsx').then(XLSX => {
+        const wb = XLSX.read(buf, { type: 'array' });
+        return wb.SheetNames.map(name => ({
+          name,
+          rows: wb.Sheets[name] ? XLSX.utils.sheet_to_json<(string | number | null)[]>(wb.Sheets[name]!, { header: 1, defval: null }) : [],
+        }));
+      }))
+      .then(setSheets)
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, [url]);
+
+  if (loading) return <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 text-neutral-500 animate-spin" /></div>;
+  if (error || !sheets.length) return <div className="flex items-center justify-center h-full text-neutral-500 text-sm">Không thể đọc nội dung file</div>;
+
+  const current = sheets[activeSheet];
+  const headers = (current?.rows[0] ?? []) as (string | null)[];
+  const dataRows = current?.rows.slice(1) ?? [];
+
+  return (
+    <div className="h-full flex flex-col overflow-hidden bg-neutral-900">
+      {sheets.length > 1 && (
+        <div className="flex gap-0.5 px-2 py-1.5 bg-neutral-800 border-b border-neutral-700 overflow-x-auto shrink-0">
+          {sheets.map((s, i) => (
+            <button key={i} onClick={() => setActiveSheet(i)}
+              className={`px-3 py-1 rounded text-xs whitespace-nowrap transition-colors ${i === activeSheet ? 'bg-neutral-600 text-white' : 'text-neutral-400 hover:text-white hover:bg-neutral-700'}`}>
+              {s.name}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="flex-1 overflow-auto">
+        <table className="text-xs text-neutral-200 border-collapse">
+          <thead className="sticky top-0 bg-neutral-800 z-10">
+            <tr>
+              {headers.map((h, i) => (
+                <th key={i} className="px-3 py-2 text-left font-medium text-neutral-300 border border-neutral-700 whitespace-nowrap">
+                  {h ?? ''}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {dataRows.map((row, ri) => (
+              <tr key={ri} className={ri % 2 === 1 ? 'bg-neutral-800/40' : ''}>
+                {headers.map((_, ci) => (
+                  <td key={ci} className="px-3 py-1.5 border border-neutral-700/50 whitespace-nowrap max-w-[200px] truncate">
+                    {String(row[ci] ?? '')}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 function getFileIconDetail(mimeType: string | null | undefined, fileName: string) {
   const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
@@ -127,21 +220,14 @@ function DetailDrawer({
             </div>
           ) : activeFile?.mimeType === 'application/pdf' ? (
             <iframe src={activeFile.url} className="w-full h-full border-0" title={activeFile.fileName ?? 'document'} />
+          ) : activeFile && (activeFile.mimeType?.includes('wordprocessingml') || activeFile.fileName?.endsWith('.docx')) ? (
+            <WordPreview url={activeFile.url} />
+          ) : activeFile && (activeFile.mimeType?.includes('spreadsheetml') || activeFile.mimeType?.includes('ms-excel') || activeFile.mimeType === 'text/csv') ? (
+            <ExcelPreview url={activeFile.url} />
           ) : activeFile ? (
             <div className="flex flex-col items-center justify-center h-full gap-3 text-neutral-500">
-              {(activeFile.mimeType?.includes('spreadsheetml') || activeFile.mimeType?.includes('ms-excel') || activeFile.mimeType === 'text/csv')
-                ? <Table2 className="w-12 h-12 text-success-400" />
-                : activeFile.mimeType?.includes('wordprocessingml')
-                ? <FileText className="w-12 h-12 text-primary-400" />
-                : <ImageIcon className="w-12 h-12 text-neutral-600" />
-              }
-              <p className="text-sm text-center px-6">
-                {(activeFile.mimeType?.includes('spreadsheetml') || activeFile.mimeType?.includes('ms-excel') || activeFile.mimeType === 'text/csv')
-                  ? 'File Excel/CSV — AI đã đọc nội dung bảng tính'
-                  : activeFile.mimeType?.includes('wordprocessingml')
-                  ? 'File Word — AI đã đọc nội dung văn bản'
-                  : 'Không thể xem trước định dạng này'}
-              </p>
+              <ImageIcon className="w-12 h-12 text-neutral-600" />
+              <p className="text-sm text-center px-6">Không thể xem trước định dạng này</p>
               <a href={activeFile.url} target="_blank" rel="noopener noreferrer"
                 className="text-xs text-primary-400 hover:text-primary-300 underline flex items-center gap-1">
                 <Download className="w-3.5 h-3.5" /> Tải file xuống
@@ -200,20 +286,6 @@ function DetailDrawer({
 function DetailPanelBody({ doc }: { doc: DocDetail }) {
   return (
     <div className="p-6 space-y-5">
-      {doc.ocrConfidence != null && (
-        <div className="bg-surface border border-default rounded-xl shadow-sm px-4 py-3 flex items-center gap-3">
-          <span className="text-xs text-content-muted shrink-0">Độ tin cậy OCR</span>
-          <div className="flex-1 bg-strong rounded-full h-2">
-            <div
-              className={`h-2 rounded-full transition-all ${doc.ocrConfidence > 0.85 ? 'bg-success-500' : doc.ocrConfidence > 0.6 ? 'bg-amber-400' : 'bg-danger-400'}`}
-              style={{ width: `${Math.round(doc.ocrConfidence * 100)}%` }}
-            />
-          </div>
-          <span className={`text-sm font-bold shrink-0 ${doc.ocrConfidence > 0.85 ? 'text-success-600' : doc.ocrConfidence > 0.6 ? 'text-amber-600' : 'text-danger-600'}`}>
-            {Math.round(doc.ocrConfidence * 100)}%
-          </span>
-        </div>
-      )}
       {doc.status === 'ERROR' && doc.ocrError && (
         <div className="flex items-start gap-2 bg-danger-50/10 border border-danger-500/30 text-danger-700 rounded-lg px-4 py-3 text-sm">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -233,12 +305,15 @@ function DetailPanelBody({ doc }: { doc: DocDetail }) {
             {doc.values.map(v => (
               <div key={v.fieldId} className="flex items-center px-4 py-2.5 gap-3">
                 <span className="text-xs text-content-muted w-36 shrink-0">{v.field.label}</span>
-                <span className={`text-sm flex-1 truncate ${v.stringValue ? 'text-content-primary' : 'text-content-muted italic'}${v.field.dataType === 'CURRENCY' && v.stringValue ? ' font-mono' : ''}`}>
-                  {v.field.dataType === 'CURRENCY' && v.stringValue ? fmtNum(v.stringValue) : (v.stringValue || '—')}
-                </span>
-                {v.confidence != null && v.stringValue && (
-                  <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${v.confidence > 0.85 ? 'text-success-600 bg-success-50/20' : v.confidence > 0.6 ? 'text-amber-600 bg-amber-50/20' : 'text-danger-600 bg-danger-50/20'}`}>
-                    {Math.round(v.confidence * 100)}%
+                {v.field.dataType === 'BOOLEAN' ? (
+                  v.stringValue === 'true'
+                    ? <Check className="w-4 h-4 text-success-500 shrink-0" />
+                    : v.stringValue === 'false'
+                    ? <X className="w-4 h-4 text-content-muted shrink-0" />
+                    : <span className="text-sm text-content-muted italic">—</span>
+                ) : (
+                  <span className={`text-sm flex-1 truncate ${v.stringValue ? 'text-content-primary' : 'text-content-muted italic'}${v.field.dataType === 'CURRENCY' && v.stringValue ? ' font-mono' : ''}`}>
+                    {v.field.dataType === 'CURRENCY' && v.stringValue ? fmtNum(v.stringValue) : (v.stringValue || '—')}
                   </span>
                 )}
               </div>
@@ -266,7 +341,7 @@ function DetailPanelBody({ doc }: { doc: DocDetail }) {
                     <tr className="bg-subtle border-b border-default text-xs text-content-muted uppercase tracking-wide">
                       <th className="px-3 py-2.5 text-center w-10">STT</th>
                       {table.columns.map(col => (
-                        <th key={col.id} className={`px-3 py-2.5 ${col.dataType === 'NUMBER' || col.dataType === 'CURRENCY' ? 'text-right' : 'text-left'}`}>{col.label}</th>
+                        <th key={col.id} className={`px-3 py-2.5 ${col.dataType === 'NUMBER' || col.dataType === 'CURRENCY' ? 'text-right' : col.dataType === 'BOOLEAN' ? 'text-center' : 'text-left'}`}>{col.label}</th>
                       ))}
                     </tr>
                   </thead>
@@ -276,12 +351,20 @@ function DetailPanelBody({ doc }: { doc: DocDetail }) {
                         <td className="px-3 py-2.5 text-center text-content-muted text-xs">{li.stt}</td>
                         {table.columns.map(col => {
                           const isNum = col.dataType === 'NUMBER' || col.dataType === 'CURRENCY';
+                          const isBool = col.dataType === 'BOOLEAN';
                           const raw = STANDARD_FIELD_KEYS.has(col.columnKey)
                             ? li[col.columnKey as keyof typeof li]
                             : li.extraData?.[col.columnKey];
+                          const rawStr = raw != null ? String(raw) : '';
                           return (
-                            <td key={col.columnKey} className={`px-3 py-2.5 text-content-primary text-xs${isNum ? ' text-right font-mono' : ''}`}>
-                              {isNum ? fmtNum(raw as number | null | undefined) : String(raw ?? '—')}
+                            <td key={col.columnKey} className={`px-3 py-2.5 text-content-primary text-xs${isNum ? ' text-right font-mono' : isBool ? ' text-center' : ''}`}>
+                              {isBool
+                                ? rawStr === 'true'
+                                  ? <Check className="w-3.5 h-3.5 text-success-500 inline" />
+                                  : rawStr === 'false'
+                                  ? <span className="text-content-muted">—</span>
+                                  : rawStr || '—'
+                                : isNum ? fmtNum(raw as number | null | undefined) : (rawStr || '—')}
                             </td>
                           );
                         })}

@@ -56,6 +56,11 @@ export const PROMPT_TEMPLATES: { id: string; label: string; text: string }[] = [
     label: 'Flat JSON + Forward-fill ô gộp',
     text: 'Hãy trích xuất bảng thành một mảng JSON phẳng (Flat JSON Array), không lồng nhau.\n\nQuy tắc xử lý ô gộp (Merged Cells):\n- Tại các cột bị gộp dọc, bắt buộc phải LẶP LẠI (Forward-fill) giá trị đó cho từng dòng dữ liệu con. Không được để trống hoặc dùng mảng lồng.\n- Các ô không có dữ liệu thì để chuỗi rỗng "".',
   },
+  {
+    id: 'checkbox-table',
+    label: 'Bảng tích (X / checkbox)',
+    text: 'Bảng này dùng dấu X hoặc x để đánh dấu lựa chọn (kiểu checkbox). Quy tắc chuyển đổi cho tất cả cột kiểu BOOLEAN:\n- Ô có X, x, ✓, v, có, yes → "true"\n- Ô trống, dấu gạch (-), không, no → "false"\nKhông được giữ nguyên ký tự gốc, phải chuẩn hóa về "true" hoặc "false".',
+  },
 ];
 
 export function toKey(text: string): string {

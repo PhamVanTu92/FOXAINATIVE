@@ -359,26 +359,47 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
                       {isProcessing ? (
                         <div className="h-9 bg-subtle rounded-lg animate-pulse w-full" />
                       ) : doc && !isConfirmed ? (
-                        <div className="relative">
-                          <input
-                            type="text"
-                            value={fieldValues[f.id] ?? ''}
-                            onChange={e => setFieldValue(f.id, e.target.value)}
-                            placeholder={`Nhập ${f.label.toLowerCase()}...`}
-                            className={`w-full px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 transition-all duration-base ${
-                              arithmeticWarnings.fields.has(f.id)
-                                ? 'border-warning-400 bg-warning-50/10 text-content-primary focus:ring-warning-300'
-                                : hasValue
-                                  ? 'border-success-300 bg-success-50/10 text-content-primary focus:ring-primary-400'
-                                  : 'border-default bg-subtle text-content-secondary placeholder:text-content-muted focus:ring-primary-400'
-                            }`}
-                          />
-                          {docValue?.isManuallyEdited && (
-                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-warning-500 font-medium animate-fade-in">Đã sửa</span>
-                          )}
-                        </div>
+                        f.dataType === 'BOOLEAN' ? (
+                          <button
+                            type="button"
+                            onClick={() => setFieldValue(f.id, fieldValues[f.id] === 'true' ? 'false' : 'true')}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-default hover:bg-subtle transition-colors"
+                          >
+                            <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${fieldValues[f.id] === 'true' ? 'bg-success-500' : 'bg-strong'}`}>
+                              <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${fieldValues[f.id] === 'true' ? 'translate-x-4' : 'translate-x-1'}`} />
+                            </div>
+                            <span className={`text-sm font-medium ${fieldValues[f.id] === 'true' ? 'text-success-600' : 'text-content-muted'}`}>
+                              {fieldValues[f.id] === 'true' ? 'Có' : 'Không'}
+                            </span>
+                          </button>
+                        ) : (
+                          <div className="relative">
+                            <input
+                              type="text"
+                              value={fieldValues[f.id] ?? ''}
+                              onChange={e => setFieldValue(f.id, e.target.value)}
+                              placeholder={`Nhập ${f.label.toLowerCase()}...`}
+                              className={`w-full px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 transition-all duration-base ${
+                                arithmeticWarnings.fields.has(f.id)
+                                  ? 'border-warning-400 bg-warning-50/10 text-content-primary focus:ring-warning-300'
+                                  : hasValue
+                                    ? 'border-success-300 bg-success-50/10 text-content-primary focus:ring-primary-400'
+                                    : 'border-default bg-subtle text-content-secondary placeholder:text-content-muted focus:ring-primary-400'
+                              }`}
+                            />
+                            {docValue?.isManuallyEdited && (
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-warning-500 font-medium animate-fade-in">Đã sửa</span>
+                            )}
+                          </div>
+                        )
                       ) : isConfirmed ? (
-                        <p className="text-sm text-content-primary font-medium px-1 py-2 min-h-[36px]">{fieldValues[f.id] || '—'}</p>
+                        f.dataType === 'BOOLEAN'
+                          ? <div className="px-1 py-2 min-h-[36px] flex items-center">
+                              {fieldValues[f.id] === 'true'
+                                ? <Check className="w-5 h-5 text-success-500" />
+                                : <X className="w-5 h-5 text-content-muted" />}
+                            </div>
+                          : <p className="text-sm text-content-primary font-medium px-1 py-2 min-h-[36px]">{fieldValues[f.id] || '—'}</p>
                       ) : (
                         <div className="h-9 rounded-lg border border-dashed border-default bg-subtle" />
                       )}
@@ -434,7 +455,7 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
                         <tr className="border-b border-default bg-subtle text-content-secondary uppercase tracking-wide font-semibold text-xs">
                           <th className="px-3 py-2.5 text-center w-10">STT</th>
                           {table.columns.map(col => (
-                            <th key={col.id} className={`px-3 py-2.5 ${NUMERIC_FIELD_KEYS.has(col.columnKey) || col.dataType === 'NUMBER' || col.dataType === 'CURRENCY' ? 'text-right' : 'text-left'}`}>{col.label}</th>
+                            <th key={col.id} className={`px-3 py-2.5 ${NUMERIC_FIELD_KEYS.has(col.columnKey) || col.dataType === 'NUMBER' || col.dataType === 'CURRENCY' ? 'text-right' : col.dataType === 'BOOLEAN' ? 'text-center' : 'text-left'}`}>{col.label}</th>
                           ))}
                           {doc && !isConfirmed && <th className="w-8" />}
                         </tr>
@@ -456,6 +477,7 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
                               {table.columns.map(col => {
                                 const isStandard = STANDARD_FIELD_KEYS.has(col.columnKey);
                                 const isNumeric = NUMERIC_FIELD_KEYS.has(col.columnKey) || col.dataType === 'NUMBER' || col.dataType === 'CURRENCY';
+                                const isBool = col.dataType === 'BOOLEAN';
                                 const raw = isStandard ? li[col.columnKey as keyof typeof li] : li.extraData?.[col.columnKey];
                                 const rawStr = raw != null ? String(raw) : '';
                                 const cellKey = `${li.stt}_${col.columnKey}`;
@@ -468,6 +490,26 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
                                   else if (isStandard) updateLi(li.stt, col.columnKey as 'name' | 'unit', val);
                                   else updateLiExtra(li.stt, col.columnKey, isNumeric ? (val ? val : '') : val);
                                 };
+                                if (isBool) {
+                                  const isTrue = rawStr === 'true';
+                                  return (
+                                    <td key={col.columnKey} className="px-4 py-3 text-center">
+                                      {isConfirmed ? (
+                                        isTrue
+                                          ? <Check className="w-4 h-4 text-success-500 inline" />
+                                          : <span className="text-content-muted text-sm">—</span>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() => updateLiExtra(li.stt, col.columnKey, isTrue ? 'false' : 'true')}
+                                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${isTrue ? 'bg-success-500' : 'bg-strong'}`}
+                                        >
+                                          <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${isTrue ? 'translate-x-4' : 'translate-x-1'}`} />
+                                        </button>
+                                      )}
+                                    </td>
+                                  );
+                                }
                                 return (
                                   <td key={col.columnKey} className={`px-4 py-3${isAmountWarning ? ' bg-warning-50/10' : ''}`}>
                                     <input

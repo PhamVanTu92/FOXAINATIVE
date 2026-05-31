@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   BookOpen, FileText, Users, Calendar, Search, Download,
   Plus, X, Check, Loader2, AlertCircle, ChevronRight, Lock,
-  Database, FileArchive, Trash2,
+  Database, FileArchive, Trash2, Pencil,
 } from 'lucide-react';
 import { useKnowledgeList } from '../hooks/useKnowledgeList';
 import type { DeptOption } from '../hooks/useKnowledgeList';
@@ -13,8 +13,10 @@ import type {
   KnowledgeBase, KbFileCounts, CreateKbPayload,
   KbGlobalStats, KnowledgeFile, AllFileCounts,
 } from '@/lib/knowledge-api';
-import { knowledgeBasesApi } from '@/lib/knowledge-api';
+import { knowledgeBasesApi, knowledgeFilesApi, knowledgeFilesStandaloneApi } from '@/lib/knowledge-api';
 import { useRoutePermission } from '@/hooks/usePermission';
+import { InfiniteScrollSelect } from '@/components/InfiniteScrollSelect';
+import type { SelectOption } from '@/components/InfiniteScrollSelect';
 
 // ─── File type badges ─────────────────────────────────────────────────────────
 
@@ -289,6 +291,10 @@ function AllFilesModal({ onClose }: { onClose: () => void }) {
   const [counts, setCounts] = useState<AllFileCounts | null>(null);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [editingFile, setEditingFile] = useState<KnowledgeFile | null>(null);
+  const [permanentDeleteFile, setPermanentDeleteFile] = useState<KnowledgeFile | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const PAGE_SIZE = 20;
 
   useEffect(() => {
@@ -301,13 +307,35 @@ function AllFilesModal({ onClose }: { onClose: () => void }) {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [search, fileType, page]);
+  }, [search, fileType, page, refreshKey]);
 
   useEffect(() => { setPage(1); }, [search, fileType]);
+
+  const handleSaveEdit = async (fileId: string, fileName: string, targetKnowledgeBaseId: string) => {
+    const body: { fileName?: string; targetKnowledgeBaseId?: string } = {};
+    if (fileName !== editingFile?.fileName) body.fileName = fileName;
+    if (targetKnowledgeBaseId !== editingFile?.knowledgeBaseId) body.targetKnowledgeBaseId = targetKnowledgeBaseId;
+    if (!Object.keys(body).length) { setEditingFile(null); return; }
+    const updated = await knowledgeFilesApi.update(fileId, body);
+    setItems(prev => prev.map(f => f.id === fileId ? { ...f, ...updated } : f));
+    setEditingFile(null);
+  };
+
+  const handlePermanentDelete = async () => {
+    if (!permanentDeleteFile) return;
+    setDeleting(true);
+    try {
+      await knowledgeFilesStandaloneApi.remove(permanentDeleteFile.id);
+      setPermanentDeleteFile(null);
+      setRefreshKey(k => k + 1);
+    } catch { /* lỗi im lặng — có thể thêm toast sau */ }
+    finally { setDeleting(false); }
+  };
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-4 flex flex-col"
         style={{ maxHeight: '90vh' }}>
@@ -379,6 +407,7 @@ function AllFilesModal({ onClose }: { onClose: () => void }) {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-dark-500 uppercase tracking-wide">Loại</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-dark-500 uppercase tracking-wide">Kích thước</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-dark-500 uppercase tracking-wide">Ngày tải</th>
+                  <th className="px-4 py-3 w-20" />
                 </tr>
               </thead>
               <tbody>
@@ -391,7 +420,7 @@ function AllFilesModal({ onClose }: { onClose: () => void }) {
                         {f.fileName}
                       </td>
                       <td className="px-4 py-3 text-dark-500 text-xs max-w-[160px] truncate">
-                        {f.knowledgeBaseName ?? '—'}
+                        {f.knowledgeBaseName ?? <span className="italic text-dark-300">Chưa phân loại</span>}
                       </td>
                       <td className="px-4 py-3">
                         {cfg && (
@@ -405,6 +434,24 @@ function AllFilesModal({ onClose }: { onClose: () => void }) {
                       </td>
                       <td className="px-4 py-3 text-dark-500 text-xs whitespace-nowrap">
                         {f.uploadedAt?.slice(0, 10)}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => setEditingFile(f)}
+                            className="p-1.5 text-dark-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                            title="Đổi tên / Chuyển bộ tri thức"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                          <button
+                            onClick={() => setPermanentDeleteFile(f)}
+                            className="p-1.5 text-dark-400 hover:text-danger-600 hover:bg-danger-50 rounded-lg transition-colors"
+                            title="Xóa vĩnh viễn"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -437,6 +484,153 @@ function AllFilesModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
         )}
+      </div>
+    </div>
+
+    {editingFile && (
+      <EditFileModal
+        file={editingFile}
+        onSave={handleSaveEdit}
+        onClose={() => setEditingFile(null)}
+      />
+    )}
+
+    {/* Confirm xóa vĩnh viễn */}
+    {permanentDeleteFile && (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+          <div className="px-6 pt-6 pb-4">
+            <div className="flex items-start gap-3">
+              <div className="shrink-0 p-2 rounded-full bg-danger-50">
+                <Trash2 size={18} className="text-danger-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-dark-800">Xóa vĩnh viễn tệp</h3>
+                <p className="text-sm text-dark-500 mt-1.5">
+                  Bạn có chắc muốn xóa vĩnh viễn{' '}
+                  <span className="font-medium text-dark-800">&quot;{permanentDeleteFile.fileName}&quot;</span>?
+                </p>
+                <p className="text-xs text-danger-600 mt-1">Tệp sẽ bị xóa hoàn toàn khỏi hệ thống, không thể hoàn tác.</p>
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 px-6 py-4 border-t border-dark-100">
+            <button
+              onClick={() => setPermanentDeleteFile(null)}
+              disabled={deleting}
+              className="px-4 py-2 text-sm border border-dark-200 text-dark-600 rounded-lg hover:bg-dark-50 transition-colors disabled:opacity-50"
+            >
+              Hủy
+            </button>
+            <button
+              onClick={handlePermanentDelete}
+              disabled={deleting}
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-danger-600 text-white rounded-lg hover:bg-danger-700 disabled:opacity-50 transition-colors"
+            >
+              {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+              Xóa vĩnh viễn
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
+  );
+}
+
+// ─── Edit File Modal ──────────────────────────────────────────────────────────
+
+function EditFileModal({
+  file, onSave, onClose,
+}: {
+  file: KnowledgeFile;
+  onSave: (fileId: string, fileName: string, targetKnowledgeBaseId: string) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [fileName, setFileName] = useState(file.fileName ?? '');
+  const [targetKbId, setTargetKbId] = useState(file.knowledgeBaseId);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const hasChange = fileName.trim() !== (file.fileName ?? '') || targetKbId !== file.knowledgeBaseId;
+
+  const loadKbOptions = useCallback(async (search: string, page: number) => {
+    const res = await knowledgeBasesApi.list({ search: search || undefined, page, pageSize: 10 });
+    return {
+      items: res.items.map((kb): SelectOption => ({ value: kb.id, label: kb.name })),
+      hasMore: page * res.pageSize < res.total,
+    };
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fileName.trim()) { setError('Tên tệp không được để trống.'); return; }
+    if (fileName.trim().length > 500) { setError('Tên tệp tối đa 500 ký tự.'); return; }
+    setSaving(true);
+    setError(null);
+    try {
+      await onSave(file.id, fileName.trim(), targetKbId);
+    } catch (err: unknown) {
+      setError((err as Error).message ?? 'Có lỗi xảy ra.');
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-dark-200">
+          <div className="flex items-center gap-2">
+            <Pencil size={16} className="text-primary-600" />
+            <h3 className="font-semibold text-dark-800 text-sm">Đổi tên / Chuyển bộ tri thức</h3>
+          </div>
+          <button onClick={onClose} className="text-dark-400 hover:text-dark-600 p-1 rounded">
+            <X size={16} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {error && (
+            <div className="flex items-center gap-2 bg-danger-50 border border-danger-200 text-danger-700 rounded-lg px-3 py-2.5 text-sm">
+              <AlertCircle size={14} className="shrink-0" /> {error}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-dark-700 mb-1.5">Tên tệp</label>
+            <input
+              type="text"
+              value={fileName}
+              onChange={e => setFileName(e.target.value)}
+              maxLength={500}
+              className="w-full border border-dark-200 rounded-lg px-3 py-2 text-sm text-dark-800
+                focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-dark-700 mb-1.5">Bộ tri thức</label>
+            <InfiniteScrollSelect
+              value={targetKbId}
+              onChange={setTargetKbId}
+              selectedLabel={file.knowledgeBaseName}
+              loadOptions={loadKbOptions}
+              placeholder="Chọn bộ tri thức..."
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onClose}
+              className="px-4 py-2 text-sm border border-dark-200 text-dark-600 rounded-lg hover:bg-dark-50 transition-colors">
+              Hủy
+            </button>
+            <button type="submit" disabled={saving || !hasChange}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors">
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+              {saving ? 'Đang lưu...' : 'Lưu'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

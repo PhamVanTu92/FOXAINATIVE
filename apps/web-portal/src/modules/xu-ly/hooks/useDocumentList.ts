@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ocrApi } from '@/lib/ocr-api';
 import type { DocListItem, DocStats } from '@/lib/ocr-api';
+import { knowledgeFilesStandaloneApi } from '@/lib/knowledge-api';
 import * as XLSX from 'xlsx';
 import { TYPE_CONFIG, STATUS_CONFIG_FULL, STANDARD_COLUMNS, STANDARD_FIELD_KEYS, fmtDate } from '../constants';
 
@@ -43,6 +44,7 @@ export function useDocumentList() {
 
   const [transferOpen, setTransferOpen]       = useState(false);
   const [transferIds, setTransferIds]         = useState<string[]>([]);
+  const [transferDocs, setTransferDocs]       = useState<DocListItem[]>([]);
   const [transferring, setTransferring]       = useState(false);
   const [loadingTransfer, setLoadingTransfer] = useState(false);
 
@@ -126,23 +128,25 @@ export function useDocumentList() {
   };
 
   const openTransferModal = (ids: string[]) => {
-    const confirmedIds = ids.filter(id => docs?.items.find(d => d.id === id)?.status === 'CONFIRMED');
-    setTransferIds(confirmedIds);
+    const confirmed = (docs?.items ?? []).filter(d => ids.includes(d.id) && d.status === 'CONFIRMED');
+    setTransferIds(confirmed.map(d => d.id));
+    setTransferDocs(confirmed);
     setTransferOpen(true);
   };
 
   const openTransferAllConfirmed = useCallback(async () => {
     setLoadingTransfer(true);
     try {
-      let allIds: string[] = [];
+      let allDocs: DocListItem[] = [];
       let currentPage = 1;
       while (true) {
         const result = await ocrApi.getDocuments({ status: 'CONFIRMED', pageSize: '100', page: String(currentPage) });
-        allIds = [...allIds, ...result.items.map(d => d.id)];
+        allDocs = [...allDocs, ...result.items];
         if (currentPage >= result.totalPages || result.items.length === 0) break;
         currentPage++;
       }
-      setTransferIds(allIds);
+      setTransferIds(allDocs.map(d => d.id));
+      setTransferDocs(allDocs);
       setTransferOpen(true);
     } catch (e: unknown) {
       showToast((e as Error).message);
@@ -155,6 +159,17 @@ export function useDocumentList() {
     setTransferring(true);
     try {
       await ocrApi.bulkTransfer(transferIds);
+
+      // Upload từng file chứng từ lên kho tri thức (best-effort)
+      await Promise.all(transferDocs.map(async doc => {
+        try {
+          await knowledgeFilesStandaloneApi.uploadFromUrl({
+            fileUrl: ocrApi.getDocumentFileUrl(doc.id),
+            fileName: doc.fileName ?? doc.schema.name,
+          });
+        } catch { /* bỏ qua lỗi từng file, không chặn toàn bộ luồng */ }
+      }));
+
       setSelectedIds(new Set());
       setTransferOpen(false);
       await Promise.all([loadStats(), loadDocs()]);
