@@ -1,16 +1,16 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import {
   ChevronRight, MessageSquare, Plus, Trash2, Download, Mic, MicOff, Send, AlertCircle,
-  BookOpen, Volume2, VolumeX, MessageCircle,
+  BookOpen, Volume2, VolumeX, MessageCircle, ChevronDown,
 } from 'lucide-react';
 import { useChatbotChat } from '../hooks/useChatbotChat';
 import type { BotLookup } from '../hooks/useChatbotChat';
 import { useChatbotSTT } from '../hooks/useChatbotSTT';
 import { PURPOSE_LABELS } from '@/lib/chatbot-api';
 import type {
-  ChatbotItem, ChatMessage, ChatbotMode, ConversationItem,
+  ChatbotItem, ChatMessage, ChatbotMode, ConversationItem, TtsVoice,
 } from '@/lib/chatbot-api';
 
 interface Props {
@@ -35,6 +35,7 @@ interface Props {
  */
 export function ChatbotChatView({ lookup }: Props) {
   const c = useChatbotChat(lookup);
+  const voiceEnabled = c.bot ? (c.bot.mode === 'voice' || c.bot.mode === 'both') : false;
 
   if (c.loadingBot) {
     return (
@@ -71,17 +72,28 @@ export function ChatbotChatView({ lookup }: Props) {
         />
 
         {/* Main chat column */}
-        <div className="flex-1 flex flex-col min-h-0 max-w-4xl w-full mx-auto px-6">
+        <div className="flex-1 flex flex-col min-h-0 w-full px-6">
           <BotHeader
             bot={c.bot}
             activeTitle={c.activeConversation?.title ?? null}
             speaking={c.speaking}
             onStopSpeaking={c.stopSpeaking}
+            voices={voiceEnabled ? c.voices : []}
+            voiceId={c.voiceId}
+            onVoiceChange={c.setVoiceId}
           />
 
-          {/* Messages / Empty / Error */}
+          {/* Messages / Voice UI / Error */}
           <div className="flex-1 overflow-y-auto py-4">
-            {c.messagesError ? (
+            {c.bot.mode === 'voice' ? (
+              /* Voice-only: giao diện nói chuyện 1-1, không hiển thị text */
+              <VoiceConversationUI
+                bot={c.bot}
+                speaking={c.speaking}
+                sending={c.sending}
+                onStopSpeaking={c.stopSpeaking}
+              />
+            ) : c.messagesError ? (
               <div className="h-full flex items-center justify-center p-4">
                 <div className="flex items-start gap-2 bg-danger-50 border border-danger-200
                   text-danger-700 rounded-lg px-4 py-3 text-sm max-w-md">
@@ -223,15 +235,22 @@ function Breadcrumb({ botName }: { botName: string }) {
 }
 
 function BotHeader({
-  bot, activeTitle, speaking, onStopSpeaking,
+  bot, activeTitle, speaking, onStopSpeaking, voices, voiceId, onVoiceChange,
 }: {
   bot: ChatbotItem;
   activeTitle: string | null;
   speaking: boolean;
   onStopSpeaking: () => void;
+  voices: TtsVoice[];
+  voiceId: string;
+  onVoiceChange: (id: string) => void;
 }) {
   const tone = avatarTone(bot.purpose);
-  const voiceEnabled = bot.mode === 'voice' || bot.mode === 'both';
+  const modeLabel = bot.mode === 'voice' ? 'Voice' : bot.mode === 'both' ? 'Chat + Voice' : 'Chat';
+  const modeIcon  = bot.mode === 'voice' ? <Mic size={11} className="text-violet-600" />
+                  : bot.mode === 'both'  ? <Volume2 size={11} className="text-violet-600" />
+                  : <MessageSquare size={11} className="text-primary-600" />;
+  const modeCls   = bot.mode === 'chat' ? 'text-primary-600' : 'text-violet-600 font-medium';
   return (
     <div className="flex items-center gap-3 py-4 border-b border-dark-100">
       <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${tone.bg}`}>
@@ -248,17 +267,41 @@ function BotHeader({
           <span className="text-dark-300">·</span>
           <BookOpen size={11} />
           {bot.knowledgeBaseIds.length} bộ tri thức
-          {voiceEnabled && (
-            <>
-              <span className="text-dark-300">·</span>
-              <Volume2 size={11} className="text-violet-600" />
-              <span className="text-violet-600 font-medium">Voice</span>
-            </>
-          )}
+          <span className="text-dark-300">·</span>
+          {modeIcon}
+          <span className={modeCls}>{modeLabel}</span>
         </p>
       </div>
 
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-2">
+        {/* Dropdown chọn giọng — luôn hiện khi bot có voice mode */}
+        {(bot.mode === 'voice' || bot.mode === 'both') && (
+          <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium
+            transition-colors
+            ${speaking
+              ? 'border-violet-300 bg-violet-50 text-violet-700'
+              : 'border-dark-200 bg-white text-dark-600 hover:border-primary-300 hover:bg-primary-50'}`}>
+            <Volume2 size={12} className={speaking ? 'text-violet-600 animate-pulse' : 'text-dark-400'} />
+            <select
+              value={voiceId}
+              onChange={e => onVoiceChange(e.target.value)}
+              className="bg-transparent border-0 outline-none text-xs cursor-pointer
+                appearance-none text-inherit max-w-[140px]"
+              title="Chọn giọng đọc"
+            >
+              {voices.length === 0
+                ? <option value="">Mặc định</option>
+                : voices.map(v => (
+                    <option key={v.id} value={v.id}>
+                      {v.name}{v.gender ? ` · ${v.gender === 'female' ? 'Nữ' : v.gender === 'male' ? 'Nam' : v.gender}` : ''}
+                    </option>
+                  ))
+              }
+            </select>
+            <ChevronDown size={10} className="text-dark-400 pointer-events-none shrink-0" />
+          </div>
+        )}
+
         {speaking && (
           <button
             onClick={onStopSpeaking}
@@ -313,6 +356,93 @@ function EmptyState({
             </button>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Voice 1-on-1 UI ──────────────────────────────────────────────────────────
+
+function VoiceConversationUI({
+  bot, speaking, sending, onStopSpeaking,
+}: {
+  bot: ChatbotItem;
+  speaking: boolean;
+  sending: boolean;
+  onStopSpeaking: () => void;
+}) {
+  const tone = avatarTone(bot.purpose);
+
+  const status = speaking ? 'Đang trả lời…'
+               : sending  ? 'Đang xử lý…'
+               : 'Sẵn sàng lắng nghe';
+
+  const statusColor = speaking ? 'text-violet-600'
+                    : sending  ? 'text-primary-600'
+                    : 'text-dark-400';
+
+  return (
+    <div className="h-full flex flex-col items-center justify-center gap-8 select-none">
+
+      {/* Avatar với rings animate khi speaking */}
+      <div className="relative flex items-center justify-center">
+        {/* Outer ring */}
+        <span className={`absolute rounded-full transition-all duration-700
+          ${speaking
+            ? `w-44 h-44 ${tone.bg} opacity-20 animate-ping`
+            : 'w-0 h-0 opacity-0'}`}
+        />
+        {/* Middle ring */}
+        <span className={`absolute rounded-full transition-all duration-500
+          ${speaking
+            ? `w-36 h-36 ${tone.bg} opacity-30 animate-pulse`
+            : sending
+            ? `w-32 h-32 ${tone.bg} opacity-20 animate-pulse`
+            : 'w-0 h-0 opacity-0'}`}
+          style={{ animationDelay: '150ms' }}
+        />
+        {/* Avatar circle */}
+        <div className={`relative w-28 h-28 rounded-full flex items-center justify-center
+          shadow-xl transition-transform duration-300 ${tone.bg}
+          ${speaking ? 'scale-110' : sending ? 'scale-105' : 'scale-100'}`}>
+          <MessageSquare size={48} className={tone.fg} />
+        </div>
+      </div>
+
+      {/* Bot name + status */}
+      <div className="text-center space-y-1.5">
+        <h2 className="text-2xl font-semibold text-dark-800">{bot.name}</h2>
+        <div className={`flex items-center justify-center gap-1.5 text-sm font-medium transition-colors ${statusColor}`}>
+          {speaking && (
+            <span className="flex gap-0.5">
+              <span className="w-1 h-3 rounded-full bg-violet-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-1 h-4 rounded-full bg-violet-500 animate-bounce" style={{ animationDelay: '100ms' }} />
+              <span className="w-1 h-3 rounded-full bg-violet-500 animate-bounce" style={{ animationDelay: '200ms' }} />
+              <span className="w-1 h-5 rounded-full bg-violet-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-1 h-3 rounded-full bg-violet-500 animate-bounce" style={{ animationDelay: '250ms' }} />
+            </span>
+          )}
+          {sending && !speaking && (
+            <span className="inline-flex gap-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-bounce" style={{ animationDelay: '120ms' }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-bounce" style={{ animationDelay: '240ms' }} />
+            </span>
+          )}
+          <span>{status}</span>
+        </div>
+      </div>
+
+      {/* Nút dừng khi đang đọc */}
+      {speaking && (
+        <button
+          onClick={onStopSpeaking}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-full border border-violet-300
+            bg-violet-50 text-violet-700 text-sm font-medium hover:bg-violet-100
+            transition-colors shadow-sm"
+        >
+          <VolumeX size={15} /> Dừng
+        </button>
       )}
     </div>
   );
@@ -394,6 +524,12 @@ function Dot({ delay }: { delay: string }) {
   );
 }
 
+/**
+ * Dispatcher: chọn UI phù hợp theo mode của bot.
+ * - voice  → chỉ mic (VoiceOnlyComposer)
+ * - chat   → chỉ text, không có mic (ChatComposer showMic=false)
+ * - both   → text + mic (ChatComposer showMic=true)
+ */
 function Composer({
   value, onChange, onSubmit, onVoiceFinal, sending, mode,
 }: {
@@ -404,42 +540,103 @@ function Composer({
   sending: boolean;
   mode: ChatbotMode;
 }) {
-  const taRef = useRef<HTMLTextAreaElement>(null);
-  const voiceEnabled = mode === 'voice' || mode === 'both';
+  if (mode === 'voice') {
+    return <VoiceOnlyComposer onVoiceFinal={onVoiceFinal} sending={sending} />;
+  }
+  return (
+    <ChatComposer
+      value={value}
+      onChange={onChange}
+      onSubmit={onSubmit}
+      onVoiceFinal={onVoiceFinal}
+      sending={sending}
+      showMic={mode === 'both'}
+    />
+  );
+}
 
-  // STT — show interim transcript trong input; khi final → auto-send (voice UX)
+/** Chế độ Voice-only: hiển thị nút mic lớn, không có ô nhập text. */
+function VoiceOnlyComposer({
+  onVoiceFinal, sending,
+}: {
+  onVoiceFinal: (text: string) => void;
+  sending: boolean;
+}) {
+  const [interimText, setInterimText] = useState('');
+
   const stt = useChatbotSTT({
     lang: 'vi-VN',
-    onResult: (text, isFinal) => {
-      if (!isFinal) onChange(text);
-    },
-    onFinal: (text) => {
-      onChange('');
-      onVoiceFinal(text);
-    },
+    onResult: (text, isFinal) => { if (!isFinal) setInterimText(text); },
+    onFinal: (text) => { setInterimText(''); onVoiceFinal(text); },
+  });
+
+  const toggle = () => (stt.recording ? stt.stop() : stt.start());
+
+  return (
+    <div className="border-t border-dark-100 py-5 flex flex-col items-center gap-3">
+      {/* Interim transcript */}
+      <div className="min-h-[20px] text-sm text-dark-600 italic text-center max-w-lg px-4 transition-all">
+        {stt.recording && interimText && `"${interimText}"`}
+        {sending && <span className="text-primary-600 not-italic">Đang gửi...</span>}
+      </div>
+
+      {/* Mic button */}
+      <button
+        type="button"
+        onClick={toggle}
+        disabled={!stt.supported || sending}
+        title={!stt.supported ? 'Trình duyệt không hỗ trợ (dùng Chrome / Edge)' : stt.recording ? 'Nhấn để dừng' : 'Nhấn để nói'}
+        className={`relative w-20 h-20 rounded-full flex items-center justify-center
+          shadow-lg transition-all focus:outline-none focus-visible:ring-4 focus-visible:ring-primary-300
+          disabled:opacity-40
+          ${stt.recording
+            ? 'bg-danger-500 hover:bg-danger-600 scale-110'
+            : 'bg-primary-600 hover:bg-primary-700 hover:scale-105'}`}
+      >
+        {stt.recording && (
+          <span className="absolute inset-0 rounded-full bg-danger-400 animate-ping opacity-25" />
+        )}
+        {stt.recording
+          ? <MicOff size={30} className="text-white relative z-10" />
+          : <Mic size={30} className="text-white" />}
+      </button>
+
+      <p className="text-xs text-dark-400 text-center">
+        {stt.error
+          ? <span className="text-danger-600">⚠ {stt.error}</span>
+          : stt.recording ? 'Đang nghe… nhấn để dừng' : 'Nhấn mic để nói (tiếng Việt)'}
+      </p>
+    </div>
+  );
+}
+
+/** Chế độ Chat (và Chat+Voice): ô nhập text, tuỳ chọn hiển thị mic. */
+function ChatComposer({
+  value, onChange, onSubmit, onVoiceFinal, sending, showMic,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onSubmit: () => void;
+  onVoiceFinal: (text: string) => void;
+  sending: boolean;
+  showMic: boolean;
+}) {
+  const taRef = useRef<HTMLTextAreaElement>(null);
+
+  const stt = useChatbotSTT({
+    lang: 'vi-VN',
+    onResult: (text, isFinal) => { if (!isFinal) onChange(text); },
+    onFinal: (text) => { onChange(''); onVoiceFinal(text); },
   });
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      onSubmit();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSubmit(); }
   }
 
-  const toggleMic = () => (stt.recording ? stt.stop() : stt.start());
-
-  // Tooltip + state cho mic button
-  let micDisabled = false;
-  let micTitle = 'Nhập bằng giọng nói';
-  if (!voiceEnabled) {
-    micDisabled = true;
-    micTitle = 'Bot này không bật chế độ Voice — chỉnh "Hình thức" sang Voice hoặc Chat + Voice';
-  } else if (!stt.supported) {
-    micDisabled = true;
-    micTitle = 'Trình duyệt không hỗ trợ Speech Recognition (dùng Chrome / Edge)';
-  } else if (stt.recording) {
-    micTitle = 'Bấm để dừng ghi';
-  }
+  const micDisabled = !stt.supported;
+  const micTitle = !stt.supported
+    ? 'Trình duyệt không hỗ trợ Speech Recognition (dùng Chrome / Edge)'
+    : stt.recording ? 'Nhấn để dừng ghi' : 'Nhập bằng giọng nói';
 
   return (
     <div className="border-t border-dark-100 py-4">
@@ -455,48 +652,44 @@ function Composer({
           onKeyDown={onKeyDown}
           placeholder={stt.recording ? 'Đang nghe…' : 'Nhập câu hỏi...'}
           className="w-full resize-none bg-transparent text-sm text-dark-800
-            placeholder:text-dark-400 px-4 py-3 pr-24 focus:outline-none max-h-40"
+            placeholder:text-dark-400 px-4 py-3 focus:outline-none max-h-40"
+          style={{ paddingRight: showMic ? '6rem' : '3.5rem' }}
         />
         <div className="absolute right-2 bottom-2 flex items-center gap-1">
-          <button
-            type="button"
-            onClick={toggleMic}
-            disabled={micDisabled}
-            className={`p-2 rounded-lg transition-colors
-              ${stt.recording
-                ? 'bg-danger-500 text-white hover:bg-danger-600 animate-pulse'
-                : 'text-dark-400 hover:text-primary-600 hover:bg-primary-50'}
-              disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-dark-400`}
-            title={micTitle}
-          >
-            {stt.recording ? <MicOff size={16} /> : <Mic size={16} />}
-          </button>
+          {showMic && (
+            <button
+              type="button"
+              onClick={() => stt.recording ? stt.stop() : stt.start()}
+              disabled={micDisabled}
+              title={micTitle}
+              className={`p-2 rounded-lg transition-colors
+                ${stt.recording
+                  ? 'bg-danger-500 text-white hover:bg-danger-600 animate-pulse'
+                  : 'text-dark-400 hover:text-primary-600 hover:bg-primary-50'}
+                disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-dark-400`}
+            >
+              {stt.recording ? <MicOff size={16} /> : <Mic size={16} />}
+            </button>
+          )}
           <button
             type="button"
             onClick={onSubmit}
             disabled={sending || !value.trim()}
+            title="Gửi"
             className="p-2 rounded-lg bg-primary-600 hover:bg-primary-700
               text-white disabled:opacity-40 disabled:hover:bg-primary-600
               transition-colors shadow-sm"
-            title="Gửi"
           >
             <Send size={16} />
           </button>
         </div>
       </div>
       <p className="mt-2 text-center text-[11px] text-dark-400">
-        {stt.error && (
-          <span className="text-danger-600">⚠ {stt.error} · </span>
-        )}
+        {stt.error && <span className="text-danger-600">⚠ {stt.error} · </span>}
         © Nhấn <kbd className="px-1 rounded bg-dark-100 text-dark-600 font-mono">Enter</kbd> để gửi
         {' · '}
         <kbd className="px-1 rounded bg-dark-100 text-dark-600 font-mono">Shift+Enter</kbd> để xuống dòng
-        {voiceEnabled && (
-          <>
-            {' · '}
-            Nhấn mic để nói (tiếng Việt)
-          </>
-        )}
+        {showMic && ' · Nhấn mic để nói (tiếng Việt)'}
       </p>
     </div>
   );

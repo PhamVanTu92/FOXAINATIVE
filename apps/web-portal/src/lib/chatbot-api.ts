@@ -76,6 +76,13 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 export type ChatbotPurpose = 'customer_care' | 'sales' | 'tech_support' | 'other';
 /** Khớp với backend enum ChatbotForm */
 export type ChatbotMode = 'chat' | 'voice' | 'both';
+
+export interface TtsVoice {
+  id: string;
+  name: string;
+  language?: string;
+  gender?: string;
+}
 export type OverlapType = 'PERCENT' | 'CHARS';
 export type EmbedKind = 'WIDGET' | 'IFRAME' | 'REST';
 
@@ -678,7 +685,18 @@ export const chatApi = {
    * `publicId` (bot.publicId) — backend gate TTS theo `bot.form ∈ {voice, both}`.
    * Nếu bot ở mode chat → trả 403, hàm này throw.
    */
-  async synthesize(text: string, publicId?: string): Promise<Blob> {
+  async getVoices(): Promise<TtsVoice[]> {
+    try {
+      const res = await fetch(`${BASE}/v1/tts/voices`, { headers: authHeader() });
+      if (!res.ok) return [];
+      const json = await res.json().catch(() => []);
+      return Array.isArray(json) ? json : (json.voices ?? json.data ?? []);
+    } catch {
+      return [];
+    }
+  },
+
+  async synthesize(text: string, publicId?: string, voiceId?: string): Promise<Blob> {
     const res = await fetch(`${BASE}/v1/tts/synthesize`, {
       method: 'POST',
       headers: {
@@ -688,6 +706,7 @@ export const chatApi = {
       body: JSON.stringify({
         text,
         public_id: publicId ?? null,
+        voice_id: voiceId ?? null,
       }),
     });
     if (!res.ok) {

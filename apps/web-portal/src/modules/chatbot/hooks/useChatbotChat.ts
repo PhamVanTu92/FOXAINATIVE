@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { chatbotApi, chatApi, conversationsApi } from '@/lib/chatbot-api';
 import type {
-  ChatbotItem, ChatMessage, ChatbotPurpose, ConversationItem,
+  ChatbotItem, ChatMessage, ChatbotPurpose, ConversationItem, TtsVoice,
 } from '@/lib/chatbot-api';
 
 /**
@@ -21,6 +21,7 @@ export interface BotLookup {
 }
 
 const LS_LAST_CONV = (botId: string) => `chatbot:last-conv:${botId}`;
+const LS_VOICE     = (botId: string) => `chatbot:voice:${botId}`;
 
 /**
  * Quản lý state chat của 1 bot — kiểu ChatGPT/Gemini:
@@ -49,11 +50,20 @@ export function useChatbotChat(lookup: BotLookup) {
   const [conversationId, setConversationIdState] = useState<string | null>(null);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [messagesError, setMessagesError] = useState<string | null>(null);
+  const [voices, setVoices] = useState<TtsVoice[]>([]);
+  const [voiceId, setVoiceIdState] = useState<string>('');
 
   const scrollAnchorRef = useRef<HTMLDivElement | null>(null);
   const cancelRef       = useRef<(() => void) | null>(null);
   const audioRef        = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef     = useRef<string | null>(null);
+  // TTS pipeline
+  const ttsSessionRef   = useRef(0);   // tăng mỗi khi reset → invalidate stale results
+  const ttsSlotsRef     = useRef<Array<{ blob: Blob | null; ready: boolean; error: boolean }>>([]);
+  const ttsPlayIdxRef   = useRef(0);
+  const ttsPlayingRef   = useRef(false);
+  const ttsStreamingRef = useRef(false); // true khi bot vẫn đang stream
+  const sentBufRef      = useRef('');
 
   /**
    * Helper: cập nhật conversationId đồng thời sync URL `?c=` + localStorage.
@@ -185,13 +195,55 @@ export function useChatbotChat(lookup: BotLookup) {
     scrollAnchorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages, sending]);
 
+  // ── Helpers voice ──
+  const setVoiceId = useCallback((id: string) => {
+    setVoiceIdState(id);
+    if (bot) {
+      if (id) localStorage.setItem(LS_VOICE(bot.id), id);
+      else     localStorage.removeItem(LS_VOICE(bot.id));
+    }
+  }, [bot]);
+
+  // ── Load voices khi bot sẵn sàng và có voice mode ──
+  useEffect(() => {
+    if (!bot || (bot.mode !== 'voice' && bot.mode !== 'both')) return;
+    const savedVoice = localStorage.getItem(LS_VOICE(bot.id)) ?? '';
+    setVoiceIdState(savedVoice);
+    chatApi.getVoices().then(list => {
+      setVoices(list);
+      if (savedVoice && !list.find(v => v.id === savedVoice)) {
+        setVoiceIdState(list[0]?.id ?? '');
+      } else if (!savedVoice && list.length > 0) {
+        setVoiceIdState(list[0]?.id ?? '');
+      }
+    }).catch(() => {});
+  }, [bot]);
+
   // ── Cleanup khi unmount ──
   useEffect(() => () => {
     cancelRef.current?.();
     stopSpeakingNow();
   }, []);
 
+  // ── TTS Pipeline ──────────────────────────────────────────────────────────────
+  //
+  // Mô hình: slot-based parallel synthesis + sequential playback
+  //
+  //  extract câu 1 → synthesize(1) ──────────────────────────────► blob1 ─┐
+  //  extract câu 2 → synthesize(2) ──────────────────┐           blob2    │ play 1 → play 2 → play 3
+  //  extract câu 3 → synthesize(3) ──────┐           ▼           blob3    │  (zero gap nếu blob đã ready)
+  //                                      └──────────►               ...   ┘
+  //
+  // Mỗi câu được gán 1 slot có index. Player chỉ tiến index nếu slot đó READY.
+  // Vì synthesis song song, lúc câu 1 vừa phát xong thì câu 2 thường đã sẵn.
+
   function stopSpeakingNow() {
+    ttsSessionRef.current++;          // invalidate tất cả synthesis đang chờ
+    ttsSlotsRef.current    = [];
+    ttsPlayIdxRef.current  = 0;
+    ttsPlayingRef.current  = false;
+    ttsStreamingRef.current = false;
+    sentBufRef.current     = '';
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.src = '';
@@ -204,25 +256,105 @@ export function useChatbotChat(lookup: BotLookup) {
     setSpeaking(false);
   }
 
-  /** Phát TTS câu trả lời — chỉ khi mode ∈ {voice, both}. */
-  const speak = useCallback(async (text: string, b: ChatbotItem) => {
-    if (!text.trim()) return;
-    if (b.mode !== 'voice' && b.mode !== 'both') return;
-    try {
-      stopSpeakingNow();
-      const blob = await chatApi.synthesize(text, b.publicId);
-      const url = URL.createObjectURL(blob);
-      audioUrlRef.current = url;
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      audio.onended = () => stopSpeakingNow();
-      audio.onerror = () => stopSpeakingNow();
-      setSpeaking(true);
-      await audio.play();
-    } catch (e: unknown) {
-      console.warn('[TTS] Failed:', (e as Error).message);
-      stopSpeakingNow();
+  /**
+   * Cố gắng phát slot tại ttsPlayIdxRef.
+   * - Nếu slot chưa ready → thoát, sẽ được gọi lại khi synthesis về.
+   * - Nếu slot ready → phát ngay, rồi đệ quy sang slot tiếp theo.
+   */
+  async function tryPlayNext(session: number) {
+    if (ttsPlayingRef.current) return;
+    if (ttsSessionRef.current !== session) return;
+
+    const idx  = ttsPlayIdxRef.current;
+    const slot = ttsSlotsRef.current[idx];
+
+    if (!slot) {
+      // Hết slot: nếu stream vẫn đang chạy thì chờ, ngược lại done
+      if (!ttsStreamingRef.current) setSpeaking(false);
+      return;
     }
+    if (!slot.ready) return; // Chưa synthesize xong, chờ callback
+
+    if (slot.error) {
+      ttsPlayIdxRef.current++;
+      void tryPlayNext(session);
+      return;
+    }
+
+    ttsPlayingRef.current = true;
+    setSpeaking(true);
+
+    const url = URL.createObjectURL(slot.blob!);
+    audioUrlRef.current = url;
+    const audio = new Audio(url);
+    audioRef.current = audio;
+
+    await new Promise<void>(resolve => {
+      audio.onended = () => { URL.revokeObjectURL(url); audioUrlRef.current = null; resolve(); };
+      audio.onerror = () => { URL.revokeObjectURL(url); audioUrlRef.current = null; resolve(); };
+      audio.play().catch(() => resolve());
+    });
+
+    if (ttsSessionRef.current !== session) return; // bị stop trong lúc phát
+
+    ttsPlayIdxRef.current++;
+    ttsPlayingRef.current = false;
+    void tryPlayNext(session); // ngay lập tức thử câu kế
+  }
+
+  /**
+   * Giao một câu vào pipeline:
+   * 1. Tạo slot (giữ chỗ thứ tự)
+   * 2. Synthesize SONG SONG với các câu khác
+   * 3. Khi blob về → đánh dấu ready → thử play nếu đang chờ đúng slot này
+   */
+  function enqueueTts(text: string, b: ChatbotItem, vid?: string) {
+    if (!text.trim() || (b.mode !== 'voice' && b.mode !== 'both')) return;
+    const session = ttsSessionRef.current;
+    const slot = { blob: null as Blob | null, ready: false, error: false };
+    ttsSlotsRef.current.push(slot);
+
+    chatApi.synthesize(text, b.publicId, vid)
+      .then(blob => {
+        if (ttsSessionRef.current !== session) return; // stale → discard
+        slot.blob  = blob;
+        slot.ready = true;
+        void tryPlayNext(session);
+      })
+      .catch(() => {
+        if (ttsSessionRef.current !== session) return;
+        slot.error = true;
+        slot.ready = true;
+        void tryPlayNext(session);
+      });
+  }
+
+  /** Tách câu hoàn chỉnh từ buffer stream (min 10 ký tự). */
+  function extractSentences(buf: string): { sentences: string[]; rest: string } {
+    const sentences: string[] = [];
+    let rest = buf;
+    const re = /^([\s\S]{10,}?[.?!。！？])(\s+|$)/;
+    let m;
+    while ((m = rest.match(re)) !== null) {
+      const s = m[1].replace(/\n+/g, ' ').trim();
+      if (s) sentences.push(s);
+      rest = rest.slice(m[0].length);
+    }
+    // Tách theo newline nếu đoạn đủ dài
+    const nlIdx = rest.indexOf('\n');
+    if (nlIdx >= 15) {
+      sentences.push(rest.slice(0, nlIdx).trim());
+      rest = rest.slice(nlIdx + 1);
+    }
+    return { sentences, rest };
+  }
+
+  const speak = useCallback(async (text: string, b: ChatbotItem, vid?: string) => {
+    if (!text.trim() || (b.mode !== 'voice' && b.mode !== 'both')) return;
+    stopSpeakingNow();
+    ttsStreamingRef.current = false;
+    enqueueTts(text, b, vid);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Switch phiên cũ ──
@@ -239,6 +371,7 @@ export function useChatbotChat(lookup: BotLookup) {
     cancelRef.current?.();
     cancelRef.current = null;
     stopSpeakingNow();
+    sentBufRef.current = '';
     setMessages([]);
     setInput('');
     setSending(false);
@@ -252,6 +385,8 @@ export function useChatbotChat(lookup: BotLookup) {
     if (!trimmed || sending || !bot) return;
 
     stopSpeakingNow();
+    sentBufRef.current = '';
+    if (bot.mode === 'voice' || bot.mode === 'both') ttsStreamingRef.current = true;
 
     const userMsg: ChatMessage = {
       id:        `msg-u-${Date.now()}`,
@@ -282,6 +417,13 @@ export function useChatbotChat(lookup: BotLookup) {
         setMessages(prev => prev.map(m =>
           m.id === assistantId ? { ...m, content: m.content + chunk } : m,
         ));
+        // Sentence-streaming TTS: phát từng câu ngay khi hoàn chỉnh
+        if (bot.mode === 'voice' || bot.mode === 'both') {
+          sentBufRef.current += chunk;
+          const { sentences, rest } = extractSentences(sentBufRef.current);
+          sentBufRef.current = rest;
+          for (const s of sentences) enqueueTts(s, bot, voiceId || undefined);
+        }
       },
       onMeta: (meta) => {
         if (meta.conversationId && meta.conversationId !== conversationId) {
@@ -291,8 +433,18 @@ export function useChatbotChat(lookup: BotLookup) {
       onDone: () => {
         setSending(false);
         cancelRef.current = null;
-        if (accumulated.trim()) void speak(accumulated, bot);
-        // Refresh sidebar list để hiển thị phiên mới hoặc cập nhật title
+        if (bot.mode === 'voice' || bot.mode === 'both') {
+          // Flush phần text còn dư (câu cuối không có dấu chấm)
+          if (sentBufRef.current.trim()) {
+            enqueueTts(sentBufRef.current.trim(), bot, voiceId || undefined);
+            sentBufRef.current = '';
+          }
+          // Báo stream xong để tryPlayNext biết khi slots hết thì setSpeaking(false)
+          ttsStreamingRef.current = false;
+          // Nếu tất cả slots đã ready mà player đang chờ → kick-start
+          const session = ttsSessionRef.current;
+          void tryPlayNext(session);
+        }
         void refreshConversations(bot.id, !wasNewConversation);
       },
       onError: (err) => {
@@ -350,6 +502,10 @@ export function useChatbotChat(lookup: BotLookup) {
     setInput,
     sending,
     speaking,
+    // voice
+    voices,
+    voiceId,
+    setVoiceId,
     // refs
     scrollAnchorRef,
     // actions
