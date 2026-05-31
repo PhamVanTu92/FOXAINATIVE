@@ -6,7 +6,7 @@ namespace KnowledgeService.Application.Features.KnowledgeFiles.Dtos;
 public class KnowledgeFileDto
 {
     public Guid Id { get; set; }
-    public Guid KnowledgeBaseId { get; set; }
+    public Guid? KnowledgeBaseId { get; set; }
     public string KnowledgeBaseName { get; set; } = default!;
     public string FileName { get; set; } = default!;
     public string FileType { get; set; } = default!;

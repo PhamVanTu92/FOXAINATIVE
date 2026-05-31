@@ -93,6 +93,8 @@ export class ListAllKnowledgeFilesQueryDto {
 }
 
 export class AddKnowledgeFileDto {
+  @IsOptional() @IsUUID() knowledgeBaseId?: string;
+
   @IsOptional() @IsString() @MaxLength(500) fileName?: string;
 
   @IsOptional() @IsString() @IsIn(FILE_TYPES) fileType?: string;

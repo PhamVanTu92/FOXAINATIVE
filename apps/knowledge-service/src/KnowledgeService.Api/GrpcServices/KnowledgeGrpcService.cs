@@ -170,9 +170,10 @@ public class KnowledgeGrpcService : Protos.KnowledgeService.KnowledgeServiceBase
         }).ToList();
 
         Guid? uploadedBy = Guid.TryParse(request.UploadedBy, out var ub) ? ub : null;
+        Guid? kbId = string.IsNullOrEmpty(request.KnowledgeBaseId) ? null : Guid.Parse(request.KnowledgeBaseId);
 
         var result = await _mediator.Send(new AddKnowledgeFileCommand(
-            Guid.Parse(request.KnowledgeBaseId), request.FileName, request.FileType,
+            kbId, request.FileName, request.FileType,
             (decimal)request.FileSizeMb, depts, uploadedBy,
             string.IsNullOrEmpty(request.StoragePath) ? null : request.StoragePath));
 
@@ -405,7 +406,7 @@ public class KnowledgeGrpcService : Protos.KnowledgeService.KnowledgeServiceBase
         var msg = new KnowledgeFileMessage
         {
             Id = dto.Id.ToString(),
-            KnowledgeBaseId = dto.KnowledgeBaseId.ToString(),
+            KnowledgeBaseId = dto.KnowledgeBaseId?.ToString() ?? "",
             KnowledgeBaseName = dto.KnowledgeBaseName ?? "",
             FileName = dto.FileName,
             FileType = dto.FileType,

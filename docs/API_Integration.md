@@ -21,7 +21,8 @@
 > `GET /api/knowledge-bases/stats` — [4.1 Thống kê bộ tri thức](#41-thống-kê-bộ-tri-thức) *(cập nhật — thêm `pdfFilesCount`, `filesByKnowledgeBase`)*  
 > `GET /api/system/stats` — [8.1 Thống kê hệ thống](#81-thống-kê-hệ-thống) *(mới)*  
 > `GET /api/knowledge-bases/files` — [4.7 Danh sách tệp toàn bộ bộ tri thức](#47-danh-sách-tệp-toàn-bộ-bộ-tri-thức)  
-> `PATCH /api/knowledge-bases/files/:fileId` — [4.8 Đổi tên / Chuyển bộ tri thức cho tệp](#48-đổi-tên--chuyển-bộ-tri-thức-cho-tệp)
+> `PATCH /api/knowledge-bases/files/:fileId` — [4.8 Đổi tên / Chuyển bộ tri thức cho tệp](#48-đổi-tên--chuyển-bộ-tri-thức-cho-tệp)  
+> `POST /api/knowledge-files` — [5.8 Tải lên tệp không cần chọn bộ tri thức](#58-tải-lên-tệp-không-cần-chọn-bộ-tri-thức) *(mới — `knowledgeBaseId` tùy chọn)*
 
 ---
 
@@ -869,6 +870,46 @@ DELETE /api/knowledge-bases/:kbId/files/:fileId
 ```
 
 **Response:** `204 No Content`
+
+---
+
+### 5.8 Tải lên tệp không cần chọn bộ tri thức
+
+Endpoint đứng độc lập (không nằm dưới `:kbId`), cho phép tải lên tệp mà **không bắt buộc gắn vào bộ tri thức**. Bỏ trống `knowledgeBaseId` để tạo tệp chưa phân loại (`knowledgeBaseId = null`); hoặc gửi kèm `knowledgeBaseId` để gắn vào một bộ tri thức cụ thể.
+
+```
+POST /api/knowledge-files
+Content-Type: multipart/form-data
+```
+
+**Form fields:**
+
+| Field | Bắt buộc | Mô tả |
+|-------|----------|-------|
+| `file` | Không | File đính kèm (max 50MB) |
+| `knowledgeBaseId` | Không | UUID bộ tri thức. Bỏ trống = tệp chưa phân loại (`null`) |
+| `fileName` | Không | Tên hiển thị (mặc định: tên file gốc) |
+| `fileType` | Không | Tự động phát hiện từ extension nếu không gửi |
+| `permittedDepartments` | Không | JSON string: `[{"departmentId":"...","departmentName":"..."}]` |
+
+**Ví dụ (curl) — không gắn bộ tri thức:**
+```bash
+curl -X POST "http://localhost:3001/api/knowledge-files" \
+  -H "Authorization: Bearer <token>" \
+  -F "file=@/path/to/document.pdf"
+```
+
+**Ví dụ (curl) — gắn vào một bộ tri thức:**
+```bash
+curl -X POST "http://localhost:3001/api/knowledge-files" \
+  -H "Authorization: Bearer <token>" \
+  -F "file=@/path/to/document.pdf" \
+  -F "knowledgeBaseId=kb-uuid-001"
+```
+
+**Response 201:** object tệp vừa tạo (giống 1 phần tử trong [5.1 Danh sách tệp](#51-danh-sách-tệp)). Khi không gắn bộ tri thức, `knowledgeBaseId` trả về rỗng/`null` và `knowledgeBaseName` rỗng.
+
+> Quy ước extension → FileType giống [5.2 Tải lên tệp mới](#52-tải-lên-tệp-mới). Quyền yêu cầu: `KNOWLEDGE_UPLOAD` / `CREATE`.
 
 ---
 

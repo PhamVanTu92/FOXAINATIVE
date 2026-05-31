@@ -5,7 +5,7 @@ using MediatR;
 namespace KnowledgeService.Application.Features.KnowledgeFiles.Add;
 
 public record AddKnowledgeFileCommand(
-    Guid KnowledgeBaseId,
+    Guid? KnowledgeBaseId,
     string FileName,
     string FileType,
     decimal FileSizeMb,

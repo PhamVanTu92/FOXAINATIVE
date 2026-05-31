@@ -26,8 +26,13 @@ public class AddKnowledgeFileCommandHandler : IRequestHandler<AddKnowledgeFileCo
 
     public async Task<KnowledgeFileDto> Handle(AddKnowledgeFileCommand cmd, CancellationToken ct)
     {
-        var kb = await _kbRepo.GetByIdAsync(cmd.KnowledgeBaseId, ct)
-            ?? throw new NotFoundException(nameof(KnowledgeBase), cmd.KnowledgeBaseId);
+        // Bộ tri thức là tùy chọn: chỉ kiểm tra/cập nhật KB khi có gắn KnowledgeBaseId.
+        KnowledgeBase? kb = null;
+        if (cmd.KnowledgeBaseId.HasValue)
+        {
+            kb = await _kbRepo.GetByIdAsync(cmd.KnowledgeBaseId.Value, ct)
+                ?? throw new NotFoundException(nameof(KnowledgeBase), cmd.KnowledgeBaseId.Value);
+        }
 
         var fileType = Enum.Parse<FileType>(cmd.FileType);
         var now = DateTime.UtcNow;
@@ -52,8 +57,11 @@ public class AddKnowledgeFileCommandHandler : IRequestHandler<AddKnowledgeFileCo
             }).ToList()
         };
 
-        kb.UpdatedAt = now;
-        _kbRepo.Update(kb);
+        if (kb is not null)
+        {
+            kb.UpdatedAt = now;
+            _kbRepo.Update(kb);
+        }
 
         await _fileRepo.AddAsync(file, ct);
         await _uow.SaveChangesAsync(ct);

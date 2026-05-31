@@ -6,8 +6,8 @@ namespace KnowledgeService.Domain.Entities;
 /// <summary>Tệp tri thức thuộc một bộ tri thức.</summary>
 public class KnowledgeFile : BaseEntity
 {
-    public Guid KnowledgeBaseId { get; set; }
-    public KnowledgeBase KnowledgeBase { get; set; } = default!;
+    public Guid? KnowledgeBaseId { get; set; }
+    public KnowledgeBase? KnowledgeBase { get; set; }
 
     public string FileName { get; set; } = default!;
     public FileType FileType { get; set; }
