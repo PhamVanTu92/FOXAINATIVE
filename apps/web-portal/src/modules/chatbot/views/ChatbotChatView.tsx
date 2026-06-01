@@ -5,6 +5,8 @@ import {
   ChevronRight, MessageSquare, Plus, Trash2, Download, Mic, MicOff, Send, AlertCircle,
   BookOpen, Volume2, VolumeX, MessageCircle, ChevronDown, Pause, Play,
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { useChatbotChat } from '../hooks/useChatbotChat';
 import type { BotLookup } from '../hooks/useChatbotChat';
 import { useChatbotSTT } from '../hooks/useChatbotSTT';
@@ -497,8 +499,14 @@ function Bubble({
         <MessageSquare size={14} className={botTone.fg} />
       </div>
       <div className="max-w-[78%] bg-subtle border border-default rounded-2xl rounded-tl-sm
-        px-4 py-2.5 text-sm text-content-primary whitespace-pre-wrap leading-relaxed">
-        {msg.content}
+        px-4 py-2.5 text-sm text-content-primary leading-relaxed prose prose-sm
+        prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5
+        prose-headings:text-content-primary prose-strong:text-content-primary
+        prose-code:text-primary-600 prose-code:bg-primary-50 prose-code:px-1 prose-code:rounded
+        prose-a:text-primary-600 prose-a:underline">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          {msg.content}
+        </ReactMarkdown>
       </div>
     </div>
   );
