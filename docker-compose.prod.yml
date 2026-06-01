@@ -410,6 +410,8 @@ services:
         condition: service_healthy
       ocr-api:
         condition: service_healthy
+    volumes:
+      - api_gateway_uploads:/app/apps/api-gateway/uploads
     healthcheck:
       test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://127.0.0.1:3001/health']
       interval: 20s
@@ -444,6 +446,7 @@ volumes:
   knowledge_db_data:
   index_db_data:
   ocr_uploads:
+  api_gateway_uploads:
   minio_data:
   qdrant_data:
 

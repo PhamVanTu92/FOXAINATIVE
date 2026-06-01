@@ -1,3 +1,4 @@
+using System.IO;
 using KnowledgeService.Application.Common.Abstractions;
 using KnowledgeService.Application.Common.Exceptions;
 using KnowledgeService.Application.Features.KnowledgeFiles.Dtos;
@@ -5,6 +6,7 @@ using KnowledgeService.Domain.Entities;
 using KnowledgeService.Domain.Enums;
 using Mapster;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace KnowledgeService.Application.Features.KnowledgeFiles.Add;
 
@@ -13,15 +15,21 @@ public class AddKnowledgeFileCommandHandler : IRequestHandler<AddKnowledgeFileCo
     private readonly IKnowledgeBaseRepository _kbRepo;
     private readonly IKnowledgeFileRepository _fileRepo;
     private readonly IUnitOfWork _uow;
+    private readonly IIndexServiceClient _indexClient;
+    private readonly ILogger<AddKnowledgeFileCommandHandler> _logger;
 
     public AddKnowledgeFileCommandHandler(
         IKnowledgeBaseRepository kbRepo,
         IKnowledgeFileRepository fileRepo,
-        IUnitOfWork uow)
+        IUnitOfWork uow,
+        IIndexServiceClient indexClient,
+        ILogger<AddKnowledgeFileCommandHandler> logger)
     {
         _kbRepo = kbRepo;
         _fileRepo = fileRepo;
         _uow = uow;
+        _indexClient = indexClient;
+        _logger = logger;
     }
 
     public async Task<KnowledgeFileDto> Handle(AddKnowledgeFileCommand cmd, CancellationToken ct)
@@ -65,6 +73,32 @@ public class AddKnowledgeFileCommandHandler : IRequestHandler<AddKnowledgeFileCo
 
         await _fileRepo.AddAsync(file, ct);
         await _uow.SaveChangesAsync(ct);
+
+        // Gửi file sang index-service để indexing nếu KB có collection và file có đường dẫn lưu trữ
+        _logger.LogInformation(
+            "AddKnowledgeFile → fileId={FileId}, kbId={KbId}, collectionId={CollectionId}, storagePath={StoragePath}",
+            file.Id, kb?.Id.ToString() ?? "null", kb?.CollectionId?.ToString() ?? "null", file.StoragePath ?? "null");
+
+        if (kb?.CollectionId is Guid collectionId && file.StoragePath is not null)
+        {
+            var ext = Path.GetExtension(file.StoragePath).TrimStart('.').ToLower();
+            _logger.LogInformation(
+                "AddKnowledgeFile → sending to index-service collectionId={CollectionId}, ext={Ext}",
+                collectionId, ext);
+            await _indexClient.UploadAndProcessDocumentAsync(
+                collectionId,
+                file.StoragePath,
+                file.FileName,
+                ext,
+                "1",
+                ct);
+        }
+        else
+        {
+            _logger.LogWarning(
+                "AddKnowledgeFile → SKIP index-service: collectionId={CollectionId}, storagePath={StoragePath}",
+                kb?.CollectionId?.ToString() ?? "null", file.StoragePath ?? "null");
+        }
 
         return file.Adapt<KnowledgeFileDto>();
     }

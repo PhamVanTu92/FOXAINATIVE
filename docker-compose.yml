@@ -228,6 +228,8 @@ services:
         condition: service_started
       index-service:
         condition: service_started
+    volumes:
+      - api_gateway_uploads:/app/apps/api-gateway/uploads
     healthcheck:
       test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:3001/health']
       interval: 20s
@@ -443,6 +445,7 @@ volumes:
   knowledge_db_data:
   ocr_db_data:
   ocr_uploads:
+  api_gateway_uploads:
   chatbot_py_db_data:
   index_py_db_data:
   qdrant_data:
