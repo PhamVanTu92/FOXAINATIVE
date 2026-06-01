@@ -15,7 +15,7 @@ public class ApproveDocumentCommandHandler : IRequestHandler<ApproveDocumentComm
     private readonly IKnowledgeFileRepository _fileRepo;
     private readonly IKnowledgeBaseRepository _kbRepo;
     private readonly IUnitOfWork _uow;
-    private readonly IIndexServiceClient _indexClient;
+    private readonly IIndexingQueue _indexingQueue;
     private readonly ILogger<ApproveDocumentCommandHandler> _logger;
 
     public ApproveDocumentCommandHandler(
@@ -23,14 +23,14 @@ public class ApproveDocumentCommandHandler : IRequestHandler<ApproveDocumentComm
         IKnowledgeFileRepository fileRepo,
         IKnowledgeBaseRepository kbRepo,
         IUnitOfWork uow,
-        IIndexServiceClient indexClient,
+        IIndexingQueue indexingQueue,
         ILogger<ApproveDocumentCommandHandler> logger)
     {
         _repo = repo;
         _fileRepo = fileRepo;
         _kbRepo = kbRepo;
         _uow = uow;
-        _indexClient = indexClient;
+        _indexingQueue = indexingQueue;
         _logger = logger;
     }
 
@@ -85,15 +85,14 @@ public class ApproveDocumentCommandHandler : IRequestHandler<ApproveDocumentComm
         {
             var ext = Path.GetExtension(doc.StoragePath).TrimStart('.').ToLower();
             _logger.LogInformation(
-                "ApproveDocument → sending to index-service collectionId={CollectionId}, ext={Ext}, version={Version}",
+                "ApproveDocument → enqueue index-service collectionId={CollectionId}, ext={Ext}, version={Version}",
                 collectionId, ext, doc.CurrentVersion);
-            await _indexClient.UploadAndProcessDocumentAsync(
+            _indexingQueue.Enqueue(new IndexingTask(
                 collectionId,
                 doc.StoragePath,
                 doc.Title,
                 ext,
-                doc.CurrentVersion,
-                ct);
+                doc.CurrentVersion));
         }
         else
         {

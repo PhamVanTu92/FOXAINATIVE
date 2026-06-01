@@ -35,6 +35,9 @@ public static class InfrastructureServiceExtensions
         services.AddHttpClient<IIndexServiceClient, IndexServiceClient>(client =>
             client.BaseAddress = new Uri(indexServiceUrl));
 
+        services.AddSingleton<IIndexingQueue, InMemoryIndexingQueue>();
+        services.AddHostedService<IndexingWorker>();
+
         return services;
     }
 }

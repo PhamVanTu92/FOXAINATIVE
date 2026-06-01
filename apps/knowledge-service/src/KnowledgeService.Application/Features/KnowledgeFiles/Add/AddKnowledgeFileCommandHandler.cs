@@ -15,20 +15,20 @@ public class AddKnowledgeFileCommandHandler : IRequestHandler<AddKnowledgeFileCo
     private readonly IKnowledgeBaseRepository _kbRepo;
     private readonly IKnowledgeFileRepository _fileRepo;
     private readonly IUnitOfWork _uow;
-    private readonly IIndexServiceClient _indexClient;
+    private readonly IIndexingQueue _indexingQueue;
     private readonly ILogger<AddKnowledgeFileCommandHandler> _logger;
 
     public AddKnowledgeFileCommandHandler(
         IKnowledgeBaseRepository kbRepo,
         IKnowledgeFileRepository fileRepo,
         IUnitOfWork uow,
-        IIndexServiceClient indexClient,
+        IIndexingQueue indexingQueue,
         ILogger<AddKnowledgeFileCommandHandler> logger)
     {
         _kbRepo = kbRepo;
         _fileRepo = fileRepo;
         _uow = uow;
-        _indexClient = indexClient;
+        _indexingQueue = indexingQueue;
         _logger = logger;
     }
 
@@ -83,15 +83,14 @@ public class AddKnowledgeFileCommandHandler : IRequestHandler<AddKnowledgeFileCo
         {
             var ext = Path.GetExtension(file.StoragePath).TrimStart('.').ToLower();
             _logger.LogInformation(
-                "AddKnowledgeFile → sending to index-service collectionId={CollectionId}, ext={Ext}",
+                "AddKnowledgeFile → enqueue index-service collectionId={CollectionId}, ext={Ext}",
                 collectionId, ext);
-            await _indexClient.UploadAndProcessDocumentAsync(
+            _indexingQueue.Enqueue(new IndexingTask(
                 collectionId,
                 file.StoragePath,
                 file.FileName,
                 ext,
-                "1",
-                ct);
+                "1"));
         }
         else
         {
