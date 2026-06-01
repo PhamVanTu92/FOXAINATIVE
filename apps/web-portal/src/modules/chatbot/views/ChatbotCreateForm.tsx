@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import {
   X, Save, Lightbulb, BookOpen, History, Globe,
   Webhook, Check, Code2, FileCode2, Layers, Copy,
-  AlertCircle, Cpu, FileText, Settings2,
+  AlertCircle, Cpu, FileText, Settings2, Trash2,
 } from 'lucide-react';
 import { useChatbotForm } from '../hooks/useChatbotForm';
 import { PURPOSE_LABELS, MODE_LABELS, buildEmbedSnippet } from '@/lib/chatbot-api';
@@ -16,6 +16,7 @@ interface Props {
   editing?: ChatbotItem | null;
   onSaved: (bot: ChatbotItem) => void;
   onCancel: () => void;
+  onDelete?: () => void;
 }
 
 const inputCls =
@@ -23,7 +24,7 @@ const inputCls =
   'placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-primary-500 ' +
   'focus:border-transparent bg-surface';
 
-export function ChatbotCreateForm({ collections, editing = null, onSaved, onCancel }: Props) {
+export function ChatbotCreateForm({ collections, editing = null, onSaved, onCancel, onDelete }: Props) {
   const f = useChatbotForm(onSaved, collections, editing);
 
   const [hasScenario, setHasScenario] = useState(!!editing?.systemPrompt);
@@ -44,6 +45,13 @@ export function ChatbotCreateForm({ collections, editing = null, onSaved, onCanc
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {f.isEdit && onDelete && (
+            <button type="button" onClick={onDelete}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium
+                border border-danger-300 text-danger-600 rounded-lg hover:bg-danger-50 transition-colors">
+              <Trash2 size={14} /> Xóa chatbot
+            </button>
+          )}
           <button type="button" onClick={onCancel}
             className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium
               border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors">

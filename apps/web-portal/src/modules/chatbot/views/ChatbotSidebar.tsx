@@ -87,17 +87,16 @@ function BotRow({
           </span>
         </div>
 
-        {highlight && (
-          <div className="flex items-center gap-0.5 shrink-0">
-            <button
-              onClick={(e) => { e.stopPropagation(); onDelete(); }}
-              className="p-1 text-content-muted hover:text-danger-600 hover:bg-danger-50 rounded transition-colors"
-              title="Xóa"
-            >
-              <Trash2 size={13} />
-            </button>
-          </div>
-        )}
+        <div className="flex items-center gap-0.5 shrink-0">
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="p-1 text-content-muted hover:text-danger-600 hover:bg-danger-50 rounded transition-colors
+              opacity-0 group-hover:opacity-100"
+            title="Xóa"
+          >
+            <Trash2 size={13} />
+          </button>
+        </div>
       </div>
 
       {/* Description */}

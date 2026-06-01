@@ -241,6 +241,14 @@ export const knowledgeFilesApi = {
 
   downloadUrl: (kbId: string, fileId: string) =>
     `${BASE}/knowledge-bases/${kbId}/files/${fileId}/file`,
+
+  fetchBlob: async (kbId: string, fileId: string): Promise<Blob> => {
+    const res = await fetch(`${BASE}/knowledge-bases/${kbId}/files/${fileId}/file`, {
+      headers: authHeader(),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.blob();
+  },
 };
 
 // ─── Knowledge Files Standalone (POST /api/knowledge-files) ──────────────────

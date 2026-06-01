@@ -98,9 +98,9 @@ function ExcelPreview({ url }: { url: string }) {
   );
 }
 
-function FilePreviewModal({ file, fileUrl, onClose }: {
+function FilePreviewModal({ file, kbId, onClose }: {
   file: KnowledgeFile;
-  fileUrl: string;
+  kbId: string;
   onClose: () => void;
 }) {
   const ext = file.fileName.split('.').pop()?.toLowerCase() ?? '';
@@ -109,6 +109,28 @@ function FilePreviewModal({ file, fileUrl, onClose }: {
   const isImage = type === 'Image' || ['png','jpg','jpeg','gif','webp','tiff'].includes(ext);
   const isWord  = type === 'Word'  || ['doc','docx'].includes(ext);
   const isExcel = type === 'Excel' || ['xls','xlsx','csv'].includes(ext);
+
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [loadErr, setLoadErr] = useState(false);
+
+  useEffect(() => {
+    let objectUrl: string;
+    knowledgeFilesApi.fetchBlob(kbId, file.id)
+      .then(blob => {
+        objectUrl = URL.createObjectURL(blob);
+        setBlobUrl(objectUrl);
+      })
+      .catch(() => setLoadErr(true));
+    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [kbId, file.id]);
+
+  const handleDownload = () => {
+    if (!blobUrl) return;
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = file.fileName;
+    a.click();
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-neutral-900">
@@ -121,14 +143,16 @@ function FilePreviewModal({ file, fileUrl, onClose }: {
           <span className="text-sm text-neutral-200 truncate">{file.fileName}</span>
         </div>
         <div className="flex items-center gap-2 shrink-0 ml-4">
-          <a href={fileUrl} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-xs text-neutral-300 hover:text-white bg-neutral-700 hover:bg-neutral-600 px-2.5 py-1 rounded-md transition-colors">
-            <ZoomIn className="w-3.5 h-3.5" /> Mở rộng
-          </a>
-          <a href={fileUrl} download
-            className="flex items-center gap-1.5 text-xs text-neutral-300 hover:text-white bg-neutral-700 hover:bg-neutral-600 px-2.5 py-1 rounded-md transition-colors">
+          {blobUrl && (
+            <a href={blobUrl} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-xs text-neutral-300 hover:text-white bg-neutral-700 hover:bg-neutral-600 px-2.5 py-1 rounded-md transition-colors">
+              <ZoomIn className="w-3.5 h-3.5" /> Mở rộng
+            </a>
+          )}
+          <button onClick={handleDownload} disabled={!blobUrl}
+            className="flex items-center gap-1.5 text-xs text-neutral-300 hover:text-white bg-neutral-700 hover:bg-neutral-600 px-2.5 py-1 rounded-md transition-colors disabled:opacity-40">
             <Download className="w-3.5 h-3.5" /> Tải xuống
-          </a>
+          </button>
           <button onClick={onClose}
             className="p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-700 rounded-md transition-colors">
             <X className="w-4 h-4" />
@@ -138,25 +162,33 @@ function FilePreviewModal({ file, fileUrl, onClose }: {
 
       {/* Content */}
       <div className="flex-1 overflow-hidden">
-        {isPdf ? (
-          <iframe src={fileUrl} className="w-full h-full border-0" title={file.fileName} />
+        {loadErr ? (
+          <div className="flex items-center justify-center h-full text-neutral-500 text-sm">
+            Không thể tải file
+          </div>
+        ) : !blobUrl ? (
+          <div className="flex items-center justify-center h-full">
+            <Loader2 className="w-8 h-8 text-neutral-500 animate-spin" />
+          </div>
+        ) : isPdf ? (
+          <iframe src={blobUrl} className="w-full h-full border-0" title={file.fileName} />
         ) : isImage ? (
           <div className="h-full overflow-auto flex items-start justify-center p-6 bg-neutral-800">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={fileUrl} alt={file.fileName} className="max-w-full object-contain rounded shadow-xl" />
+            <img src={blobUrl} alt={file.fileName} className="max-w-full object-contain rounded shadow-xl" />
           </div>
         ) : isWord ? (
-          <WordPreview url={fileUrl} />
+          <WordPreview url={blobUrl} />
         ) : isExcel ? (
-          <ExcelPreview url={fileUrl} />
+          <ExcelPreview url={blobUrl} />
         ) : (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-neutral-500">
             <FileText className="w-14 h-14 text-neutral-600" />
             <p className="text-sm">Không thể xem trước định dạng này</p>
-            <a href={fileUrl} target="_blank" rel="noopener noreferrer"
+            <button onClick={handleDownload}
               className="flex items-center gap-1.5 text-xs text-primary-400 hover:text-primary-300 underline">
               <Download className="w-3.5 h-3.5" /> Tải file xuống
-            </a>
+            </button>
           </div>
         )}
       </div>
@@ -712,15 +744,21 @@ export function KnowledgeDetailView({ kbId }: { kbId: string }) {
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
                           {canExport && (
-                            <a
-                              href={knowledgeFilesApi.downloadUrl(kbId, file.id)}
-                              target="_blank"
-                              rel="noreferrer"
+                            <button
+                              onClick={() =>
+                                knowledgeFilesApi.fetchBlob(kbId, file.id).then(blob => {
+                                  const a = document.createElement('a');
+                                  a.href = URL.createObjectURL(blob);
+                                  a.download = file.fileName;
+                                  a.click();
+                                  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+                                })
+                              }
                               className="p-1.5 text-success-600 hover:bg-primary-50 rounded-md transition-colors"
                               title="Tải xuống"
                             >
                               <Download size={14} />
-                            </a>
+                            </button>
                           )}
                           {canUpdate && (
                             <button
@@ -798,7 +836,7 @@ export function KnowledgeDetailView({ kbId }: { kbId: string }) {
       {previewFile && (
         <FilePreviewModal
           file={previewFile}
-          fileUrl={knowledgeFilesApi.downloadUrl(kbId, previewFile.id)}
+          kbId={kbId}
           onClose={() => setPreviewFile(null)}
         />
       )}

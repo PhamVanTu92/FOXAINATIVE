@@ -67,6 +67,7 @@ export function ChatbotConfigView() {
             collections={c.collections}
             onSaved={c.handleEdited}
             onCancel={c.cancelEdit}
+            onDelete={() => c.handleDelete(c.editingBot!)}
           />
         ) : (
           // Click bot trong sidebar chỉ highlight, panel phải luôn để trống.

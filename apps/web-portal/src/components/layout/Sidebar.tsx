@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 import { ChevronDown, ScanLine, LogOut, Sun, Moon, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -203,19 +204,15 @@ export default function Sidebar() {
       </button>
 
       {/* Logo */}
-      <div className={`flex items-center border-b border-white/[0.07] transition-all duration-300
-        ${collapsed ? 'justify-center px-3 py-[18px]' : 'gap-3 px-5 py-[18px]'}`}>
-        <div
-          className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-base shrink-0 shadow-lg"
-          style={{ background: 'linear-gradient(135deg,#4F46E5 0%,#7C3AED 100%)', boxShadow: '0 4px 14px rgba(79,70,229,0.45)' }}
-        >
-          F
-        </div>
-        {!collapsed && (
-          <div className="min-w-0">
-            <p className="text-white font-bold text-[15px] tracking-wide leading-tight truncate">FOXAI – NATIVE</p>
-            <p className="text-white/35 text-[10px] tracking-[0.12em] uppercase font-medium mt-0.5">Your trust partner</p>
-          </div>
+      <div className={`flex flex-col items-center justify-center border-b border-white/[0.07] transition-all duration-300
+        ${collapsed ? 'px-3 py-3' : 'px-5 py-3'}`}>
+        {collapsed ? (
+          <Image src="/img/Logo_Original-1.png" alt="FOXAI Logo" width={36} height={36} className="object-contain brightness-[2]" />
+        ) : (
+          <>
+            <Image src="/img/Logo_Original-1.png" alt="FOXAI Logo" width={160} height={52} className="object-contain brightness-[2]" />
+            <p className="text-white text-[15px] tracking-[0.25em] uppercase font-bold mt-1">NATIVE</p>
+          </>
         )}
       </div>
 
