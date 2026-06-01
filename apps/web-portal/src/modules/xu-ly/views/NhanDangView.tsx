@@ -188,12 +188,6 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
               <h2 className="text-sm font-semibold text-primary-700">Trường dữ liệu</h2>
               <span className="text-xs text-primary-600 bg-primary-500/10 border border-primary-500/30 px-2 py-0.5 rounded-full font-medium">{schema.fields.length} trường</span>
             </div>
-            {doc?.ocrConfidence != null && (
-              <div className="flex items-center gap-1.5 text-xs text-primary-700">
-                <span>Độ chính xác:</span>
-                <span className={`font-bold ${confTextColor}`}>{confPct}%</span>
-              </div>
-            )}
           </div>
           {schema.fields.length === 0 ? (
             <div className="px-5 py-10 text-center text-sm text-content-muted">Schema này chưa có trường OCR nào.</div>
@@ -507,12 +501,6 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
                 <span className="opacity-40">·</span>
                 <span className="flex items-center gap-1"><FileText className="w-3.5 h-3.5 text-primary-500" /> Word</span>
               </div>
-              <p className="text-xs text-primary-500 mt-0.5 flex items-center gap-1 font-medium">
-                <Sparkles className="w-3.5 h-3.5" /> Có thể chọn nhiều tệp cùng lúc
-              </p>
-              <p className="text-xs text-primary-500 flex items-center gap-1.5 font-medium">
-                <Sparkles className="w-3.5 h-3.5" /> Có thể chọn nhiều tệp cùng lúc
-              </p>
             </div>
           </div>
 
@@ -596,16 +584,6 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
           {/* Stats bar */}
           {doc && !isProcessing && (
             <div className="border-t border-default px-6 py-3 flex items-center gap-8 bg-subtle flex-wrap">
-              {confPct != null && (
-                <div className="flex items-center gap-2.5">
-                  <span className="text-xs font-medium text-content-secondary">Độ tin cậy</span>
-                  <span className={`text-sm font-bold ${confTextColor}`}>{confPct}%</span>
-                  <div className="bg-default rounded-full h-2 w-24">
-                    <div className={`h-2 rounded-full transition-all ${confColor}`} style={{ width: `${confPct}%` }} />
-                  </div>
-                </div>
-              )}
-              <div className="h-4 w-px bg-default" />
               <div className="flex items-center gap-1.5 text-sm">
                 <span className="text-content-secondary">Trường:</span>
                 <span className="font-semibold text-content-primary">{doc.values.filter(v => v.stringValue).length}/{schema.fields.length}</span>
