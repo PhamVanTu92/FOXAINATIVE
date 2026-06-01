@@ -196,6 +196,79 @@ function VersionsList({
 const IMAGE_TYPES: string[] = ['Image'];
 const TEXT_TYPES: string[] = ['Word', 'Excel', 'PowerPoint', 'Text'];
 
+function WordPreview({ url }: { url: string }) {
+  const [html, setHtml] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(false);
+  useEffect(() => {
+    setLoading(true); setHtml(null); setErr(false);
+    fetch(url)
+      .then(r => r.arrayBuffer())
+      .then(buf => import('mammoth').then(m => m.convertToHtml({ arrayBuffer: buf })))
+      .then(({ value }) => setHtml(value))
+      .catch(() => setErr(true))
+      .finally(() => setLoading(false));
+  }, [url]);
+  if (loading) return <div className="flex items-center justify-center py-10"><Loader2 className="w-6 h-6 text-content-muted animate-spin" /></div>;
+  if (err || !html) return <p className="text-sm text-content-muted italic text-center py-6">Không thể đọc nội dung file</p>;
+  return <div className="overflow-auto max-h-[480px] p-4 bg-white text-sm text-neutral-800 leading-relaxed rounded-lg border border-default" dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+function ExcelPreview({ url }: { url: string }) {
+  const [sheets, setSheets] = useState<{ name: string; rows: (string | number | null)[][] }[]>([]);
+  const [activeSheet, setActiveSheet] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(false);
+  useEffect(() => {
+    setLoading(true); setSheets([]); setErr(false); setActiveSheet(0);
+    fetch(url)
+      .then(r => r.arrayBuffer())
+      .then(buf => import('xlsx').then(XLSX => {
+        const wb = XLSX.read(buf, { type: 'array' });
+        return wb.SheetNames.map(name => ({
+          name,
+          rows: wb.Sheets[name] ? XLSX.utils.sheet_to_json<(string | number | null)[]>(wb.Sheets[name]!, { header: 1, defval: null }) : [],
+        }));
+      }))
+      .then(setSheets)
+      .catch(() => setErr(true))
+      .finally(() => setLoading(false));
+  }, [url]);
+  if (loading) return <div className="flex items-center justify-center py-10"><Loader2 className="w-6 h-6 text-content-muted animate-spin" /></div>;
+  if (err || !sheets.length) return <p className="text-sm text-content-muted italic text-center py-6">Không thể đọc nội dung file</p>;
+  const current = sheets[activeSheet];
+  const headers = (current?.rows[0] ?? []) as (string | null)[];
+  const dataRows = current?.rows.slice(1) ?? [];
+  return (
+    <div className="flex flex-col overflow-hidden rounded-lg border border-default bg-neutral-900 max-h-[480px]">
+      {sheets.length > 1 && (
+        <div className="flex gap-0.5 px-2 py-1.5 bg-neutral-800 border-b border-neutral-700 overflow-x-auto shrink-0">
+          {sheets.map((s, i) => (
+            <button key={i} onClick={() => setActiveSheet(i)}
+              className={`px-3 py-1 rounded text-xs whitespace-nowrap transition-colors ${i === activeSheet ? 'bg-neutral-600 text-white' : 'text-neutral-400 hover:text-white hover:bg-neutral-700'}`}>
+              {s.name}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="flex-1 overflow-auto">
+        <table className="text-xs text-neutral-200 border-collapse">
+          <thead className="sticky top-0 bg-neutral-800 z-10">
+            <tr>{headers.map((h, i) => <th key={i} className="px-3 py-2 text-left font-medium text-neutral-300 border border-neutral-700 whitespace-nowrap">{h ?? ''}</th>)}</tr>
+          </thead>
+          <tbody>
+            {dataRows.map((row, ri) => (
+              <tr key={ri} className={ri % 2 === 1 ? 'bg-neutral-800/40' : ''}>
+                {headers.map((_, ci) => <td key={ci} className="px-3 py-1.5 border border-neutral-700/50 whitespace-nowrap max-w-[200px] truncate">{String(row[ci] ?? '')}</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function useBlobUrl(apiUrl: string | null) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState(false);
@@ -274,6 +347,23 @@ function FilePreview({ doc }: { doc: KnowledgeDocument }) {
   }
 
   if (TEXT_TYPES.includes(doc.fileType)) {
+    const isWord  = doc.fileType === 'Word';
+    const isExcel = doc.fileType === 'Excel';
+
+    if (fetchError) return (
+      <div className="flex flex-col items-center gap-3 py-6">
+        <p className="text-sm text-content-muted italic">Không thể tải file.</p>
+      </div>
+    );
+    if (!blobUrl) return (
+      <div className="flex items-center justify-center gap-2 py-10 text-content-muted text-sm">
+        <Loader2 size={16} className="animate-spin" /> Đang tải file...
+      </div>
+    );
+
+    if (isWord)  return <WordPreview url={blobUrl} />;
+    if (isExcel) return <ExcelPreview url={blobUrl} />;
+
     return doc.contentSummary ? (
       <p className="text-sm text-content-secondary whitespace-pre-wrap leading-relaxed">
         {doc.contentSummary}
@@ -281,15 +371,6 @@ function FilePreview({ doc }: { doc: KnowledgeDocument }) {
     ) : (
       <div className="flex flex-col items-center gap-3 py-6">
         <p className="text-sm text-content-muted italic">Không thể hiển thị inline. Tải xuống để xem.</p>
-        <a
-          href={apiUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          download
-          className="flex items-center gap-1.5 px-4 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors"
-        >
-          <Download size={14} /> Tải xuống
-        </a>
       </div>
     );
   }
