@@ -17,7 +17,6 @@ public class KnowledgeFileConfiguration : IEntityTypeConfiguration<KnowledgeFile
         builder.Property(x => x.FileSizeMb).HasColumnType("decimal(10,4)");
         builder.Property(x => x.StoragePath).HasMaxLength(1000);
 
-        builder.HasIndex(x => x.KnowledgeBaseId);
         builder.HasIndex(x => x.FileType);
         builder.HasIndex(x => x.UploadedAt);
         builder.HasIndex(x => x.SourceDocumentId);

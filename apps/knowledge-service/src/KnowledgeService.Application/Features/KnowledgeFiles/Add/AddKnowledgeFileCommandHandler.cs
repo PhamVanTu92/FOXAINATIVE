@@ -47,7 +47,6 @@ public class AddKnowledgeFileCommandHandler : IRequestHandler<AddKnowledgeFileCo
 
         var file = new KnowledgeFile
         {
-            KnowledgeBaseId = cmd.KnowledgeBaseId,
             FileName = cmd.FileName,
             FileType = fileType,
             FileSizeMb = cmd.FileSizeMb,
@@ -65,13 +64,15 @@ public class AddKnowledgeFileCommandHandler : IRequestHandler<AddKnowledgeFileCo
             }).ToList()
         };
 
+        await _fileRepo.AddAsync(file, ct);
+
         if (kb is not null)
         {
+            await _fileRepo.AddToKnowledgeBaseAsync(file.Id, kb.Id, ct);
             kb.UpdatedAt = now;
             _kbRepo.Update(kb);
         }
 
-        await _fileRepo.AddAsync(file, ct);
         await _uow.SaveChangesAsync(ct);
 
         // Gửi file sang index-service để indexing nếu KB có collection và file có đường dẫn lưu trữ

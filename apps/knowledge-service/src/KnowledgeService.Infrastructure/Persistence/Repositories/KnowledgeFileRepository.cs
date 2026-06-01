@@ -12,6 +12,7 @@ public class KnowledgeFileRepository : IKnowledgeFileRepository
 
     public async Task<KnowledgeFile?> GetByIdAsync(Guid id, CancellationToken ct)
         => await _db.KnowledgeFiles
+            .Include(x => x.KnowledgeBases)
             .Include(x => x.Permissions)
             .FirstOrDefaultAsync(x => x.Id == id, ct);
 
@@ -19,9 +20,9 @@ public class KnowledgeFileRepository : IKnowledgeFileRepository
         Guid knowledgeBaseId, string? search, FileType? fileType, int page, int pageSize, CancellationToken ct)
     {
         var query = _db.KnowledgeFiles
-            .Include(x => x.KnowledgeBase)
+            .Include(x => x.KnowledgeBases)
             .Include(x => x.Permissions)
-            .Where(x => x.KnowledgeBaseId == knowledgeBaseId)
+            .Where(x => x.KnowledgeBases.Any(kb => kb.Id == knowledgeBaseId))
             .AsNoTracking();
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -56,7 +57,7 @@ public class KnowledgeFileRepository : IKnowledgeFileRepository
         var counts = typeCounts.ToDictionary(x => x.Type, x => x.Count);
 
         IQueryable<KnowledgeFile> filteredQuery = baseFilter
-            .Include(x => x.KnowledgeBase)
+            .Include(x => x.KnowledgeBases)
             .Include(x => x.Permissions);
 
         if (fileType.HasValue)
@@ -73,10 +74,41 @@ public class KnowledgeFileRepository : IKnowledgeFileRepository
     }
 
     public Task<KnowledgeFile?> GetBySourceDocumentIdAsync(Guid documentId, CancellationToken ct)
-        => _db.KnowledgeFiles.FirstOrDefaultAsync(f => f.SourceDocumentId == documentId, ct);
+        => _db.KnowledgeFiles
+            .Include(x => x.KnowledgeBases)
+            .FirstOrDefaultAsync(f => f.SourceDocumentId == documentId, ct);
+
+    public Task<bool> IsInKnowledgeBaseAsync(Guid fileId, Guid knowledgeBaseId, CancellationToken ct)
+        => _db.KnowledgeBaseFiles
+            .AnyAsync(x => x.KnowledgeFileId == fileId && x.KnowledgeBaseId == knowledgeBaseId, ct);
 
     public async Task AddAsync(KnowledgeFile file, CancellationToken ct)
         => await _db.KnowledgeFiles.AddAsync(file, ct);
+
+    public async Task AddToKnowledgeBaseAsync(Guid fileId, Guid knowledgeBaseId, CancellationToken ct)
+    {
+        var alreadyLinked = await _db.KnowledgeBaseFiles
+            .AnyAsync(x => x.KnowledgeFileId == fileId && x.KnowledgeBaseId == knowledgeBaseId, ct);
+        if (!alreadyLinked)
+            await _db.KnowledgeBaseFiles.AddAsync(
+                new KnowledgeBaseFile { KnowledgeBaseId = knowledgeBaseId, KnowledgeFileId = fileId, CreatedAt = DateTime.UtcNow }, ct);
+    }
+
+    public async Task RemoveFromKnowledgeBaseAsync(Guid fileId, Guid knowledgeBaseId, CancellationToken ct)
+    {
+        var link = await _db.KnowledgeBaseFiles
+            .FindAsync(new object[] { knowledgeBaseId, fileId }, ct);
+        if (link is not null)
+            _db.KnowledgeBaseFiles.Remove(link);
+    }
+
+    public async Task RemoveFromAllKnowledgeBasesAsync(Guid fileId, CancellationToken ct)
+    {
+        var links = await _db.KnowledgeBaseFiles
+            .Where(x => x.KnowledgeFileId == fileId)
+            .ToListAsync(ct);
+        _db.KnowledgeBaseFiles.RemoveRange(links);
+    }
 
     public void Update(KnowledgeFile file)
         => _db.KnowledgeFiles.Update(file);

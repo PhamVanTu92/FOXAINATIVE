@@ -28,9 +28,22 @@ public class KnowledgeBaseConfiguration : IEntityTypeConfiguration<KnowledgeBase
                .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasMany(x => x.Files)
-               .WithOne(x => x.KnowledgeBase)
-               .HasForeignKey(x => x.KnowledgeBaseId)
-               .IsRequired(false)
-               .OnDelete(DeleteBehavior.Cascade);
+               .WithMany(x => x.KnowledgeBases)
+               .UsingEntity<KnowledgeBaseFile>(
+                   "knowledge_base_files",
+                   r => r.HasOne(x => x.KnowledgeFile)
+                         .WithMany()
+                         .HasForeignKey(x => x.KnowledgeFileId)
+                         .OnDelete(DeleteBehavior.Cascade),
+                   l => l.HasOne(x => x.KnowledgeBase)
+                         .WithMany()
+                         .HasForeignKey(x => x.KnowledgeBaseId)
+                         .OnDelete(DeleteBehavior.Cascade),
+                   j =>
+                   {
+                       j.HasKey(x => new { x.KnowledgeBaseId, x.KnowledgeFileId });
+                       j.Property(x => x.CreatedAt);
+                       j.HasIndex(x => x.KnowledgeFileId);
+                   });
     }
 }

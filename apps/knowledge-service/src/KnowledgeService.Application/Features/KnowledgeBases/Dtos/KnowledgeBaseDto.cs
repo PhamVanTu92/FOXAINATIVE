@@ -29,3 +29,9 @@ public class DepartmentRefDto
     public Guid DepartmentId { get; set; }
     public string DepartmentName { get; set; } = default!;
 }
+
+public class KnowledgeBaseRefDto
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = default!;
+}

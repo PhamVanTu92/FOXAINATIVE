@@ -18,7 +18,7 @@ public class GetKnowledgeFileQueryHandler : IRequestHandler<GetKnowledgeFileQuer
         var file = await _repo.GetByIdAsync(query.Id, ct)
             ?? throw new NotFoundException(nameof(KnowledgeFile), query.Id);
 
-        if (file.KnowledgeBaseId != query.KnowledgeBaseId)
+        if (!file.KnowledgeBases.Any(kb => kb.Id == query.KnowledgeBaseId))
             throw new NotFoundException(nameof(KnowledgeFile), query.Id);
 
         return file.Adapt<KnowledgeFileDto>();

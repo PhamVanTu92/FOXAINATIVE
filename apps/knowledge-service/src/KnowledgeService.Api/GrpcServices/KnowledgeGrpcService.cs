@@ -405,11 +405,12 @@ public class KnowledgeGrpcService : Protos.KnowledgeService.KnowledgeServiceBase
 
     private static KnowledgeFileMessage ToProto(KnowledgeFileDto dto)
     {
+        var firstKb = dto.KnowledgeBases.FirstOrDefault();
         var msg = new KnowledgeFileMessage
         {
             Id = dto.Id.ToString(),
-            KnowledgeBaseId = dto.KnowledgeBaseId?.ToString() ?? "",
-            KnowledgeBaseName = dto.KnowledgeBaseName ?? "",
+            KnowledgeBaseId = firstKb?.Id.ToString() ?? "",
+            KnowledgeBaseName = firstKb?.Name ?? "",
             FileName = dto.FileName,
             FileType = dto.FileType,
             FileSizeMb = (double)dto.FileSizeMb,

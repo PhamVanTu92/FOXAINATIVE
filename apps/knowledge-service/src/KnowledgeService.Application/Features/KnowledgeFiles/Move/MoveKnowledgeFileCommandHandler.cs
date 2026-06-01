@@ -33,20 +33,17 @@ public class MoveKnowledgeFileCommandHandler : IRequestHandler<MoveKnowledgeFile
 
         if (cmd.TargetKnowledgeBaseId.HasValue)
         {
-            if (cmd.TargetKnowledgeBaseId.Value != file.KnowledgeBaseId)
-            {
-                var targetKb = await _kbRepo.GetByIdAsync(cmd.TargetKnowledgeBaseId.Value, ct)
-                    ?? throw new NotFoundException(nameof(KnowledgeBase), cmd.TargetKnowledgeBaseId.Value);
+            // Xác nhận KB đích tồn tại
+            _ = await _kbRepo.GetByIdAsync(cmd.TargetKnowledgeBaseId.Value, ct)
+                ?? throw new NotFoundException(nameof(KnowledgeBase), cmd.TargetKnowledgeBaseId.Value);
 
-                file.KnowledgeBaseId = targetKb.Id;
-                file.KnowledgeBase = targetKb;
-            }
+            // Thêm liên kết tới KB đích (idempotent — bỏ qua nếu đã liên kết)
+            await _fileRepo.AddToKnowledgeBaseAsync(file.Id, cmd.TargetKnowledgeBaseId.Value, ct);
         }
         else
         {
-            // null = bỏ gán khỏi bộ tri thức
-            file.KnowledgeBaseId = null;
-            file.KnowledgeBase = null;
+            // null = bỏ gán khỏi tất cả bộ tri thức
+            await _fileRepo.RemoveFromAllKnowledgeBasesAsync(file.Id, ct);
         }
 
         file.UpdatedAt = DateTime.UtcNow;
@@ -54,6 +51,8 @@ public class MoveKnowledgeFileCommandHandler : IRequestHandler<MoveKnowledgeFile
         _fileRepo.Update(file);
         await _uow.SaveChangesAsync(ct);
 
-        return file.Adapt<KnowledgeFileDto>();
+        // Reload để trả về KnowledgeBases đã cập nhật
+        var updated = await _fileRepo.GetByIdAsync(file.Id, ct);
+        return updated!.Adapt<KnowledgeFileDto>();
     }
 }

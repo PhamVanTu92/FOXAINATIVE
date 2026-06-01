@@ -21,7 +21,7 @@ public class DeleteKnowledgeFileCommandHandler : IRequestHandler<DeleteKnowledge
         var file = await _repo.GetByIdAsync(cmd.Id, ct)
             ?? throw new NotFoundException(nameof(KnowledgeFile), cmd.Id);
 
-        if (file.KnowledgeBaseId != cmd.KnowledgeBaseId)
+        if (!file.KnowledgeBases.Any(kb => kb.Id == cmd.KnowledgeBaseId))
             throw new NotFoundException(nameof(KnowledgeFile), cmd.Id);
 
         _repo.Delete(file);

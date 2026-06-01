@@ -3,12 +3,9 @@ using KnowledgeService.Domain.Enums;
 
 namespace KnowledgeService.Domain.Entities;
 
-/// <summary>Tệp tri thức thuộc một bộ tri thức.</summary>
+/// <summary>Tệp tri thức có thể thuộc nhiều bộ tri thức.</summary>
 public class KnowledgeFile : BaseEntity
 {
-    public Guid? KnowledgeBaseId { get; set; }
-    public KnowledgeBase? KnowledgeBase { get; set; }
-
     public string FileName { get; set; } = default!;
     public FileType FileType { get; set; }
 
@@ -25,5 +22,6 @@ public class KnowledgeFile : BaseEntity
     /// <summary>ID tài liệu nguồn — được set khi file tự động tạo lúc duyệt KnowledgeDocument.</summary>
     public Guid? SourceDocumentId { get; set; }
 
+    public ICollection<KnowledgeBase> KnowledgeBases { get; set; } = new List<KnowledgeBase>();
     public ICollection<KnowledgeFilePermission> Permissions { get; set; } = new List<KnowledgeFilePermission>();
 }

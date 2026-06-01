@@ -24,7 +24,7 @@ public class UpdateKnowledgeFileCommandHandler : IRequestHandler<UpdateKnowledge
         var file = await _repo.GetByIdAsync(cmd.Id, ct)
             ?? throw new NotFoundException(nameof(KnowledgeFile), cmd.Id);
 
-        if (cmd.KnowledgeBaseId.HasValue && file.KnowledgeBaseId != cmd.KnowledgeBaseId.Value)
+        if (cmd.KnowledgeBaseId.HasValue && !file.KnowledgeBases.Any(kb => kb.Id == cmd.KnowledgeBaseId.Value))
             throw new NotFoundException(nameof(KnowledgeFile), cmd.Id);
 
         file.FileName = cmd.FileName;

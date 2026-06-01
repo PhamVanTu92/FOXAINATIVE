@@ -10,6 +10,7 @@ public class KnowledgeDbContext : DbContext
     public DbSet<KnowledgeBase> KnowledgeBases => Set<KnowledgeBase>();
     public DbSet<KnowledgeBasePermission> KnowledgeBasePermissions => Set<KnowledgeBasePermission>();
     public DbSet<KnowledgeFile> KnowledgeFiles => Set<KnowledgeFile>();
+    public DbSet<KnowledgeBaseFile> KnowledgeBaseFiles => Set<KnowledgeBaseFile>();
     public DbSet<KnowledgeFilePermission> KnowledgeFilePermissions => Set<KnowledgeFilePermission>();
     public DbSet<KnowledgeDocument> KnowledgeDocuments => Set<KnowledgeDocument>();
     public DbSet<KnowledgeDocumentVersion> KnowledgeDocumentVersions => Set<KnowledgeDocumentVersion>();

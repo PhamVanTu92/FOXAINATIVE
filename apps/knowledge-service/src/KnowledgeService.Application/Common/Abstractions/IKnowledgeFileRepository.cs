@@ -11,7 +11,11 @@ public interface IKnowledgeFileRepository
     Task<(IReadOnlyList<KnowledgeFile> Items, int Total, Dictionary<FileType, int> TypeCounts)> ListAllAsync(
         string? search, FileType? fileType, int page, int pageSize, CancellationToken ct = default);
     Task<KnowledgeFile?> GetBySourceDocumentIdAsync(Guid documentId, CancellationToken ct = default);
+    Task<bool> IsInKnowledgeBaseAsync(Guid fileId, Guid knowledgeBaseId, CancellationToken ct = default);
     Task AddAsync(KnowledgeFile file, CancellationToken ct = default);
+    Task AddToKnowledgeBaseAsync(Guid fileId, Guid knowledgeBaseId, CancellationToken ct = default);
+    Task RemoveFromKnowledgeBaseAsync(Guid fileId, Guid knowledgeBaseId, CancellationToken ct = default);
+    Task RemoveFromAllKnowledgeBasesAsync(Guid fileId, CancellationToken ct = default);
     void Update(KnowledgeFile file);
     void Delete(KnowledgeFile file);
     void RemovePermissions(IEnumerable<KnowledgeFilePermission> permissions);

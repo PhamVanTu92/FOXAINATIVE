@@ -48,9 +48,8 @@ public class ApproveDocumentCommandHandler : IRequestHandler<ApproveDocumentComm
             var existingFile = await _fileRepo.GetBySourceDocumentIdAsync(doc.Id, ct);
             if (existingFile is null)
             {
-                await _fileRepo.AddAsync(new KnowledgeFile
+                var newFile = new KnowledgeFile
                 {
-                    KnowledgeBaseId = doc.KnowledgeBaseId.Value,
                     FileName = doc.Title,
                     FileType = doc.FileType,
                     FileSizeMb = doc.FileSizeMb,
@@ -58,7 +57,9 @@ public class ApproveDocumentCommandHandler : IRequestHandler<ApproveDocumentComm
                     UploadedBy = doc.UploadedBy,
                     UploadedAt = doc.UploadedAt,
                     SourceDocumentId = doc.Id,
-                }, ct);
+                };
+                await _fileRepo.AddAsync(newFile, ct);
+                await _fileRepo.AddToKnowledgeBaseAsync(newFile.Id, doc.KnowledgeBaseId.Value, ct);
             }
             else
             {
@@ -67,6 +68,8 @@ public class ApproveDocumentCommandHandler : IRequestHandler<ApproveDocumentComm
                 existingFile.FileType = doc.FileType;
                 existingFile.FileSizeMb = doc.FileSizeMb;
                 existingFile.StoragePath = doc.StoragePath;
+                // Đảm bảo vẫn còn liên kết với KB (phòng trường hợp đã bị gỡ)
+                await _fileRepo.AddToKnowledgeBaseAsync(existingFile.Id, doc.KnowledgeBaseId.Value, ct);
                 _fileRepo.Update(existingFile);
             }
         }
