@@ -99,7 +99,7 @@
   --bg-page:    #F4F7FF;          /* Very light blue page background */
   --bg-surface: #FFFFFF;          /* Pure white cards / panels */
   --bg-subtle:  #EBF0FF;          /* Light blue-tinted subtle areas */
-  --bg-sidebar: #1B3D7A;          /* Professional navy blue sidebar */
+  --bg-sidebar: #142448;          /* Deep navy blue sidebar */
 
   --text-primary:   #0F172A;
   --text-secondary: #334155;
@@ -243,6 +243,14 @@
 
   --color-orange-600:  #FB923C;
   --color-orange-700:  #FDBA74;
+}
+
+/* ── Sidebar gradient (light theme: navy gradient, dark theme: deep black) ── */
+.app-sidebar {
+  background: linear-gradient(170deg, #1C3461 0%, #142448 55%, #0E1A35 100%);
+}
+.dark .app-sidebar {
+  background: var(--bg-sidebar);
 }
 
 /* ── Thin scrollbars (Chromium / Safari) ────────────────────────────────── */
