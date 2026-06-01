@@ -428,8 +428,8 @@ public class KnowledgeGrpcService : Protos.KnowledgeService.KnowledgeServiceBase
         => new KnowledgeDocumentMessage
         {
             Id = dto.Id.ToString(),
-            KnowledgeBaseId = dto.KnowledgeBaseId.ToString(),
-            KnowledgeBaseName = dto.KnowledgeBaseName,
+            KnowledgeBaseId = dto.KnowledgeBaseId?.ToString() ?? "",
+            KnowledgeBaseName = dto.KnowledgeBaseName ?? "",
             Title = dto.Title,
             FileType = dto.FileType,
             FileSizeMb = (double)dto.FileSizeMb,
