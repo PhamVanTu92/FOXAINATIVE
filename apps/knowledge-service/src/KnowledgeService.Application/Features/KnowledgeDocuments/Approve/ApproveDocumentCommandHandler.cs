@@ -36,14 +36,15 @@ public class ApproveDocumentCommandHandler : IRequestHandler<ApproveDocumentComm
 
     public async Task<KnowledgeDocumentDto> Handle(ApproveDocumentCommand cmd, CancellationToken ct)
     {
+        // GetByIdAsync đã include KnowledgeBases
         var doc = await _repo.GetByIdAsync(cmd.Id, ct)
             ?? throw new NotFoundException(nameof(KnowledgeDocument), cmd.Id);
 
         doc.Approve();
         _repo.Update(doc);
 
-        // Đồng bộ KnowledgeFile trong bộ tri thức tương ứng (chỉ khi tài liệu thuộc một bộ tri thức)
-        if (doc.KnowledgeBaseId.HasValue)
+        // Đồng bộ KnowledgeFile nếu tài liệu thuộc ít nhất một bộ tri thức
+        if (doc.KnowledgeBases.Any())
         {
             var existingFile = await _fileRepo.GetBySourceDocumentIdAsync(doc.Id, ct);
             if (existingFile is null)
@@ -59,7 +60,9 @@ public class ApproveDocumentCommandHandler : IRequestHandler<ApproveDocumentComm
                     SourceDocumentId = doc.Id,
                 };
                 await _fileRepo.AddAsync(newFile, ct);
-                await _fileRepo.AddToKnowledgeBaseAsync(newFile.Id, doc.KnowledgeBaseId.Value, ct);
+                // Gắn file với tất cả các KB của tài liệu
+                foreach (var kb in doc.KnowledgeBases)
+                    await _fileRepo.AddToKnowledgeBaseAsync(newFile.Id, kb.Id, ct);
             }
             else
             {
@@ -68,40 +71,44 @@ public class ApproveDocumentCommandHandler : IRequestHandler<ApproveDocumentComm
                 existingFile.FileType = doc.FileType;
                 existingFile.FileSizeMb = doc.FileSizeMb;
                 existingFile.StoragePath = doc.StoragePath;
-                // Đảm bảo vẫn còn liên kết với KB (phòng trường hợp đã bị gỡ)
-                await _fileRepo.AddToKnowledgeBaseAsync(existingFile.Id, doc.KnowledgeBaseId.Value, ct);
+                // Đảm bảo file vẫn liên kết với tất cả KB của tài liệu
+                foreach (var kb in doc.KnowledgeBases)
+                    await _fileRepo.AddToKnowledgeBaseAsync(existingFile.Id, kb.Id, ct);
                 _fileRepo.Update(existingFile);
             }
         }
 
         await _uow.SaveChangesAsync(ct);
 
-        // Gửi file sang index-service để indexing nếu KB có collection và document có file
-        var kb = doc.KnowledgeBaseId.HasValue
-            ? await _kbRepo.GetByIdAsync(doc.KnowledgeBaseId.Value, ct)
-            : null;
+        // Gửi sang index-service cho từng KB có collection
         _logger.LogInformation(
-            "ApproveDocument → docId={DocId}, kbId={KbId}, collectionId={CollectionId}, storagePath={StoragePath}",
-            doc.Id, doc.KnowledgeBaseId, kb?.CollectionId?.ToString() ?? "null", doc.StoragePath ?? "null");
+            "ApproveDocument → docId={DocId}, kbCount={KbCount}, storagePath={StoragePath}",
+            doc.Id, doc.KnowledgeBases.Count, doc.StoragePath ?? "null");
 
-        if (kb?.CollectionId is Guid collectionId && doc.StoragePath is not null)
+        if (doc.StoragePath is not null)
         {
             var ext = Path.GetExtension(doc.StoragePath).TrimStart('.').ToLower();
-            _logger.LogInformation(
-                "ApproveDocument → enqueue index-service collectionId={CollectionId}, ext={Ext}, version={Version}",
-                collectionId, ext, doc.CurrentVersion);
-            _indexingQueue.Enqueue(new IndexingTask(
-                collectionId,
-                doc.StoragePath,
-                doc.Title,
-                ext,
-                doc.CurrentVersion));
+            foreach (var kb in doc.KnowledgeBases)
+            {
+                if (kb.CollectionId is Guid collectionId)
+                {
+                    _logger.LogInformation(
+                        "ApproveDocument → enqueue collectionId={CollectionId}, ext={Ext}, version={Version}",
+                        collectionId, ext, doc.CurrentVersion);
+                    _indexingQueue.Enqueue(new IndexingTask(
+                        collectionId, doc.StoragePath, doc.Title, ext, doc.CurrentVersion));
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "ApproveDocument → SKIP index-service: kbId={KbId} không có collectionId",
+                        kb.Id);
+                }
+            }
         }
         else
         {
-            _logger.LogWarning(
-                "ApproveDocument → SKIP index-service: collectionId={CollectionId}, storagePath={StoragePath}",
-                kb?.CollectionId?.ToString() ?? "null", doc.StoragePath ?? "null");
+            _logger.LogWarning("ApproveDocument → SKIP index-service: storagePath is null");
         }
 
         return doc.Adapt<KnowledgeDocumentDto>();

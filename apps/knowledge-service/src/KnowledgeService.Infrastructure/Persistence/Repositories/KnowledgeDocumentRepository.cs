@@ -11,10 +11,13 @@ public class KnowledgeDocumentRepository : IKnowledgeDocumentRepository
     public KnowledgeDocumentRepository(KnowledgeDbContext db) => _db = db;
 
     public async Task<KnowledgeDocument?> GetByIdAsync(Guid id, CancellationToken ct)
-        => await _db.KnowledgeDocuments.FirstOrDefaultAsync(x => x.Id == id, ct);
+        => await _db.KnowledgeDocuments
+            .Include(x => x.KnowledgeBases)
+            .FirstOrDefaultAsync(x => x.Id == id, ct);
 
     public async Task<KnowledgeDocument?> GetByIdWithVersionsAsync(Guid id, CancellationToken ct)
         => await _db.KnowledgeDocuments
+            .Include(x => x.KnowledgeBases)
             .Include(x => x.Versions)
             .FirstOrDefaultAsync(x => x.Id == id, ct);
 
@@ -22,10 +25,12 @@ public class KnowledgeDocumentRepository : IKnowledgeDocumentRepository
         Guid? knowledgeBaseId, string? status, string? search,
         int page, int pageSize, CancellationToken ct)
     {
-        var query = _db.KnowledgeDocuments.AsNoTracking();
+        var query = _db.KnowledgeDocuments
+            .Include(x => x.KnowledgeBases)
+            .AsNoTracking();
 
         if (knowledgeBaseId.HasValue)
-            query = query.Where(x => x.KnowledgeBaseId == knowledgeBaseId.Value);
+            query = query.Where(x => x.KnowledgeBases.Any(kb => kb.Id == knowledgeBaseId.Value));
 
         if (!string.IsNullOrWhiteSpace(status) &&
             Enum.TryParse<DocumentStatus>(status, ignoreCase: true, out var statusEnum))
@@ -54,6 +59,23 @@ public class KnowledgeDocumentRepository : IKnowledgeDocumentRepository
 
     public async Task AddAsync(KnowledgeDocument document, CancellationToken ct)
         => await _db.KnowledgeDocuments.AddAsync(document, ct);
+
+    public async Task AddToKnowledgeBaseAsync(Guid documentId, Guid knowledgeBaseId, CancellationToken ct)
+    {
+        var alreadyLinked = await _db.KnowledgeBaseDocuments
+            .AnyAsync(x => x.KnowledgeDocumentId == documentId && x.KnowledgeBaseId == knowledgeBaseId, ct);
+        if (!alreadyLinked)
+            await _db.KnowledgeBaseDocuments.AddAsync(
+                new KnowledgeBaseDocument { KnowledgeBaseId = knowledgeBaseId, KnowledgeDocumentId = documentId, CreatedAt = DateTime.UtcNow }, ct);
+    }
+
+    public async Task RemoveFromKnowledgeBaseAsync(Guid documentId, Guid knowledgeBaseId, CancellationToken ct)
+    {
+        var link = await _db.KnowledgeBaseDocuments
+            .FindAsync(new object[] { knowledgeBaseId, documentId }, ct);
+        if (link is not null)
+            _db.KnowledgeBaseDocuments.Remove(link);
+    }
 
     public void Update(KnowledgeDocument document)
         => _db.KnowledgeDocuments.Update(document);

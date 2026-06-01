@@ -427,11 +427,13 @@ public class KnowledgeGrpcService : Protos.KnowledgeService.KnowledgeServiceBase
     }
 
     private static KnowledgeDocumentMessage ToProto(KnowledgeDocumentDto dto)
-        => new KnowledgeDocumentMessage
+    {
+        var firstKb = dto.KnowledgeBases.FirstOrDefault();
+        return new KnowledgeDocumentMessage
         {
             Id = dto.Id.ToString(),
-            KnowledgeBaseId = dto.KnowledgeBaseId?.ToString() ?? "",
-            KnowledgeBaseName = dto.KnowledgeBaseName ?? "",
+            KnowledgeBaseId = firstKb?.Id.ToString() ?? "",
+            KnowledgeBaseName = firstKb?.Name ?? "",
             Title = dto.Title,
             FileType = dto.FileType,
             FileSizeMb = (double)dto.FileSizeMb,
@@ -444,6 +446,7 @@ public class KnowledgeGrpcService : Protos.KnowledgeService.KnowledgeServiceBase
             CreatedAt = dto.CreatedAt.ToString("O"),
             UpdatedAt = dto.UpdatedAt.ToString("O"),
         };
+    }
 
     private static KnowledgeDocumentVersionMessage ToProto(KnowledgeDocumentVersionDto dto)
         => new KnowledgeDocumentVersionMessage

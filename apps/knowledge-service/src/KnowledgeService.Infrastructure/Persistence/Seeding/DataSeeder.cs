@@ -168,59 +168,58 @@ public static class DataSeeder
         var userId2 = Guid.Parse("20000001-0000-0000-0000-000000000002");
         var userId3 = Guid.Parse("20000001-0000-0000-0000-000000000003");
 
-        var docs = new List<KnowledgeDocument>
+        var entries = new List<(KnowledgeDocument Doc, Guid KbId)>
         {
-            CreateSeededDocument(
-                kb001.Id, kb001.Name,
+            (CreateSeededDocument(
                 "Quy trinh ke toan noi bo 2025", FileType.PDF, 2.1m,
                 "Quy trinh ke toan noi bo 2025\n\n1. Nguyen tac chung\n   - Tuan thu chuan muc ke toan Viet Nam\n   - Bao cao dinh ky\n2. Quy trinh phan bon chi phi\n3. Phê duyệt chứng từ",
                 "Cap nhat quy trinh Q1-2026", DocumentStatus.Review, "v1.3",
-                userId1, new DateTime(2026, 5, 10, 0, 0, 0, DateTimeKind.Utc), 3),
+                userId1, new DateTime(2026, 5, 10, 0, 0, 0, DateTimeKind.Utc), 3), kb001.Id),
 
-            CreateSeededDocument(
-                kb002.Id, kb002.Name,
+            (CreateSeededDocument(
                 "Quy che tien luong 2026", FileType.PDF, 1.8m,
                 "Quy che tien luong 2026 - Phien ban 2.0\n\nDieu 1: Nguyen tac tra luong\n   - Luong co ban theo vi tri cong viec\n   - Phu cap chuc vu, phu cap tham nien\n   - Thuong KPI hang quy\n   - Thuong cuoi nam theo doanh thu\n\nDieu 2: Bang luong\n   - Chuyen vien: 15-25 trieu\n   - Truong phong: 30-45 trieu\n   - Pho giam doc: 50-70 trieu",
                 "Cap nhat bang luong moi theo NQ HDQT Q1-2026", DocumentStatus.Approved, "v2.0",
-                userId2, new DateTime(2026, 3, 11, 0, 0, 0, DateTimeKind.Utc), 2),
+                userId2, new DateTime(2026, 3, 11, 0, 0, 0, DateTimeKind.Utc), 2), kb002.Id),
 
-            CreateSeededDocument(
-                kb003.Id, kb003.Name,
+            (CreateSeededDocument(
                 "Tai lieu API he thong FOXAI v2", FileType.PDF, 3.4m,
                 "API Documentation FOXAI v2 - Draft 0.2\n\n1. Authentication\n   - POST /auth/login\n   - POST /auth/refresh\n   - Bearer Token (JWT)\n\n2. OCR Endpoints\n   - POST /ocr/process\n   - GET /ocr/status/{id}\n   - GET /ocr/result/{id}\n\n3. Knowledge Base\n   - GET /kb/list\n   - POST /kb/create\n   - PUT /kb/{id}/update",
                 "Ban nhap - cap nhat endpoint moi", DocumentStatus.Draft, "v0.2",
-                userId3, new DateTime(2026, 5, 8, 0, 0, 0, DateTimeKind.Utc), 2),
+                userId3, new DateTime(2026, 5, 8, 0, 0, 0, DateTimeKind.Utc), 2), kb003.Id),
 
-            CreateSeededDocument(
-                kb004.Id, kb004.Name,
+            (CreateSeededDocument(
                 "Chinh sach gia san pham 2026", FileType.Excel, 1.2m,
                 "Bang gia san pham FOXAI 2026 - Q2\n\nGoi STARTER\n   - OCR Basic: 2.000.000 VND/thang\n   - Max 1.000 trang/thang\n   - Ho tro email\n\nGoi PROFESSIONAL\n   - OCR Advanced + AI: 8.000.000 VND/thang\n   - Max 10.000 trang/thang\n   - Ho tro 24/7\n   - Tich hop API\n\nGoi ENTERPRISE\n   - Khong gioi han\n   - Trien khai rieng\n   - SLA 99.9%",
                 "Cap nhat gia theo bien dong thi truong Q2", DocumentStatus.Review, "v3.1",
-                userId2, new DateTime(2026, 4, 30, 0, 0, 0, DateTimeKind.Utc), 2),
+                userId2, new DateTime(2026, 4, 30, 0, 0, 0, DateTimeKind.Utc), 2), kb004.Id),
 
-            CreateSeededDocument(
-                kb005.Id, kb005.Name,
+            (CreateSeededDocument(
                 "Luat doanh nghiep 2020 – tom tat", FileType.PDF, 5.8m,
                 "Luat Doanh nghiep 2020 - Tom tat\n\nChuong I: Quy dinh chung\n   - Dieu 1: Pham vi dieu chinh\n   - Dieu 2: Doi tuong ap dung\n\nChuong II: Thanh lap doanh nghiep\n   - Thu tuc dang ky\n   - Von dieu le\n\nChuong III: Quan tri doanh nghiep",
                 "Phien ban tom tat da duoc phap che xac nhan", DocumentStatus.Archived, "v1.0",
-                userId1, new DateTime(2025, 8, 1, 0, 0, 0, DateTimeKind.Utc), 1),
+                userId1, new DateTime(2025, 8, 1, 0, 0, 0, DateTimeKind.Utc), 1), kb005.Id),
         };
 
-        await db.KnowledgeDocuments.AddRangeAsync(docs);
+        await db.KnowledgeDocuments.AddRangeAsync(entries.Select(e => e.Doc));
         await db.SaveChangesAsync();
-        logger.LogInformation("Document seed completed: {Count} documents seeded.", docs.Count);
+
+        var now = DateTime.UtcNow;
+        await db.KnowledgeBaseDocuments.AddRangeAsync(entries.Select(e =>
+            new KnowledgeBaseDocument { KnowledgeBaseId = e.KbId, KnowledgeDocumentId = e.Doc.Id, CreatedAt = now }));
+        await db.SaveChangesAsync();
+
+        logger.LogInformation("Document seed completed: {Count} documents seeded.", entries.Count);
     }
 
     private static KnowledgeDocument CreateSeededDocument(
-        Guid kbId, string kbName, string title, FileType fileType, decimal sizeMb,
+        string title, FileType fileType, decimal sizeMb,
         string contentSummary, string changeNote, DocumentStatus status,
         string currentVersion, Guid uploadedBy, DateTime uploadedAt, int versionCount)
     {
         var doc = new KnowledgeDocument
         {
             Id = Guid.NewGuid(),
-            KnowledgeBaseId = kbId,
-            KnowledgeBaseName = kbName,
             Title = title,
             FileType = fileType,
             FileSizeMb = sizeMb,

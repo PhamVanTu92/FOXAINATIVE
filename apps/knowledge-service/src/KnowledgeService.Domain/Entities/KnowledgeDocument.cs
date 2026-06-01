@@ -5,8 +5,6 @@ namespace KnowledgeService.Domain.Entities;
 
 public class KnowledgeDocument : BaseEntity, IAggregateRoot
 {
-    public Guid? KnowledgeBaseId { get; set; }
-    public string? KnowledgeBaseName { get; set; }
     public string Title { get; set; } = default!;
     public FileType FileType { get; set; }
     public decimal FileSizeMb { get; set; }
@@ -17,11 +15,10 @@ public class KnowledgeDocument : BaseEntity, IAggregateRoot
     public string CurrentVersion { get; set; } = "v1.0";
     public int VersionCount { get; set; } = 1;
 
+    public ICollection<KnowledgeBase> KnowledgeBases { get; set; } = new List<KnowledgeBase>();
     public ICollection<KnowledgeDocumentVersion> Versions { get; set; } = new List<KnowledgeDocumentVersion>();
 
     public static KnowledgeDocument Create(
-        Guid? knowledgeBaseId,
-        string? knowledgeBaseName,
         string title,
         FileType fileType,
         decimal fileSizeMb,
@@ -32,8 +29,6 @@ public class KnowledgeDocument : BaseEntity, IAggregateRoot
     {
         var doc = new KnowledgeDocument
         {
-            KnowledgeBaseId = knowledgeBaseId,
-            KnowledgeBaseName = knowledgeBaseName,
             Title = title,
             FileType = fileType,
             FileSizeMb = fileSizeMb,

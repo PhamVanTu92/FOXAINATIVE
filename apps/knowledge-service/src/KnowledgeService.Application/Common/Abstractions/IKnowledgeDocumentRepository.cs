@@ -12,6 +12,8 @@ public interface IKnowledgeDocumentRepository
     Task<IReadOnlyList<KnowledgeDocumentVersion>> ListVersionsAsync(
         Guid documentId, CancellationToken ct = default);
     Task AddAsync(KnowledgeDocument document, CancellationToken ct = default);
+    Task AddToKnowledgeBaseAsync(Guid documentId, Guid knowledgeBaseId, CancellationToken ct = default);
+    Task RemoveFromKnowledgeBaseAsync(Guid documentId, Guid knowledgeBaseId, CancellationToken ct = default);
     void Update(KnowledgeDocument document);
     void AddVersion(KnowledgeDocumentVersion version);
 }

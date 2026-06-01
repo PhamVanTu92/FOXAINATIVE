@@ -13,6 +13,7 @@ public class KnowledgeDbContext : DbContext
     public DbSet<KnowledgeBaseFile> KnowledgeBaseFiles => Set<KnowledgeBaseFile>();
     public DbSet<KnowledgeFilePermission> KnowledgeFilePermissions => Set<KnowledgeFilePermission>();
     public DbSet<KnowledgeDocument> KnowledgeDocuments => Set<KnowledgeDocument>();
+    public DbSet<KnowledgeBaseDocument> KnowledgeBaseDocuments => Set<KnowledgeBaseDocument>();
     public DbSet<KnowledgeDocumentVersion> KnowledgeDocumentVersions => Set<KnowledgeDocumentVersion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

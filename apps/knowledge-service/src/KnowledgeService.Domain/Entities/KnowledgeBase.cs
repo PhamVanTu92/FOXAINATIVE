@@ -22,4 +22,5 @@ public class KnowledgeBase : BaseEntity, IAggregateRoot
 
     public ICollection<KnowledgeBasePermission> Permissions { get; set; } = new List<KnowledgeBasePermission>();
     public ICollection<KnowledgeFile> Files { get; set; } = new List<KnowledgeFile>();
+    public ICollection<KnowledgeDocument> Documents { get; set; } = new List<KnowledgeDocument>();
 }

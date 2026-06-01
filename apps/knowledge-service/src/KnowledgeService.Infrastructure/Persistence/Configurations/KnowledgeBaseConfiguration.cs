@@ -27,6 +27,25 @@ public class KnowledgeBaseConfiguration : IEntityTypeConfiguration<KnowledgeBase
                .HasForeignKey(x => x.KnowledgeBaseId)
                .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasMany(x => x.Documents)
+               .WithMany(x => x.KnowledgeBases)
+               .UsingEntity<KnowledgeBaseDocument>(
+                   "knowledge_base_documents",
+                   r => r.HasOne(x => x.KnowledgeDocument)
+                         .WithMany()
+                         .HasForeignKey(x => x.KnowledgeDocumentId)
+                         .OnDelete(DeleteBehavior.Cascade),
+                   l => l.HasOne(x => x.KnowledgeBase)
+                         .WithMany()
+                         .HasForeignKey(x => x.KnowledgeBaseId)
+                         .OnDelete(DeleteBehavior.Cascade),
+                   j =>
+                   {
+                       j.HasKey(x => new { x.KnowledgeBaseId, x.KnowledgeDocumentId });
+                       j.Property(x => x.CreatedAt);
+                       j.HasIndex(x => x.KnowledgeDocumentId);
+                   });
+
         builder.HasMany(x => x.Files)
                .WithMany(x => x.KnowledgeBases)
                .UsingEntity<KnowledgeBaseFile>(

@@ -1,10 +1,11 @@
+using KnowledgeService.Application.Features.KnowledgeBases.Dtos;
+
 namespace KnowledgeService.Application.Features.KnowledgeDocuments.Dtos;
 
 public class KnowledgeDocumentDto
 {
     public Guid Id { get; set; }
-    public Guid? KnowledgeBaseId { get; set; }
-    public string? KnowledgeBaseName { get; set; }
+    public List<KnowledgeBaseRefDto> KnowledgeBases { get; set; } = new();
     public string Title { get; set; } = default!;
     public string FileType { get; set; } = default!;
     public decimal FileSizeMb { get; set; }

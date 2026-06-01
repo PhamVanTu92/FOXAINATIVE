@@ -26,19 +26,15 @@ public class UploadDocumentCommandHandler : IRequestHandler<UploadDocumentComman
 
     public async Task<KnowledgeDocumentDto> Handle(UploadDocumentCommand cmd, CancellationToken ct)
     {
-        string? kbName = null;
         if (cmd.KnowledgeBaseId.HasValue)
         {
-            var kb = await _kbRepo.GetByIdAsync(cmd.KnowledgeBaseId.Value, ct)
+            _ = await _kbRepo.GetByIdAsync(cmd.KnowledgeBaseId.Value, ct)
                 ?? throw new NotFoundException(nameof(KnowledgeBase), cmd.KnowledgeBaseId.Value);
-            kbName = kb.Name;
         }
 
         var fileType = Enum.Parse<FileType>(cmd.FileType);
 
         var document = KnowledgeDocument.Create(
-            cmd.KnowledgeBaseId,
-            kbName,
             cmd.Title,
             fileType,
             cmd.FileSizeMb,
@@ -48,8 +44,14 @@ public class UploadDocumentCommandHandler : IRequestHandler<UploadDocumentComman
             cmd.StoragePath);
 
         await _docRepo.AddAsync(document, ct);
+
+        if (cmd.KnowledgeBaseId.HasValue)
+            await _docRepo.AddToKnowledgeBaseAsync(document.Id, cmd.KnowledgeBaseId.Value, ct);
+
         await _uow.SaveChangesAsync(ct);
 
-        return document.Adapt<KnowledgeDocumentDto>();
+        // Reload để trả về KnowledgeBases đã được link
+        var saved = await _docRepo.GetByIdAsync(document.Id, ct);
+        return saved!.Adapt<KnowledgeDocumentDto>();
     }
 }
