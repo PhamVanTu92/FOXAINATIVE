@@ -31,14 +31,22 @@ public class MoveKnowledgeFileCommandHandler : IRequestHandler<MoveKnowledgeFile
         if (!string.IsNullOrWhiteSpace(cmd.FileName))
             file.FileName = cmd.FileName.Trim();
 
-        if (cmd.TargetKnowledgeBaseId.HasValue &&
-            cmd.TargetKnowledgeBaseId.Value != file.KnowledgeBaseId)
+        if (cmd.TargetKnowledgeBaseId.HasValue)
         {
-            var targetKb = await _kbRepo.GetByIdAsync(cmd.TargetKnowledgeBaseId.Value, ct)
-                ?? throw new NotFoundException(nameof(KnowledgeBase), cmd.TargetKnowledgeBaseId.Value);
+            if (cmd.TargetKnowledgeBaseId.Value != file.KnowledgeBaseId)
+            {
+                var targetKb = await _kbRepo.GetByIdAsync(cmd.TargetKnowledgeBaseId.Value, ct)
+                    ?? throw new NotFoundException(nameof(KnowledgeBase), cmd.TargetKnowledgeBaseId.Value);
 
-            file.KnowledgeBaseId = targetKb.Id;
-            file.KnowledgeBase = targetKb;
+                file.KnowledgeBaseId = targetKb.Id;
+                file.KnowledgeBase = targetKb;
+            }
+        }
+        else
+        {
+            // null = bỏ gán khỏi bộ tri thức
+            file.KnowledgeBaseId = null;
+            file.KnowledgeBase = null;
         }
 
         file.UpdatedAt = DateTime.UtcNow;

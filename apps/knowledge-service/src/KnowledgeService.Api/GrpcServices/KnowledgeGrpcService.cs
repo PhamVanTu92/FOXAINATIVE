@@ -183,8 +183,9 @@ public class KnowledgeGrpcService : Protos.KnowledgeService.KnowledgeServiceBase
     public override async Task<KnowledgeFileMessage> UpdateKnowledgeFile(
         UpdateKnowledgeFileRequest request, ServerCallContext context)
     {
+        Guid? updateKbId = Guid.TryParse(request.KnowledgeBaseId, out var ukbId) ? ukbId : null;
         var result = await _mediator.Send(new UpdateKnowledgeFileCommand(
-            Guid.Parse(request.Id), Guid.Parse(request.KnowledgeBaseId),
+            Guid.Parse(request.Id), updateKbId,
             request.FileName, request.FileType, (decimal)request.FileSizeMb));
 
         return ToProto(result);

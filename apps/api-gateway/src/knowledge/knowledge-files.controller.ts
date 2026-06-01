@@ -126,7 +126,7 @@ export class KnowledgeFilesController {
   @Put(':fileId')
   @RequirePermission('KNOWLEDGE_UPLOAD', 'UPDATE')
   update(
-    @Param('kbId', new ParseUUIDPipe()) kbId: string,
+    @Param('kbId') kbId: string,
     @Param('fileId', new ParseUUIDPipe()) fileId: string,
     @Body() dto: UpdateKnowledgeFileDto,
     @AccessToken() token: string,
@@ -135,7 +135,7 @@ export class KnowledgeFilesController {
     return this.knowledge.updateKnowledgeFile(
       {
         id: fileId,
-        knowledgeBaseId: kbId,
+        knowledgeBaseId: kbId === 'null' ? '' : kbId,
         fileName: dto.fileName,
         fileType: dto.fileType,
         fileSizeMb: dto.fileSizeMb ?? 0,
