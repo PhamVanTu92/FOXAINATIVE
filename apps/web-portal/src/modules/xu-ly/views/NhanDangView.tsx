@@ -21,13 +21,6 @@ function fmt(n: number | null | undefined) {
   return new Intl.NumberFormat('vi-VN').format(n);
 }
 
-function ConfBadge({ v }: { v: number | null | undefined }) {
-  if (v == null) return <span className="text-content-muted text-xs">—</span>;
-  const pct = Math.round(v * 100);
-  const cls = v > 0.85 ? 'text-success-600 bg-primary-50' : v > 0.6 ? 'text-warning-600 bg-warning-50/10' : 'text-danger-600 bg-danger-50/10';
-  return <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold ${cls}`}>{pct}%</span>;
-}
-
 function QueueStatusBadge({ status }: { status: QueueStatus }) {
   if (status === 'uploading')  return <span className="flex items-center gap-1 text-xs text-primary-600"><Loader2 className="w-3 h-3 animate-spin" />Đang tải</span>;
   if (status === 'queued')     return <span className="flex items-center gap-1 text-xs text-content-secondary"><Clock className="w-3 h-3" />Chờ quét</span>;
@@ -172,9 +165,6 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
 
   const docStatus    = doc ? STATUS_CONFIG[doc.status as keyof typeof STATUS_CONFIG] : null;
   const isConfirmed  = doc?.status === 'CONFIRMED';
-  const confPct      = doc?.ocrConfidence != null ? Math.round(doc.ocrConfidence * 100) : null;
-  const confColor    = confPct == null ? '' : confPct > 85 ? 'bg-success-500' : confPct > 60 ? 'bg-warning-400' : 'bg-danger-400';
-  const confTextColor = confPct == null ? '' : confPct > 85 ? 'text-success-600' : confPct > 60 ? 'text-warning-600' : 'text-danger-600';
 
   // Shared JSX: Fields + Tables sections (used in both split-panel right side and no-doc fallback)
   const fieldsAndTablesJsx = (
@@ -207,12 +197,11 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
                           <span className="text-xs text-content-muted">{DATA_TYPE_LABEL[f.dataType]}</span>
                         </div>
                       </div>
-                      <div className="shrink-0 ml-2 mt-0.5">
-                        {isProcessing
-                          ? <div className="h-5 w-10 bg-subtle animate-pulse rounded" />
-                          : <ConfBadge v={docValue?.confidence} />
-                        }
-                      </div>
+                      {isProcessing && (
+                        <div className="shrink-0 ml-2 mt-0.5">
+                          <div className="h-5 w-10 bg-subtle animate-pulse rounded" />
+                        </div>
+                      )}
                     </div>
                     {isProcessing ? (
                       <div className="h-9 bg-subtle rounded-lg animate-pulse w-full" />
@@ -550,7 +539,6 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
                         </p>
                       </div>
                       <QueueStatusBadge status={item.status} />
-                      {item.status === 'done' && <ConfBadge v={item.doc?.ocrConfidence} />}
                       {item.status === 'error' && (
                         <span className="text-xs text-danger-500 max-w-[160px] truncate" title={item.errorMsg}>{item.errorMsg}</span>
                       )}

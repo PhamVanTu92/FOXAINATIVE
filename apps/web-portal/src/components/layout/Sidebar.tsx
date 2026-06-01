@@ -72,20 +72,22 @@ function SidebarNavItem({ item, iconColor, collapsed }: { item: NavItem; iconCol
             onClick={() => setOpen(o => !o)}>
             <Icon size={18} className={iconColor} />
           </button>
-          {open && (
-            <div className="pb-1">
-              {item.children.map(child => (
-                <SidebarChildItem key={child.href} {...child} iconColor={iconColor} collapsed={collapsed} />
-              ))}
+          <div className={`grid transition-all duration-200 ease-in-out ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+            <div className="overflow-hidden">
+              <div className="pb-1">
+                {item.children.map(child => (
+                  <SidebarChildItem key={child.href} {...child} iconColor={iconColor} collapsed={collapsed} />
+                ))}
+              </div>
             </div>
-          )}
+          </div>
         </div>
       );
     }
     return (
       <div>
         <button onClick={() => setOpen(o => !o)}
-          className={`w-full flex items-center gap-3 px-3 py-2 mx-2 rounded-lg text-[14px] transition-all ${
+          className={`w-full flex items-center gap-3 px-3 py-2 mx-2 rounded-lg text-[14px] transition-all duration-150 ${
             isChildActive
               ? 'text-white font-semibold'
               : 'opacity-70 font-medium hover:bg-white/10 hover:opacity-100'
@@ -94,15 +96,17 @@ function SidebarNavItem({ item, iconColor, collapsed }: { item: NavItem; iconCol
           <Icon size={17} className={iconColor} />
           <span className="flex-1 text-left">{item.label}</span>
           <ChevronDown size={13}
-            className={`text-white/30 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+            className={`text-white/30 transition-transform duration-250 ease-in-out ${open ? 'rotate-180' : ''}`} />
         </button>
-        {open && (
-          <div className="mt-0.5 pb-1">
-            {item.children.map(child => (
-              <SidebarChildItem key={child.href} {...child} iconColor={iconColor} collapsed={collapsed} />
-            ))}
+        <div className={`grid transition-all duration-200 ease-in-out ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+          <div className="overflow-hidden">
+            <div className="mt-0.5 pb-1">
+              {item.children.map(child => (
+                <SidebarChildItem key={child.href} {...child} iconColor={iconColor} collapsed={collapsed} />
+              ))}
+            </div>
           </div>
-        )}
+        </div>
       </div>
     );
   }
