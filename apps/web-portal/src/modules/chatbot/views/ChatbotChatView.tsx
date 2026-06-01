@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react';
 import {
   ChevronRight, MessageSquare, Plus, Trash2, Download, Mic, MicOff, Send, AlertCircle,
-  BookOpen, Volume2, VolumeX, MessageCircle, ChevronDown,
+  BookOpen, Volume2, VolumeX, MessageCircle, ChevronDown, Pause, Play,
 } from 'lucide-react';
 import { useChatbotChat } from '../hooks/useChatbotChat';
 import type { BotLookup } from '../hooks/useChatbotChat';
@@ -36,6 +36,7 @@ interface Props {
 export function ChatbotChatView({ lookup }: Props) {
   const c = useChatbotChat(lookup);
   const voiceEnabled = c.bot ? (c.bot.mode === 'voice' || c.bot.mode === 'both') : false;
+  const isVoiceActive = c.speaking || c.paused;
 
   if (c.loadingBot) {
     return (
@@ -77,7 +78,10 @@ export function ChatbotChatView({ lookup }: Props) {
             bot={c.bot}
             activeTitle={c.activeConversation?.title ?? null}
             speaking={c.speaking}
+            paused={c.paused}
             onStopSpeaking={c.stopSpeaking}
+            onPauseSpeaking={c.pauseSpeaking}
+            onResumeSpeaking={c.resumeSpeaking}
             voices={voiceEnabled ? c.voices : []}
             voiceId={c.voiceId}
             onVoiceChange={c.setVoiceId}
@@ -90,8 +94,11 @@ export function ChatbotChatView({ lookup }: Props) {
               <VoiceConversationUI
                 bot={c.bot}
                 speaking={c.speaking}
+                paused={c.paused}
                 sending={c.sending}
-                onStopSpeaking={c.stopSpeaking}
+                onPause={c.pauseSpeaking}
+                onResume={c.resumeSpeaking}
+                onStop={c.stopSpeaking}
               />
             ) : c.messagesError ? (
               <div className="h-full flex items-center justify-center p-4">
@@ -235,12 +242,16 @@ function Breadcrumb({ botName }: { botName: string }) {
 }
 
 function BotHeader({
-  bot, activeTitle, speaking, onStopSpeaking, voices, voiceId, onVoiceChange,
+  bot, activeTitle, speaking, paused, onStopSpeaking, onPauseSpeaking, onResumeSpeaking,
+  voices, voiceId, onVoiceChange,
 }: {
   bot: ChatbotItem;
   activeTitle: string | null;
   speaking: boolean;
+  paused: boolean;
   onStopSpeaking: () => void;
+  onPauseSpeaking: () => void;
+  onResumeSpeaking: () => void;
   voices: TtsVoice[];
   voiceId: string;
   onVoiceChange: (id: string) => void;
@@ -302,16 +313,31 @@ function BotHeader({
           </div>
         )}
 
-        {speaking && (
-          <button
-            onClick={onStopSpeaking}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium
-              bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200
-              rounded-lg transition-colors animate-pulse"
-            title="Dừng đọc"
-          >
-            <VolumeX size={13} /> Đang đọc…
-          </button>
+        {(speaking || paused) && (
+          <>
+            {paused ? (
+              <button onClick={onResumeSpeaking}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium
+                  bg-primary-50 hover:bg-primary-100 text-primary-700 border border-primary-200
+                  rounded-lg transition-colors"
+                title="Tiếp tục đọc">
+                <Play size={13} /> Tiếp tục
+              </button>
+            ) : (
+              <button onClick={onPauseSpeaking}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium
+                  bg-warning-50 hover:bg-warning-100 text-warning-700 border border-warning-200
+                  rounded-lg transition-colors animate-pulse"
+                title="Tạm dừng">
+                <Pause size={13} /> Đang đọc…
+              </button>
+            )}
+            <button onClick={onStopSpeaking}
+              className="p-1.5 text-dark-400 hover:text-danger-600 hover:bg-danger-50 rounded-lg transition-colors"
+              title="Dừng hẳn">
+              <VolumeX size={13} />
+            </button>
+          </>
         )}
         <button
           className="p-2 text-dark-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
@@ -364,20 +390,26 @@ function EmptyState({
 // ─── Voice 1-on-1 UI ──────────────────────────────────────────────────────────
 
 function VoiceConversationUI({
-  bot, speaking, sending, onStopSpeaking,
+  bot, speaking, paused, sending, onPause, onResume, onStop,
 }: {
   bot: ChatbotItem;
   speaking: boolean;
+  paused: boolean;
   sending: boolean;
-  onStopSpeaking: () => void;
+  onPause: () => void;
+  onResume: () => void;
+  onStop: () => void;
 }) {
   const tone = avatarTone(bot.purpose);
+  const isActive = speaking || paused;
 
-  const status = speaking ? 'Đang trả lời…'
-               : sending  ? 'Đang xử lý…'
+  const status = paused    ? 'Đã tạm dừng'
+               : speaking  ? 'Đang trả lời…'
+               : sending   ? 'Đang xử lý…'
                : 'Sẵn sàng lắng nghe';
 
-  const statusColor = speaking ? 'text-violet-600'
+  const statusColor = paused   ? 'text-warning-500'
+                    : speaking ? 'text-violet-600'
                     : sending  ? 'text-primary-600'
                     : 'text-dark-400';
 
@@ -386,25 +418,20 @@ function VoiceConversationUI({
 
       {/* Avatar với rings animate khi speaking */}
       <div className="relative flex items-center justify-center">
-        {/* Outer ring */}
         <span className={`absolute rounded-full transition-all duration-700
-          ${speaking
-            ? `w-44 h-44 ${tone.bg} opacity-20 animate-ping`
-            : 'w-0 h-0 opacity-0'}`}
+          ${speaking ? `w-44 h-44 ${tone.bg} opacity-20 animate-ping` : 'w-0 h-0 opacity-0'}`}
         />
-        {/* Middle ring */}
         <span className={`absolute rounded-full transition-all duration-500
           ${speaking
             ? `w-36 h-36 ${tone.bg} opacity-30 animate-pulse`
-            : sending
-            ? `w-32 h-32 ${tone.bg} opacity-20 animate-pulse`
+            : sending ? `w-32 h-32 ${tone.bg} opacity-20 animate-pulse`
             : 'w-0 h-0 opacity-0'}`}
           style={{ animationDelay: '150ms' }}
         />
-        {/* Avatar circle */}
         <div className={`relative w-28 h-28 rounded-full flex items-center justify-center
-          shadow-xl transition-transform duration-300 ${tone.bg}
-          ${speaking ? 'scale-110' : sending ? 'scale-105' : 'scale-100'}`}>
+          shadow-xl transition-all duration-300 ${tone.bg}
+          ${speaking ? 'scale-110' : sending ? 'scale-105' : 'scale-100'}
+          ${paused ? 'opacity-60' : 'opacity-100'}`}>
           <MessageSquare size={48} className={tone.fg} />
         </div>
       </div>
@@ -415,34 +442,54 @@ function VoiceConversationUI({
         <div className={`flex items-center justify-center gap-1.5 text-sm font-medium transition-colors ${statusColor}`}>
           {speaking && (
             <span className="flex gap-0.5">
-              <span className="w-1 h-3 rounded-full bg-violet-500 animate-bounce" style={{ animationDelay: '0ms' }} />
-              <span className="w-1 h-4 rounded-full bg-violet-500 animate-bounce" style={{ animationDelay: '100ms' }} />
-              <span className="w-1 h-3 rounded-full bg-violet-500 animate-bounce" style={{ animationDelay: '200ms' }} />
-              <span className="w-1 h-5 rounded-full bg-violet-500 animate-bounce" style={{ animationDelay: '150ms' }} />
-              <span className="w-1 h-3 rounded-full bg-violet-500 animate-bounce" style={{ animationDelay: '250ms' }} />
+              {[0, 100, 200, 150, 250].map((delay, i) => (
+                <span key={i}
+                  className={`w-1 rounded-full bg-violet-500 animate-bounce ${i === 1 ? 'h-4' : i === 3 ? 'h-5' : 'h-3'}`}
+                  style={{ animationDelay: `${delay}ms` }}
+                />
+              ))}
             </span>
           )}
-          {sending && !speaking && (
+          {paused && <Pause size={13} className="text-warning-500" />}
+          {sending && !speaking && !paused && (
             <span className="inline-flex gap-0.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-bounce" style={{ animationDelay: '0ms' }} />
-              <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-bounce" style={{ animationDelay: '120ms' }} />
-              <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-bounce" style={{ animationDelay: '240ms' }} />
+              {[0, 120, 240].map((delay, i) => (
+                <span key={i} className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-bounce"
+                  style={{ animationDelay: `${delay}ms` }} />
+              ))}
             </span>
           )}
           <span>{status}</span>
         </div>
       </div>
 
-      {/* Nút dừng khi đang đọc */}
-      {speaking && (
-        <button
-          onClick={onStopSpeaking}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-full border border-violet-300
-            bg-violet-50 text-violet-700 text-sm font-medium hover:bg-violet-100
-            transition-colors shadow-sm"
-        >
-          <VolumeX size={15} /> Dừng
-        </button>
+      {/* Controls — chỉ hiện khi đang phát hoặc paused */}
+      {isActive && (
+        <div className="flex items-center gap-3">
+          {/* Pause / Resume */}
+          {paused ? (
+            <button onClick={onResume}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-full
+                bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium
+                transition-colors shadow-md">
+              <Play size={15} /> Tiếp tục
+            </button>
+          ) : (
+            <button onClick={onPause}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-full
+                border border-warning-300 bg-warning-50 hover:bg-warning-100
+                text-warning-700 text-sm font-medium transition-colors shadow-sm">
+              <Pause size={15} /> Tạm dừng
+            </button>
+          )}
+          {/* Stop */}
+          <button onClick={onStop}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full
+              border border-dark-200 bg-white hover:bg-dark-50
+              text-dark-500 text-sm font-medium transition-colors shadow-sm">
+            <VolumeX size={15} /> Dừng hẳn
+          </button>
+        </div>
       )}
     </div>
   );

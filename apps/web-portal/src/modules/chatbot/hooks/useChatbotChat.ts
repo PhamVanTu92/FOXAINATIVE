@@ -47,6 +47,7 @@ export function useChatbotChat(lookup: BotLookup) {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [paused,   setPaused]   = useState(false);
   const [conversationId, setConversationIdState] = useState<string | null>(null);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [messagesError, setMessagesError] = useState<string | null>(null);
@@ -58,7 +59,8 @@ export function useChatbotChat(lookup: BotLookup) {
   const audioRef        = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef     = useRef<string | null>(null);
   // TTS pipeline
-  const ttsSessionRef   = useRef(0);   // tăng mỗi khi reset → invalidate stale results
+  const ttsSessionRef   = useRef(0);
+  const ttsPausedRef    = useRef(false); // audio đang pause (không phải stop)
   const ttsSlotsRef     = useRef<Array<{ blob: Blob | null; ready: boolean; error: boolean }>>([]);
   const ttsPlayIdxRef   = useRef(0);
   const ttsPlayingRef   = useRef(false);
@@ -238,12 +240,13 @@ export function useChatbotChat(lookup: BotLookup) {
   // Vì synthesis song song, lúc câu 1 vừa phát xong thì câu 2 thường đã sẵn.
 
   function stopSpeakingNow() {
-    ttsSessionRef.current++;          // invalidate tất cả synthesis đang chờ
-    ttsSlotsRef.current    = [];
-    ttsPlayIdxRef.current  = 0;
-    ttsPlayingRef.current  = false;
+    ttsSessionRef.current++;
+    ttsPausedRef.current    = false;
+    ttsSlotsRef.current     = [];
+    ttsPlayIdxRef.current   = 0;
+    ttsPlayingRef.current   = false;
     ttsStreamingRef.current = false;
-    sentBufRef.current     = '';
+    sentBufRef.current      = '';
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.src = '';
@@ -254,6 +257,28 @@ export function useChatbotChat(lookup: BotLookup) {
       audioUrlRef.current = null;
     }
     setSpeaking(false);
+    setPaused(false);
+  }
+
+  /**
+   * Tạm dừng audio đang phát. Promise trong tryPlayNext vẫn treo —
+   * khi resume thì audio tiếp tục và onended tự resolve đúng chỗ.
+   */
+  function pauseSpeaking() {
+    if (!audioRef.current || ttsPausedRef.current || !speaking) return;
+    audioRef.current.pause();
+    ttsPausedRef.current = true;
+    setSpeaking(false);
+    setPaused(true);
+  }
+
+  /** Tiếp tục từ điểm đã tạm dừng. */
+  function resumeSpeaking() {
+    if (!audioRef.current || !ttsPausedRef.current) return;
+    ttsPausedRef.current = false;
+    setPaused(false);
+    setSpeaking(true);
+    audioRef.current.play().catch(() => {});
   }
 
   /**
@@ -502,6 +527,7 @@ export function useChatbotChat(lookup: BotLookup) {
     setInput,
     sending,
     speaking,
+    paused,
     // voice
     voices,
     voiceId,
@@ -515,5 +541,7 @@ export function useChatbotChat(lookup: BotLookup) {
     selectConversation,
     deleteConversation,
     stopSpeaking,
+    pauseSpeaking,
+    resumeSpeaking,
   };
 }
