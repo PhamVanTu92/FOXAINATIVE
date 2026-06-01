@@ -23,7 +23,7 @@ function fmt(n: number | null | undefined) {
 function ConfBadge({ v }: { v: number | null | undefined }) {
   if (v == null) return <span className="text-content-muted text-xs">—</span>;
   const pct = Math.round(v * 100);
-  const cls = v > 0.85 ? 'text-success-600 bg-success-50/10' : v > 0.6 ? 'text-warning-600 bg-warning-50/10' : 'text-danger-600 bg-danger-50/10';
+  const cls = v > 0.85 ? 'text-success-600 bg-primary-50' : v > 0.6 ? 'text-warning-600 bg-warning-50/10' : 'text-danger-600 bg-danger-50/10';
   return <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold ${cls}`}>{pct}%</span>;
 }
 
@@ -38,7 +38,7 @@ function QueueStatusBadge({ status }: { status: QueueStatus }) {
 const STATUS_CONFIG = {
   DRAFT:       { label: 'Nháp',          cls: 'bg-subtle        text-content-secondary border-default' },
   PROCESSED:   { label: 'Đã xử lý',      cls: 'bg-primary-50/10 text-primary-600       border-primary-500/30' },
-  CONFIRMED:   { label: 'Đã xác nhận',   cls: 'bg-success-50/10 text-success-600       border-success-500/30' },
+  CONFIRMED:   { label: 'Đã xác nhận',   cls: 'bg-primary-50 text-success-600       border-success-500/30' },
   TRANSFERRED: { label: 'Đã chuyển kho', cls: 'bg-violet-500/10 text-violet-600        border-violet-500/30'  },
   ERROR:       { label: 'Lỗi OCR',       cls: 'bg-danger-50/10  text-danger-600        border-danger-500/30'  },
 } as const;
@@ -142,7 +142,7 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
               </button>
             )}
             {isConfirmed && (
-              <span className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-success-700 bg-success-50/10 border border-success-500/30 rounded-lg">
+              <span className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-success-700 bg-primary-50 border border-success-500/30 rounded-lg">
                 <Check className="w-4 h-4" /> Đã xác nhận
               </span>
             )}
@@ -318,7 +318,7 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
         {/* Fields */}
         <div className="shrink-0">
           <div className="bg-surface rounded-xl border border-default shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-default bg-primary-50/10">
+            <div className="flex items-center justify-between px-5 py-3.5 bg-surface border-b border-default/10">
               <div className="flex items-center gap-2.5">
                 <Grid3X3 className="w-4 h-4 text-primary-500" />
                 <h2 className="text-sm font-semibold text-primary-700">Trường dữ liệu</h2>
@@ -383,7 +383,7 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
                                 arithmeticWarnings.fields.has(f.id)
                                   ? 'border-warning-400 bg-warning-50/10 text-content-primary focus:ring-warning-300'
                                   : hasValue
-                                    ? 'border-success-300 bg-success-50/10 text-content-primary focus:ring-primary-400'
+                                    ? 'border-success-300 bg-primary-50 text-content-primary focus:ring-primary-400'
                                     : 'border-default bg-subtle text-content-secondary placeholder:text-content-muted focus:ring-primary-400'
                               }`}
                             />
@@ -452,7 +452,7 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b border-default bg-subtle text-content-secondary uppercase tracking-wide font-semibold text-xs">
+                        <tr className="bg-primary-100 border-b border-primary-200 text-primary-600 uppercase tracking-wide font-semibold text-xs">
                           <th className="px-3 py-2.5 text-center w-10">STT</th>
                           {table.columns.map(col => (
                             <th key={col.id} className={`px-3 py-2.5 ${NUMERIC_FIELD_KEYS.has(col.columnKey) || col.dataType === 'NUMBER' || col.dataType === 'CURRENCY' ? 'text-right' : col.dataType === 'BOOLEAN' ? 'text-center' : 'text-left'}`}>{col.label}</th>

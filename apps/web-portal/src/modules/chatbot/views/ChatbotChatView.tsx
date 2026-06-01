@@ -95,7 +95,7 @@ export function ChatbotChatView({ lookup }: Props) {
                 Đang tải tin nhắn...
               </div>
             ) : c.isEmpty ? (
-              <EmptyState bot={c.bot} onPick={c.sendMessage} />
+              <EmptyState />
             ) : (
               <MessageList messages={c.messages} sending={c.sending} bot={c.bot} />
             )}
@@ -327,12 +327,7 @@ function BotHeader({
   );
 }
 
-function EmptyState({
-  bot, onPick,
-}: {
-  bot: ChatbotItem;
-  onPick: (text: string) => void;
-}) {
+function EmptyState() {
   return (
     <div className="h-full flex flex-col items-center justify-center text-center px-4">
       <div className="w-14 h-14 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center mb-3">
@@ -345,21 +340,6 @@ function EmptyState({
         Nhập câu hỏi hoặc chọn gợi ý bên dưới để bắt đầu.
       </p>
 
-      {bot.suggestions.length > 0 && (
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-2 max-w-3xl">
-          {bot.suggestions.map(s => (
-            <button
-              key={s}
-              onClick={() => onPick(s)}
-              className="px-3.5 py-2 text-sm rounded-full border border-primary-200
-                bg-primary-50/50 text-primary-700 hover:bg-primary-50 hover:border-primary-300
-                transition-colors"
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

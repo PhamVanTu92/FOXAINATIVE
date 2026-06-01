@@ -42,7 +42,7 @@ function InfoRow({
 const STATUS_CFG: Record<DocStatus, { label: string; color: string; dot: string; Icon: React.ElementType }> = {
   Draft:    { label: 'Draft',    color: 'bg-subtle text-content-secondary border border-default',         dot: 'bg-content-muted',    Icon: Edit2 },
   Review:   { label: 'Review',   color: 'bg-warning-50/10 text-warning-700 border border-warning-500/30', dot: 'bg-warning-500', Icon: Eye },
-  Approved: { label: 'Approved', color: 'bg-success-50/10 text-success-700 border border-success-500/30', dot: 'bg-success-500', Icon: CheckCircle2 },
+  Approved: { label: 'Approved', color: 'bg-primary-50 text-success-700 border border-success-500/30', dot: 'bg-success-500', Icon: CheckCircle2 },
   Archived: { label: 'Archived', color: 'bg-subtle text-content-muted border border-default',          dot: 'bg-content-muted',    Icon: Archive },
 };
 
@@ -411,7 +411,7 @@ function VersionCompare({ versions }: { versions: DocumentVersion[] }) {
       {/* Diff view */}
       <div className="rounded-xl border border-default overflow-hidden">
         {/* Column headers */}
-        <div className="grid grid-cols-2 divide-x divide-strong bg-subtle border-b border-default">
+        <div className="grid grid-cols-2 divide-x divide-strong bg-surface border-b border-default">
           <div className="px-4 py-2.5 flex items-center gap-2">
             <StatusBadge status={leftVer?.status ?? 'Draft'} />
             <span className="text-xs font-mono font-semibold text-content-secondary">{leftVer?.versionNumber}</span>
@@ -445,7 +445,7 @@ function VersionCompare({ versions }: { versions: DocumentVersion[] }) {
                 </div>
                 <div className={`px-4 py-1 whitespace-pre-wrap leading-relaxed break-all ${
                   row.right?.type === 'added'
-                    ? 'bg-success-50/10 text-success-700'
+                    ? 'bg-primary-50 text-success-700'
                     : !row.right
                     ? 'bg-subtle'
                     : 'text-content-secondary'
@@ -544,7 +544,7 @@ function DetailPanel({
         </div>
       )}
       {successMsg && (
-        <div className="mx-6 mt-3 flex items-center gap-2 bg-success-50/10 border border-success-500/30 text-success-700 rounded-lg px-4 py-2 text-sm shrink-0">
+        <div className="mx-6 mt-3 flex items-center gap-2 bg-primary-50 border border-success-500/30 text-success-700 rounded-lg px-4 py-2 text-sm shrink-0">
           <Check size={14} className="shrink-0" /> {successMsg}
         </div>
       )}
@@ -596,9 +596,9 @@ function DetailPanel({
             {/* Doc info */}
             <div className="bg-surface rounded-xl border border-default overflow-hidden">
               {/* Header */}
-              <div className="flex items-center gap-2 px-5 py-3 border-b border-default bg-subtle">
+              <div className="flex items-center gap-2 px-5 py-3 bg-surface border-b border-default">
                 <FileText size={14} className="text-primary-600" />
-                <span className="text-xs font-semibold text-content-secondary uppercase tracking-wide">
+                <span className="text-xs font-semibold text-primary-600 uppercase tracking-wide">
                   Thông tin tài liệu
                 </span>
               </div>

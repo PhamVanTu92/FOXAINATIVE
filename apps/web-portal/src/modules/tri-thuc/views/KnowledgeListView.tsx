@@ -401,12 +401,12 @@ function AllFilesModal({ onClose }: { onClose: () => void }) {
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-dark-50 border-b border-dark-200">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-dark-500 uppercase tracking-wide">Tên tệp</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-dark-500 uppercase tracking-wide">Bộ tri thức</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-dark-500 uppercase tracking-wide">Loại</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-dark-500 uppercase tracking-wide">Kích thước</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-dark-500 uppercase tracking-wide">Ngày tải</th>
+                <tr className="bg-primary-100 border-b border-primary-200">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Tên tệp</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Bộ tri thức</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Loại</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Kích thước</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Ngày tải</th>
                   <th className="px-4 py-3 w-20" />
                 </tr>
               </thead>
@@ -792,7 +792,7 @@ export function KnowledgeListView() {
               { label: 'Tổng bộ tri thức', value: stats?.totalKnowledgeBases ?? items.length, Icon: BookOpen, color: 'bg-teal-50 text-teal-600' },
               { label: 'Tổng tệp tri thức', value: stats?.totalFiles ?? '—', Icon: FileText, color: 'bg-primary-50 text-primary-600' },
               { label: 'Phòng ban sử dụng', value: stats?.departmentsUsingCount ?? departments.length, Icon: Users, color: 'bg-violet-50 text-violet-600' },
-              { label: 'Cập nhật gần nhất', value: stats?.lastUpdatedAt?.slice(0, 10) ?? '—', Icon: Calendar, color: 'bg-success-50/10 text-success-600', small: true },
+              { label: 'Cập nhật gần nhất', value: stats?.lastUpdatedAt?.slice(0, 10) ?? '—', Icon: Calendar, color: 'bg-primary-50 text-success-600', small: true },
             ].map(({ label, value, Icon, color, small }) => (
               <div key={label} className="bg-surface rounded-xl border border-default px-5 py-4 flex items-center justify-between">
                 <div>
@@ -813,7 +813,7 @@ export function KnowledgeListView() {
             </div>
           )}
           {successMsg && (
-            <div className="flex items-center gap-2 bg-success-50/10 border border-success-500/30 text-success-700 rounded-lg px-4 py-3 text-sm">
+            <div className="flex items-center gap-2 bg-primary-50 border border-success-500/30 text-success-700 rounded-lg px-4 py-3 text-sm">
               <Check size={15} className="shrink-0" /> {successMsg}
             </div>
           )}

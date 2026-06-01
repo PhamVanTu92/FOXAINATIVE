@@ -339,14 +339,14 @@ export function ToChucView() {
           <div className="bg-surface rounded-xl border border-default shadow-sm overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-subtle border-b border-default">
+                <tr className="bg-primary-100 border-b border-primary-200">
                   <th className="w-10 px-4 py-3"><input type="checkbox" className="rounded" /></th>
-                  <th className="w-12 px-2 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide">STT</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide">Mã phòng ban</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide">Tên phòng ban</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide">Người phụ trách</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide">Phòng ban trực thuộc</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-content-secondary uppercase tracking-wide">Thao tác</th>
+                  <th className="w-12 px-2 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">STT</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Mã phòng ban</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Tên phòng ban</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Người phụ trách</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Phòng ban trực thuộc</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-primary-600 uppercase tracking-wide">Thao tác</th>
                 </tr>
               </thead>
               <tbody>

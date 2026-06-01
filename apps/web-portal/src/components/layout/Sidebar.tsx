@@ -12,7 +12,23 @@ import { chatbotApi } from '@/lib/chatbot-api';
 import { useAuthStore } from '@/stores/auth';
 import { useTheme } from '@/components/ThemeProvider';
 
-function SidebarChildItem({ href, label, icon: Icon }: { href: string; label: string; icon: LucideIcon }) {
+// Icon color per section — vivid on dark sidebar background
+const SECTION_ICON_COLOR: Record<string, string> = {
+  'TỔNG QUAN': 'text-sky-500',
+  'CẤU HÌNH HỆ THỐNG': 'text-orange-500',
+  'TRI THỨC AI': 'text-violet-500',
+  'XỬ LÝ TÀI LIỆU': 'text-teal-500',
+  'CHATBOT AI THÔNG MINH': 'text-violet-500',
+};
+
+function SidebarChildItem({
+  href, label, icon: Icon, iconColor,
+}: {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  iconColor: string;
+}) {
   const pathname = usePathname();
   const isActive = pathname === href;
   return (
@@ -20,17 +36,17 @@ function SidebarChildItem({ href, label, icon: Icon }: { href: string; label: st
       href={href}
       className={`flex items-center gap-2.5 pl-9 pr-3 py-2 text-sm rounded-md mx-2 transition-colors ${
         isActive
-          ? 'bg-primary-500/10 text-primary-600 font-semibold'
-          : 'text-content-secondary font-semibold hover:bg-subtle hover:text-content-primary'
+          ? 'bg-white/15 text-white font-semibold'
+          : 'text-white/70 font-medium hover:bg-white/10 hover:text-white'
       }`}
     >
-      <Icon size={15} className={isActive ? 'text-primary-600' : 'text-content-muted'} />
+      <Icon size={15} className={isActive ? 'text-white' : iconColor} />
       <span>{label}</span>
     </Link>
   );
 }
 
-function SidebarNavItem({ item }: { item: NavItem }) {
+function SidebarNavItem({ item, iconColor }: { item: NavItem; iconColor: string }) {
   const pathname = usePathname();
 
   const isChildActive = item.children?.some((c) => pathname === c.href) ?? false;
@@ -51,22 +67,22 @@ function SidebarNavItem({ item }: { item: NavItem }) {
           onClick={() => setOpen((o) => !o)}
           className={`w-full flex items-center gap-3 px-3 py-2 mx-2 rounded-md text-sm transition-colors ${
             isChildActive
-              ? 'text-primary-600 font-semibold'
-              : 'text-content-secondary font-semibold hover:bg-subtle hover:text-content-primary'
+              ? 'text-white font-semibold'
+              : 'text-white/70 font-medium hover:bg-white/10 hover:text-white'
           }`}
           style={{ width: 'calc(100% - 16px)' }}
         >
-          <Icon size={17} className={isChildActive ? 'text-primary-600' : 'text-content-muted'} />
+          <Icon size={17} className={isChildActive ? 'text-white' : iconColor} />
           <span className="flex-1 text-left">{item.label}</span>
           <ChevronDown
             size={14}
-            className={`text-content-muted transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+            className={`text-white/40 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
           />
         </button>
         {open && (
           <div className="mt-0.5 pb-1">
             {item.children.map((child) => (
-              <SidebarChildItem key={child.href} {...child} />
+              <SidebarChildItem key={child.href} {...child} iconColor={iconColor} />
             ))}
           </div>
         )}
@@ -79,12 +95,12 @@ function SidebarNavItem({ item }: { item: NavItem }) {
       href={item.href!}
       className={`flex items-center gap-3 px-3 py-2 mx-2 rounded-md text-sm transition-colors ${
         isDirectActive
-          ? 'bg-primary-500/10 text-primary-600 font-semibold'
-          : 'text-content-secondary font-semibold hover:bg-subtle hover:text-content-primary'
+          ? 'bg-white/15 text-white font-semibold'
+          : 'text-white/70 font-medium hover:bg-white/10 hover:text-white'
       }`}
       style={{ display: 'flex', marginLeft: '8px', marginRight: '8px' }}
     >
-      <Icon size={17} className={isDirectActive ? 'text-primary-600' : 'text-content-muted'} />
+      <Icon size={17} className={isDirectActive ? 'text-white' : iconColor} />
       <span>{item.label}</span>
     </Link>
   );
@@ -114,8 +130,6 @@ export default function Sidebar() {
     return () => window.removeEventListener('schemas:updated', loadSchemas);
   }, []);
 
-  // Load chatbots cho section "CHATBOT AI THÔNG MINH" — refresh khi nhận event,
-  // và re-fetch khi `user` đổi từ null → đăng nhập (tránh race với auth init).
   useEffect(() => {
     if (!user) {
       setChatbotItems([]);
@@ -134,11 +148,9 @@ export default function Sidebar() {
   }, [user]);
 
   const dynamicNavConfig = useMemo<NavSection[]>(() => navConfig.map(section => {
-    // Section CHATBOT: thay toàn bộ items bằng danh sách thật từ API
     if (section.section === 'CHATBOT AI THÔNG MINH') {
       return { ...section, items: chatbotItems };
     }
-    // Section OCR: chỉ thay children của item "Nhận dạng OCR"
     return {
       ...section,
       items: section.items.map(item =>
@@ -150,15 +162,16 @@ export default function Sidebar() {
   }), [schemaChildren, chatbotItems]);
 
   return (
-    <aside className="flex flex-col h-screen w-64 bg-sidebar border-r border-default select-none transition-colors duration-200">
+    <aside className="flex flex-col h-screen w-64 bg-sidebar border-r border-white/10 select-none transition-colors duration-200">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-5 py-5 border-b border-default">
-        <div className="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center text-white font-bold text-sm">
+      <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
+        <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center
+          text-white font-bold text-sm shadow-md shrink-0">
           F
         </div>
         <div>
-          <p className="text-content-primary font-bold text-sm tracking-wide leading-tight">FOXAI – NATIVE</p>
-          <p className="text-content-muted text-[10px] tracking-widest uppercase font-medium">Your trust partner</p>
+          <p className="text-white font-bold text-sm tracking-wide leading-tight">FOXAI – NATIVE</p>
+          <p className="text-white/40 text-[10px] tracking-widest uppercase font-medium">Your trust partner</p>
         </div>
       </div>
 
@@ -166,12 +179,17 @@ export default function Sidebar() {
       <nav className="flex-1 overflow-y-auto py-3">
         {dynamicNavConfig.map((section) => (
           <div key={section.section} className="mb-3">
-            <p className="px-5 py-1.5 text-[10px] font-bold tracking-widest text-content-muted uppercase">
+            <p className={`px-5 py-1.5 text-[10px] font-bold tracking-widest uppercase
+              ${SECTION_ICON_COLOR[section.section] ?? 'text-white/40'}`}>
               {section.section}
             </p>
             <div className="space-y-0.5">
               {section.items.map((item) => (
-                <SidebarNavItem key={item.label} item={item} />
+                <SidebarNavItem
+                  key={item.label}
+                  item={item}
+                  iconColor={SECTION_ICON_COLOR[section.section] ?? 'text-white/60'}
+                />
               ))}
             </div>
           </div>
@@ -179,25 +197,26 @@ export default function Sidebar() {
       </nav>
 
       {/* User */}
-      <div className="border-t border-default px-4 py-3 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+      <div className="border-t border-white/10 px-4 py-3 flex items-center gap-3">
+        <div className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center
+          text-white text-xs font-bold shrink-0">
           {user?.fullName ? user.fullName.charAt(0).toUpperCase() : '?'}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-content-primary text-sm font-medium truncate">{user?.fullName ?? 'Người dùng'}</p>
-          <p className="text-content-muted text-[11px] truncate font-medium">{user?.roles?.[0] ?? 'Chưa xác định'}</p>
+          <p className="text-white text-sm font-medium truncate">{user?.fullName ?? 'Người dùng'}</p>
+          <p className="text-white/50 text-[11px] truncate font-medium">{user?.roles?.[0] ?? 'Chưa xác định'}</p>
         </div>
         <button
           onClick={toggleTheme}
           title={theme === 'dark' ? 'Chuyển sang nền sáng' : 'Chuyển sang nền tối'}
-          className="shrink-0 text-content-muted hover:text-primary-600 transition-colors p-1"
+          className="shrink-0 text-white/50 hover:text-white transition-colors p-1"
         >
           {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
         </button>
         <button
           onClick={async () => { await logout(); router.replace('/dang-nhap'); }}
           title="Đăng xuất"
-          className="shrink-0 text-content-muted hover:text-danger-600 transition-colors p-1"
+          className="shrink-0 text-white/50 hover:text-danger-400 transition-colors p-1"
         >
           <LogOut size={16} />
         </button>

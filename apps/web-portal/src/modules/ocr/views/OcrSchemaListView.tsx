@@ -143,16 +143,16 @@ export function OcrSchemaListView() {
         <div className="bg-surface rounded-xl border border-default shadow-sm overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-default bg-subtle">
-                <th className="px-4 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide w-12">STT</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide">Mã chứng từ</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide">Tên chứng từ</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide">Loại</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide w-32">Số trường OCR</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide w-28">Số bảng OCR</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide">Mô tả</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide w-32">Trạng thái</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-content-secondary uppercase tracking-wide w-24">Thao tác</th>
+              <tr className="bg-primary-100 border-b border-primary-200">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide w-12">STT</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Mã chứng từ</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Tên chứng từ</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Loại</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide w-32">Số trường OCR</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide w-28">Số bảng OCR</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Mô tả</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide w-32">Trạng thái</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-primary-600 uppercase tracking-wide w-24">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-strong">

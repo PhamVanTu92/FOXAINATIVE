@@ -605,7 +605,7 @@ export function KnowledgeDetailView({ kbId }: { kbId: string }) {
             </div>
           )}
           {successMsg && (
-            <div className="flex items-center gap-2 bg-success-50/10 border border-success-500/30 text-success-700 rounded-lg px-4 py-3 text-sm">
+            <div className="flex items-center gap-2 bg-primary-50 border border-success-500/30 text-success-700 rounded-lg px-4 py-3 text-sm">
               <Check size={15} className="shrink-0" /> {successMsg}
             </div>
           )}
@@ -655,14 +655,14 @@ export function KnowledgeDetailView({ kbId }: { kbId: string }) {
           <div className="bg-surface rounded-xl border border-default shadow-sm overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-subtle border-b border-default">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-muted uppercase tracking-wide w-10">STT</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-muted uppercase tracking-wide">Tên tệp</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-muted uppercase tracking-wide w-24">Loại</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-muted uppercase tracking-wide w-24">Kích thước</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-muted uppercase tracking-wide w-28">Ngày tải lên</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-muted uppercase tracking-wide">Phân quyền phòng ban</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-content-muted uppercase tracking-wide w-24">Thao tác</th>
+                <tr className="bg-primary-100 border-b border-primary-200">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide w-10">STT</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Tên tệp</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide w-24">Loại</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide w-24">Kích thước</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide w-28">Ngày tải lên</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Phân quyền phòng ban</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-primary-600 uppercase tracking-wide w-24">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -716,7 +716,7 @@ export function KnowledgeDetailView({ kbId }: { kbId: string }) {
                               href={knowledgeFilesApi.downloadUrl(kbId, file.id)}
                               target="_blank"
                               rel="noreferrer"
-                              className="p-1.5 text-success-600 hover:bg-success-50/10 rounded-md transition-colors"
+                              className="p-1.5 text-success-600 hover:bg-primary-50 rounded-md transition-colors"
                               title="Tải xuống"
                             >
                               <Download size={14} />

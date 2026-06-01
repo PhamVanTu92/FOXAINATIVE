@@ -95,20 +95,20 @@
   --color-dark-800: #1E293B;
   --color-dark-900: #0F172A;
 
-  /* Semantic */
-  --bg-page:    #F8FAFC;
-  --bg-surface: #FFFFFF;
-  --bg-subtle:  #F1F5F9;
-  --bg-sidebar: #FFFFFF;
+  /* ── Semantic — Light Theme (blue-tinted) ────────────────────────────────── */
+  --bg-page:    #F4F7FF;          /* Very light blue page background */
+  --bg-surface: #FFFFFF;          /* Pure white cards / panels */
+  --bg-subtle:  #EBF0FF;          /* Light blue-tinted subtle areas */
+  --bg-sidebar: #1B3D7A;          /* Professional navy blue sidebar */
 
-  --text-primary:   #1E293B;
-  --text-secondary: #64748B;
-  --text-muted:     #94A3B8;
+  --text-primary:   #0F172A;
+  --text-secondary: #334155;
+  --text-muted:     #64748B;
   --text-inverse:   #FFFFFF;
   --text-link:      #4F46E5;
 
-  --border-default: #E2E8F0;
-  --border-strong:  #CBD5E1;
+  --border-default: #DBEAFE;      /* Blue-100 — light blue borders */
+  --border-strong:  #BFDBFE;      /* Blue-200 — stronger blue border */
 
   /* Radius */
   --radius-xs:   0.125rem;
@@ -132,21 +132,22 @@
   --color-graphite: #111827;
 
   /* ── Surface Hierarchy ───────────────────────────────────────────────────── */
-  --bg-elevated: rgba(255, 255, 255, 0.72);
-  --bg-hover:    #EEF2FF;
-  --bg-active:   #E0E7FF;
-  --bg-glass:    rgba(255, 255, 255, 0.85);
+  --bg-elevated: rgba(255, 255, 255, 0.95);
+  --bg-hover:    #E4EEFF;
+  --bg-active:   #D4E0FF;
+  --bg-glass:    rgba(255, 255, 255, 0.90);
 
-  /* ── Shadow System ───────────────────────────────────────────────────────── */
-  --shadow-sm:   0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-md:   0 4px 12px rgba(15, 23, 42, 0.06);
-  --shadow-lg:   0 10px 30px rgba(15, 23, 42, 0.08);
-  --shadow-glow: 0 0 0 1px rgba(99, 102, 241, 0.12), 0 8px 32px rgba(79, 70, 229, 0.18);
+  /* ── Shadow System — blue-tinted ─────────────────────────────────────────── */
+  --shadow-sm:   0 1px 3px rgba(37, 99, 235, 0.08), 0 1px 2px rgba(37, 99, 235, 0.04);
+  --shadow-md:   0 4px 12px rgba(37, 99, 235, 0.10), 0 2px 6px rgba(37, 99, 235, 0.06);
+  --shadow-lg:   0 10px 30px rgba(37, 99, 235, 0.12), 0 4px 12px rgba(37, 99, 235, 0.06);
+  --shadow-glow: 0 0 0 1px rgba(99, 102, 241, 0.15), 0 8px 32px rgba(79, 70, 229, 0.22);
 
   /* ── Gradient Tokens ─────────────────────────────────────────────────────── */
   --gradient-primary: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
-  --gradient-surface: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+  --gradient-surface: linear-gradient(180deg, #FFFFFF 0%, #EEF2FF 100%);
   --gradient-dark:    linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+  --gradient-success: linear-gradient(135deg, #059669 0%, #0D9488 100%);
 
   /* ── Typography Tokens ───────────────────────────────────────────────────── */
   --font-display:         'Inter', ui-sans-serif, system-ui, sans-serif;
@@ -166,10 +167,10 @@
   --ease-emphasized:     cubic-bezier(0.2, 0, 0, 1);
 
   /* ── Semantic Elevation ──────────────────────────────────────────────────── */
-  --card-default:  0 1px 2px rgba(15, 23, 42, 0.06);
-  --card-hover:    0 4px 12px rgba(15, 23, 42, 0.08);
-  --card-active:   0 2px 6px rgba(15, 23, 42, 0.10);
-  --card-selected: 0 0 0 1px rgba(59, 130, 246, 0.12), 0 8px 32px rgba(37, 99, 235, 0.18);
+  --card-default:  0 1px 3px rgba(37, 99, 235, 0.07), 0 1px 2px rgba(37, 99, 235, 0.04);
+  --card-hover:    0 4px 16px rgba(37, 99, 235, 0.12), 0 2px 6px rgba(37, 99, 235, 0.06);
+  --card-active:   0 2px 8px rgba(37, 99, 235, 0.12);
+  --card-selected: 0 0 0 2px rgba(79, 70, 229, 0.20), 0 8px 32px rgba(79, 70, 229, 0.15);
 }
 
 .dark {
@@ -221,13 +222,13 @@
   /* ── Status Text Colors (Lighter for Dark Mode) ── */
   --color-primary-600: #818CF8; /* mapped to 400 */
   --color-primary-700: #A5B4FC; /* mapped to 300 */
-  
+
   --color-success-600: #34D399; /* mapped to 400 */
   --color-success-700: #6EE7B7; /* mapped to 300 */
-  
+
   --color-warning-600: #FBBF24; /* mapped to 400 */
   --color-warning-700: #FCD34D; /* mapped to 300 */
-  
+
   --color-danger-600:  #FB7185; /* mapped to 400 */
   --color-danger-700:  #FDA4AF; /* mapped to 300 */
 

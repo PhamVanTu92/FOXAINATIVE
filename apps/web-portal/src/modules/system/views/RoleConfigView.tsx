@@ -429,7 +429,7 @@ export function RoleConfigView() {
               </div>
             )}
             {successMsg && (
-              <div className="mx-6 mt-3 flex items-center gap-2 bg-success-50/10 border border-success-500/30 text-success-700 rounded-lg px-4 py-2 text-sm shrink-0">
+              <div className="mx-6 mt-3 flex items-center gap-2 bg-primary-50 border border-success-500/30 text-success-700 rounded-lg px-4 py-2 text-sm shrink-0">
                 <Check size={14} className="shrink-0" /> {successMsg}
               </div>
             )}
@@ -447,14 +447,14 @@ export function RoleConfigView() {
               ) : (
                 <table className="w-full text-sm">
                   <thead className="sticky top-0 z-10">
-                    <tr className="bg-subtle border-b border-default">
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide w-64">
+                    <tr className="bg-primary-100 border-b border-primary-200">
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide w-64">
                         Phân hệ / Module
                       </th>
                       {actions.map(action => {
                         const { checked: colChecked, indeterminate } = columnState(action.id);
                         return (
-                          <th key={action.id} className="px-4 py-3 text-center text-xs font-semibold text-content-secondary uppercase tracking-wide min-w-[80px]">
+                          <th key={action.id} className="px-4 py-3 text-center text-xs font-semibold text-primary-600 uppercase tracking-wide min-w-[80px]">
                             <div className="flex flex-col items-center gap-1.5">
                               <span>{action.name}</span>
                               <IndeterminateCheckbox

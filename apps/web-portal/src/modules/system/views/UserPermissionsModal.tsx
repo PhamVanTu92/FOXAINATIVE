@@ -72,7 +72,7 @@ export function UserPermissionsModal({
 
         {/* Role tabs + hint */}
         {user.roles.length > 0 && (
-          <div className="flex items-center gap-2 px-6 py-3 border-b border-default bg-subtle shrink-0">
+          <div className="flex items-center gap-2 px-6 py-3 bg-surface border-b border-default shrink-0">
             <div className="flex items-center gap-1.5">
               {user.roles.map(role => (
                 <button
@@ -107,15 +107,15 @@ export function UserPermissionsModal({
             </div>
           ) : (
             <table className="w-full text-sm">
-              <thead className="sticky top-0 z-10 bg-subtle">
+              <thead className="sticky top-0 z-10 bg-surface">
                 <tr className="border-b border-default">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide w-56">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide w-56">
                     Phân hệ / Module
                   </th>
                   {actions.map(action => {
                     const { checked: colChecked, indeterminate } = columnState(action.id);
                     return (
-                      <th key={action.id} className="px-3 py-3 text-center text-xs font-semibold text-content-secondary uppercase tracking-wide w-20">
+                      <th key={action.id} className="px-3 py-3 text-center text-xs font-semibold text-primary-600 uppercase tracking-wide w-20">
                         <div className="flex flex-col items-center gap-1.5">
                           <span>{action.name}</span>
                           <Checkbox

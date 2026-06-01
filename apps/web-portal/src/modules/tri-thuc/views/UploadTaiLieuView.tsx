@@ -26,7 +26,7 @@ function FileTypeIcon({ type, size = 16 }: { type: string; size?: number }) {
 const FILE_TYPE_BADGES = [
   { label: 'PDF',        color: 'bg-danger-50/10 text-danger-700' },
   { label: 'Word',       color: 'bg-primary-50/10 text-primary-700' },
-  { label: 'Excel',      color: 'bg-success-50/10 text-success-700' },
+  { label: 'Excel',      color: 'bg-primary-50 text-success-700' },
   { label: 'PowerPoint', color: 'bg-warning-50/10 text-warning-700' },
   { label: 'TXT / CSV',  color: 'bg-subtle text-content-secondary' },
   { label: 'Ảnh scan',   color: 'bg-warning-50/10 text-warning-700' },
@@ -53,7 +53,7 @@ function StatusBadge({ status, errorMsg }: { status: UploadStatus; errorMsg?: st
     );
   if (status === 'done')
     return (
-      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-success-50/10 text-success-700 font-medium">
+      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-primary-50 text-success-700 font-medium">
         <CheckCircle size={10} /> Hoàn thành
       </span>
     );
@@ -80,7 +80,7 @@ function QueueItemRow({
 
   return (
     <div className={`border-b border-default last:border-0 px-5 py-4 transition-colors ${
-      item.status === 'done'      ? 'bg-success-50/10' :
+      item.status === 'done'      ? 'bg-primary-50' :
       item.status === 'error'     ? 'bg-danger-50/10'  :
       item.status === 'uploading' ? 'bg-primary-50/10' : ''
     }`}>
@@ -229,7 +229,7 @@ export function UploadTaiLieuView() {
       <div className="flex-1 overflow-y-auto p-6 bg-subtle space-y-5">
         {/* Success banner */}
         {successMsg && (
-          <div className="flex items-center gap-2 bg-success-50/10 border border-success-500/30 text-success-700 rounded-lg px-4 py-3 text-sm">
+          <div className="flex items-center gap-2 bg-primary-50 border border-success-500/30 text-success-700 rounded-lg px-4 py-3 text-sm">
             <CheckCircle size={15} className="shrink-0" />
             {successMsg}
           </div>

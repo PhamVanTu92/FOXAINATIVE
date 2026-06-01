@@ -245,7 +245,7 @@ function ChangePasswordModal({ user, onClose }: { user: UserItem; onClose: () =>
         </div>
         {done ? (
           <div className="p-6 text-center">
-            <div className="w-12 h-12 bg-success-50/10 rounded-full flex items-center justify-center mx-auto mb-3">
+            <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-3">
               <UserCheck className="w-6 h-6 text-success-600" />
             </div>
             <p className="text-content-secondary font-medium">Đổi mật khẩu thành công!</p>
@@ -458,7 +458,7 @@ export function UserListView() {
         <div className="bg-surface rounded-xl border border-default shadow-sm overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-default bg-subtle text-content-secondary text-left font-semibold">
+              <tr className="bg-primary-100 border-b border-primary-200 text-primary-600 text-left font-semibold">
                 <th className="px-4 py-3 w-12 text-center">STT</th>
                 <th className="px-4 py-3">NGƯỜI DÙNG</th>
                 <th className="px-4 py-3">TÊN ĐĂNG NHẬP</th>
