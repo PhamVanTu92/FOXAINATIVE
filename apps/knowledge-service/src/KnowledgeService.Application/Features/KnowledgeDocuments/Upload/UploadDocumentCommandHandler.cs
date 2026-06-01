@@ -26,14 +26,19 @@ public class UploadDocumentCommandHandler : IRequestHandler<UploadDocumentComman
 
     public async Task<KnowledgeDocumentDto> Handle(UploadDocumentCommand cmd, CancellationToken ct)
     {
-        var kb = await _kbRepo.GetByIdAsync(cmd.KnowledgeBaseId, ct)
-            ?? throw new NotFoundException(nameof(KnowledgeBase), cmd.KnowledgeBaseId);
+        string? kbName = null;
+        if (cmd.KnowledgeBaseId.HasValue)
+        {
+            var kb = await _kbRepo.GetByIdAsync(cmd.KnowledgeBaseId.Value, ct)
+                ?? throw new NotFoundException(nameof(KnowledgeBase), cmd.KnowledgeBaseId.Value);
+            kbName = kb.Name;
+        }
 
         var fileType = Enum.Parse<FileType>(cmd.FileType);
 
         var document = KnowledgeDocument.Create(
-            kb.Id,
-            kb.Name,
+            cmd.KnowledgeBaseId,
+            kbName,
             cmd.Title,
             fileType,
             cmd.FileSizeMb,

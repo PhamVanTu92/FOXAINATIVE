@@ -11,7 +11,7 @@ public class KnowledgeDocumentConfiguration : IEntityTypeConfiguration<Knowledge
         builder.ToTable("knowledge_documents");
         builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.KnowledgeBaseName).IsRequired().HasMaxLength(200);
+        builder.Property(x => x.KnowledgeBaseName).HasMaxLength(200);
         builder.Property(x => x.Title).IsRequired().HasMaxLength(500);
         builder.Property(x => x.FileType).HasConversion<string>().IsRequired().HasMaxLength(20);
         builder.Property(x => x.FileSizeMb).HasColumnType("decimal(10,4)");
@@ -26,6 +26,7 @@ public class KnowledgeDocumentConfiguration : IEntityTypeConfiguration<Knowledge
         builder.HasOne<KnowledgeBase>()
             .WithMany()
             .HasForeignKey(x => x.KnowledgeBaseId)
+            .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasMany(x => x.Versions)

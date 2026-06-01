@@ -30,7 +30,7 @@ public sealed partial class IndexServiceClient(
             AddAuth(request);
             request.Content = JsonContent.Create(new
             {
-                collection_name = sanitized,
+                collection_name = collectionName,
                 description = description ?? string.Empty
             });
 

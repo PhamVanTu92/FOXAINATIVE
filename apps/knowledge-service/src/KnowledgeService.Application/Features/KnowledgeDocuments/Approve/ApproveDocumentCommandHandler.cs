@@ -42,36 +42,41 @@ public class ApproveDocumentCommandHandler : IRequestHandler<ApproveDocumentComm
         doc.Approve();
         _repo.Update(doc);
 
-        // Đồng bộ KnowledgeFile trong bộ tri thức tương ứng
-        var existingFile = await _fileRepo.GetBySourceDocumentIdAsync(doc.Id, ct);
-        if (existingFile is null)
+        // Đồng bộ KnowledgeFile trong bộ tri thức tương ứng (chỉ khi tài liệu thuộc một bộ tri thức)
+        if (doc.KnowledgeBaseId.HasValue)
         {
-            await _fileRepo.AddAsync(new KnowledgeFile
+            var existingFile = await _fileRepo.GetBySourceDocumentIdAsync(doc.Id, ct);
+            if (existingFile is null)
             {
-                KnowledgeBaseId = doc.KnowledgeBaseId,
-                FileName = doc.Title,
-                FileType = doc.FileType,
-                FileSizeMb = doc.FileSizeMb,
-                StoragePath = doc.StoragePath,
-                UploadedBy = doc.UploadedBy,
-                UploadedAt = doc.UploadedAt,
-                SourceDocumentId = doc.Id,
-            }, ct);
-        }
-        else
-        {
-            // Cập nhật lại nếu đã tồn tại (re-approve sau rollback)
-            existingFile.FileName = doc.Title;
-            existingFile.FileType = doc.FileType;
-            existingFile.FileSizeMb = doc.FileSizeMb;
-            existingFile.StoragePath = doc.StoragePath;
-            _fileRepo.Update(existingFile);
+                await _fileRepo.AddAsync(new KnowledgeFile
+                {
+                    KnowledgeBaseId = doc.KnowledgeBaseId.Value,
+                    FileName = doc.Title,
+                    FileType = doc.FileType,
+                    FileSizeMb = doc.FileSizeMb,
+                    StoragePath = doc.StoragePath,
+                    UploadedBy = doc.UploadedBy,
+                    UploadedAt = doc.UploadedAt,
+                    SourceDocumentId = doc.Id,
+                }, ct);
+            }
+            else
+            {
+                // Cập nhật lại nếu đã tồn tại (re-approve sau rollback)
+                existingFile.FileName = doc.Title;
+                existingFile.FileType = doc.FileType;
+                existingFile.FileSizeMb = doc.FileSizeMb;
+                existingFile.StoragePath = doc.StoragePath;
+                _fileRepo.Update(existingFile);
+            }
         }
 
         await _uow.SaveChangesAsync(ct);
 
         // Gửi file sang index-service để indexing nếu KB có collection và document có file
-        var kb = await _kbRepo.GetByIdAsync(doc.KnowledgeBaseId, ct);
+        var kb = doc.KnowledgeBaseId.HasValue
+            ? await _kbRepo.GetByIdAsync(doc.KnowledgeBaseId.Value, ct)
+            : null;
         _logger.LogInformation(
             "ApproveDocument → docId={DocId}, kbId={KbId}, collectionId={CollectionId}, storagePath={StoragePath}",
             doc.Id, doc.KnowledgeBaseId, kb?.CollectionId?.ToString() ?? "null", doc.StoragePath ?? "null");

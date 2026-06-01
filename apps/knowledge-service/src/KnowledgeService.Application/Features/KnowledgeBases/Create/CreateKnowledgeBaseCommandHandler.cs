@@ -52,7 +52,7 @@ public class CreateKnowledgeBaseCommandHandler : IRequestHandler<CreateKnowledge
         await _uow.SaveChangesAsync(ct);
 
         // Tạo collection tương ứng trong index-service; không rollback KB nếu lỗi
-        var collectionId = await _indexClient.CreateCollectionAsync(kb.Code, kb.Description, ct);
+        var collectionId = await _indexClient.CreateCollectionAsync(kb.Name, kb.Description, ct);
         if (collectionId.HasValue)
         {
             kb.CollectionId = collectionId.Value;

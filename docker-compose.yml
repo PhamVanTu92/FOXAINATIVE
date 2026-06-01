@@ -214,6 +214,7 @@ services:
       JWT_ISSUER: foxai-system-service
       JWT_AUDIENCE: foxai-platform
       CORS_ORIGIN: ${CORS_ORIGIN:-}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3001}
     ports:
       - '3001:3001'
     depends_on:

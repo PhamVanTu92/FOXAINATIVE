@@ -7,7 +7,6 @@ public class UploadDocumentCommandValidator : AbstractValidator<UploadDocumentCo
 {
     public UploadDocumentCommandValidator()
     {
-        RuleFor(x => x.KnowledgeBaseId).NotEmpty();
         RuleFor(x => x.Title).NotEmpty().MaximumLength(500);
         RuleFor(x => x.FileType)
             .NotEmpty()

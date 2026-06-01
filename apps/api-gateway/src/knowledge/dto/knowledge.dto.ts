@@ -140,7 +140,7 @@ export class ListDocumentsQueryDto {
 }
 
 export class UploadDocumentDto {
-  @IsUUID() knowledgeBaseId!: string;
+  @IsOptional() @IsUUID() knowledgeBaseId?: string;
 
   @IsString() @IsNotEmpty() @MaxLength(500) title!: string;
 

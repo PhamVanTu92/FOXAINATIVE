@@ -261,8 +261,9 @@ public class KnowledgeGrpcService : Protos.KnowledgeService.KnowledgeServiceBase
         UploadDocumentRequest request, ServerCallContext context)
     {
         Guid? uploadedBy = Guid.TryParse(request.UploadedBy, out var ub) ? ub : null;
+        Guid? knowledgeBaseId = Guid.TryParse(request.KnowledgeBaseId, out var kbId) ? kbId : null;
         var result = await _mediator.Send(new UploadDocumentCommand(
-            Guid.Parse(request.KnowledgeBaseId),
+            knowledgeBaseId,
             request.Title,
             request.FileType,
             (decimal)request.FileSizeMb,

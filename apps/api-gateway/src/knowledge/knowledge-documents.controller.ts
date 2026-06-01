@@ -89,7 +89,7 @@ export class KnowledgeDocumentsController {
 
     const result = await this.knowledge.uploadDocument(
       {
-        knowledgeBaseId: dto.knowledgeBaseId,
+        knowledgeBaseId: dto.knowledgeBaseId ?? '',
         title: dto.title,
         fileType,
         fileSizeMb,

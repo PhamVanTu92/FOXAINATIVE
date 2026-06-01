@@ -395,6 +395,7 @@ services:
       OCR_SERVICE_URL: http://ocr-api:3003
       CHATBOT_SERVICE_URL: chatbot-service:8000
       CORS_ORIGIN: ${CORS_ORIGIN:-}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3001}
       REDIS_HOST: ${REDIS_HOST:-host.docker.internal}
       REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
