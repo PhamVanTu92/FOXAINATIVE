@@ -1,6 +1,6 @@
 'use client';
 import { useState, useCallback, useRef } from 'react';
-import { knowledgeDocumentsApi, knowledgeFilesStandaloneApi, FileType } from '@/lib/knowledge-api';
+import { knowledgeDocumentsApi, FileType } from '@/lib/knowledge-api';
 
 export type UploadStatus = 'pending' | 'uploading' | 'done' | 'error';
 
@@ -77,21 +77,13 @@ export function useUploadTaiLieu() {
       i.id === item.id ? { ...i, status: 'uploading' as UploadStatus, errorMsg: undefined } : i,
     ));
     try {
-      if (item.knowledgeBaseId) {
-        await knowledgeDocumentsApi.create({
-          knowledgeBaseId: item.knowledgeBaseId,
-          title: item.title.trim(),
-          file: item.file,
-          fileType: item.fileType,
-          contentSummary: item.contentSummary || undefined,
-        });
-      } else {
-        await knowledgeFilesStandaloneApi.upload({
-          file: item.file,
-          fileName: item.title.trim(),
-          fileType: item.fileType,
-        });
-      }
+      await knowledgeDocumentsApi.create({
+        knowledgeBaseId: item.knowledgeBaseId,
+        title: item.title.trim(),
+        file: item.file,
+        fileType: item.fileType,
+        contentSummary: item.contentSummary || undefined,
+      });
       setQueue(prev => prev.map(i =>
         i.id === item.id ? { ...i, status: 'done' as UploadStatus } : i,
       ));

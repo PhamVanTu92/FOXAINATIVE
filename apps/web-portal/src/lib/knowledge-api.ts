@@ -303,7 +303,7 @@ export const knowledgeFilesStandaloneApi = {
 
 export const knowledgeDocumentsApi = {
   create: async (payload: {
-    knowledgeBaseId: string;
+    knowledgeBaseId?: string;
     title: string;
     file?: File;
     fileType?: string;
@@ -311,7 +311,7 @@ export const knowledgeDocumentsApi = {
     note?: string;
   }): Promise<KnowledgeDocument> => {
     const form = new FormData();
-    form.append('knowledgeBaseId', payload.knowledgeBaseId);
+    if (payload.knowledgeBaseId) form.append('knowledgeBaseId', payload.knowledgeBaseId);
     form.append('title', payload.title);
     if (payload.file) form.append('file', payload.file);
     if (payload.fileType) form.append('fileType', payload.fileType);
