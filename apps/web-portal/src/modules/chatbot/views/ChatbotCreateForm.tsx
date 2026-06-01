@@ -19,9 +19,9 @@ interface Props {
 }
 
 const inputCls =
-  'w-full border border-dark-200 rounded-lg px-3 py-2 text-sm text-dark-800 ' +
-  'placeholder:text-dark-400 focus:outline-none focus:ring-2 focus:ring-primary-500 ' +
-  'focus:border-transparent bg-white';
+  'w-full border border-default rounded-lg px-3 py-2 text-sm text-content-primary ' +
+  'placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-primary-500 ' +
+  'focus:border-transparent bg-surface';
 
 export function ChatbotCreateForm({ collections, editing = null, onSaved, onCancel }: Props) {
   const f = useChatbotForm(onSaved, collections, editing);
@@ -33,20 +33,20 @@ export function ChatbotCreateForm({ collections, editing = null, onSaved, onCanc
     <div className="flex-1 flex flex-col min-h-0">
 
       {/* ── Sticky header ──────────────────────────────────────────────── */}
-      <div className="shrink-0 bg-white border-b border-dark-200 px-6 py-4
+      <div className="shrink-0 bg-surface border-b border-default px-6 py-4
         flex items-center justify-between gap-4">
         <div className="min-w-0">
-          <h2 className="text-base font-semibold text-dark-800 truncate">
+          <h2 className="text-base font-semibold text-content-primary truncate">
             {f.isEdit ? `Sửa: ${editing?.name ?? f.name}` : 'Thêm chatbot mới'}
           </h2>
-          <p className="text-xs text-dark-500 mt-0.5">
+          <p className="text-xs text-content-secondary mt-0.5">
             {f.isEdit ? 'Cập nhật cấu hình chatbot' : 'Tạo mới chatbot'}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button type="button" onClick={onCancel}
             className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium
-              border border-dark-200 text-dark-600 rounded-lg hover:bg-dark-50 transition-colors">
+              border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors">
             <X size={14} /> Hủy
           </button>
           <button type="button" onClick={f.submit} disabled={f.submitting}
@@ -99,13 +99,13 @@ export function ChatbotCreateForm({ collections, editing = null, onSaved, onCanc
           </SectionCard>
 
           {/* 2. Chatbot có kịch bản */}
-          <div className="bg-white rounded-xl border border-dark-200 shadow-sm">
+          <div className="bg-surface rounded-xl border border-default shadow-sm">
             <div className="px-5 py-4 flex items-start justify-between gap-3">
               <div className="flex items-start gap-3">
                 <BookOpen size={16} className="text-warning-500 mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-sm font-semibold text-dark-800">Chatbot có kịch bản</p>
-                  <p className="text-xs text-dark-500 mt-0.5">Kịch bản hỏi đáp định sẵn cho chatbot</p>
+                  <p className="text-sm font-semibold text-content-primary">Chatbot có kịch bản</p>
+                  <p className="text-xs text-content-secondary mt-0.5">Kịch bản hỏi đáp định sẵn cho chatbot</p>
                 </div>
               </div>
               <Toggle checked={hasScenario} onChange={v => {
@@ -114,8 +114,8 @@ export function ChatbotCreateForm({ collections, editing = null, onSaved, onCanc
               }} />
             </div>
             {hasScenario && (
-              <div className="px-5 pb-5 border-t border-dark-100 pt-4">
-                <label className="block text-sm font-medium text-dark-700 mb-1.5">
+              <div className="px-5 pb-5 border-t border-default pt-4">
+                <label className="block text-sm font-medium text-content-primary mb-1.5">
                   Mô tả kịch bản hỏi đáp
                 </label>
                 <textarea
@@ -130,13 +130,13 @@ export function ChatbotCreateForm({ collections, editing = null, onSaved, onCanc
           </div>
 
           {/* 3. Lưu lịch sử hội thoại */}
-          <div className="bg-white rounded-xl border border-dark-200 shadow-sm px-5 py-4
+          <div className="bg-surface rounded-xl border border-default shadow-sm px-5 py-4
             flex items-start justify-between gap-3">
             <div className="flex items-start gap-3">
               <History size={16} className="text-warning-500 mt-0.5 shrink-0" />
               <div>
-                <p className="text-sm font-semibold text-dark-800">Lưu lịch sử hội thoại</p>
-                <p className="text-xs text-dark-500 mt-0.5">
+                <p className="text-sm font-semibold text-content-primary">Lưu lịch sử hội thoại</p>
+                <p className="text-xs text-content-secondary mt-0.5">
                   Ghi lại toàn bộ cuộc hội thoại của bot này để xem lại và phân tích
                 </p>
               </div>
@@ -155,11 +155,11 @@ export function ChatbotCreateForm({ collections, editing = null, onSaved, onCanc
 
             {kbTab === 'kb' && (
               <>
-                <p className="text-sm text-dark-500">
+                <p className="text-sm text-content-secondary">
                   Tích chọn các bộ tri thức mà chatbot này được phép truy cập:
                 </p>
                 {collections.length === 0 ? (
-                  <p className="text-sm text-dark-400 italic">
+                  <p className="text-sm text-content-muted italic">
                     Chưa có bộ tri thức nào. Hãy tạo collection trong &quot;Tri thức AI&quot; trước.
                   </p>
                 ) : (
@@ -172,17 +172,17 @@ export function ChatbotCreateForm({ collections, editing = null, onSaved, onCanc
                           className={`w-full text-left flex items-start gap-3 p-3 rounded-lg border
                             transition-all ${checked
                               ? 'border-violet-400 bg-violet-50/60 ring-1 ring-violet-200'
-                              : 'border-dark-200 bg-white hover:border-dark-300 hover:bg-dark-50'}`}
+                              : 'border-default bg-surface hover:border-strong hover:bg-subtle'}`}
                         >
                           <div className={`mt-0.5 w-4 h-4 rounded border-2 flex items-center
                             justify-center shrink-0 transition-colors
-                            ${checked ? 'border-violet-600 bg-violet-600' : 'border-dark-300 bg-white'}`}>
+                            ${checked ? 'border-violet-600 bg-violet-600' : 'border-strong bg-surface'}`}>
                             {checked && <Check size={10} className="text-white" />}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-semibold text-dark-800 truncate">{c.name}</p>
+                            <p className="text-sm font-semibold text-content-primary truncate">{c.name}</p>
                             {c.description && (
-                              <p className="text-xs text-dark-500 mt-0.5 truncate">{c.description}</p>
+                              <p className="text-xs text-content-secondary mt-0.5 truncate">{c.description}</p>
                             )}
                           </div>
                         </button>
@@ -219,12 +219,12 @@ export function ChatbotCreateForm({ collections, editing = null, onSaved, onCanc
                   <input type="number" min={64} max={4096}
                     value={f.chunkSize}
                     onChange={e => f.setChunkSize(Number(e.target.value) || 0)}
-                    className="w-32 border border-dark-200 rounded-lg px-3 py-2 text-sm
-                      text-dark-800 focus:outline-none focus:ring-2 focus:ring-primary-500
-                      focus:border-transparent bg-white"
+                    className="w-32 border border-default rounded-lg px-3 py-2 text-sm
+                      text-content-primary focus:outline-none focus:ring-2 focus:ring-primary-500
+                      focus:border-transparent bg-surface"
                   />
-                  <span className="text-xs text-dark-500">ký tự / chunk</span>
-                  <span className="text-xs text-dark-400">|  Gợi ý: 256 – 1024 ký tự</span>
+                  <span className="text-xs text-content-secondary">ký tự / chunk</span>
+                  <span className="text-xs text-content-muted">|  Gợi ý: 256 – 1024 ký tự</span>
                 </div>
               </Field>
 
@@ -243,11 +243,11 @@ export function ChatbotCreateForm({ collections, editing = null, onSaved, onCanc
                   <input type="number" min={0}
                     value={f.overlapValue}
                     onChange={e => f.setOverlapValue(Number(e.target.value) || 0)}
-                    className="w-32 border border-dark-200 rounded-lg px-3 py-2 text-sm
-                      text-dark-800 focus:outline-none focus:ring-2 focus:ring-primary-500
-                      focus:border-transparent bg-white"
+                    className="w-32 border border-default rounded-lg px-3 py-2 text-sm
+                      text-content-primary focus:outline-none focus:ring-2 focus:ring-primary-500
+                      focus:border-transparent bg-surface"
                   />
-                  <span className="text-xs text-dark-500">
+                  <span className="text-xs text-content-secondary">
                     {f.overlapType === 'PERCENT'
                       ? '% độ dài chunk  |  Gợi ý: 10 – 20%'
                       : 'ký tự overlap  |  Gợi ý: 32 – 128 ký tự'}
@@ -292,7 +292,7 @@ function IntegrationPanel({ bot }: { bot: ChatbotItem }) {
 
   return (
     <SectionCard icon={<Code2 size={16} className="text-sky-600" />} title="Tích hợp">
-      <p className="text-xs text-dark-500">
+      <p className="text-xs text-content-secondary">
         Sao chép đoạn script bên dưới và dán vào mã nguồn của hệ thống bạn muốn nhúng chatbot.
       </p>
 
@@ -305,6 +305,7 @@ function IntegrationPanel({ bot }: { bot: ChatbotItem }) {
           icon={<Webhook size={13} />}>REST API</EmbedTabBtn>
       </div>
 
+      {/* Code block — intentionally dark in both themes */}
       <div className="relative rounded-lg border border-dark-800 bg-dark-900 overflow-hidden">
         <button onClick={copy}
           className="absolute top-2 right-2 inline-flex items-center gap-1.5 px-2.5 py-1
@@ -324,7 +325,7 @@ function IntegrationPanel({ bot }: { bot: ChatbotItem }) {
           <Cpu size={12} /> Bot ID: {bot.id}
         </span>
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md
-          bg-dark-100 text-dark-600 border border-dark-200 font-mono">
+          bg-subtle text-content-secondary border border-default font-mono">
           <FileText size={12} /> {process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'}
         </span>
       </div>
@@ -342,10 +343,10 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <section className="bg-white rounded-xl border border-dark-200 shadow-sm">
-      <header className="px-5 py-4 border-b border-dark-100 flex items-center gap-2">
+    <section className="bg-surface rounded-xl border border-default shadow-sm">
+      <header className="px-5 py-4 border-b border-default flex items-center gap-2">
         {icon}
-        <h3 className="text-sm font-semibold text-dark-800">{title}</h3>
+        <h3 className="text-sm font-semibold text-content-primary">{title}</h3>
       </header>
       <div className="p-5 space-y-4">{children}</div>
     </section>
@@ -361,7 +362,7 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-dark-700 mb-1.5">
+      <label className="block text-sm font-medium text-content-primary mb-1.5">
         {label} {required && <span className="text-danger-600">*</span>}
       </label>
       {children}
@@ -380,11 +381,11 @@ function Toggle({
   return (
     <button type="button" onClick={() => onChange(!checked)} className="flex items-center gap-2 shrink-0">
       <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors
-        ${checked ? 'bg-warning-500' : 'bg-dark-200'}`}>
+        ${checked ? 'bg-warning-500' : 'bg-dark-400'}`}>
         <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform
           ${checked ? 'translate-x-4' : 'translate-x-1'}`} />
       </div>
-      <span className={`text-xs font-medium ${checked ? 'text-warning-700' : 'text-dark-400'}`}>
+      <span className={`text-xs font-medium ${checked ? 'text-warning-700' : 'text-content-muted'}`}>
         {checked ? labelOn : labelOff}
       </span>
     </button>
@@ -405,7 +406,7 @@ function KbTabBtn({
         rounded-md border transition-colors
         ${active
           ? 'bg-violet-600 text-white border-violet-600'
-          : 'bg-white text-dark-600 border-dark-200 hover:bg-dark-50'}`}
+          : 'bg-surface text-content-secondary border-default hover:bg-subtle'}`}
     >
       {icon} {children}
     </button>
@@ -426,7 +427,7 @@ function EmbedTabBtn({
         rounded-md border transition-colors
         ${active
           ? 'bg-primary-600 text-white border-primary-600'
-          : 'bg-white text-dark-600 border-dark-200 hover:bg-dark-50'}`}
+          : 'bg-surface text-content-secondary border-default hover:bg-subtle'}`}
     >
       {icon} {children}
     </button>
@@ -445,18 +446,18 @@ function StrategyCard({
     <div className={`flex items-start gap-3 p-3 rounded-lg border
       ${active
         ? 'border-primary-300 bg-primary-50/60 ring-1 ring-primary-100'
-        : 'border-dark-200 bg-white'}`}
+        : 'border-default bg-surface'}`}
     >
       <div className={`mt-0.5 w-3.5 h-3.5 rounded-full border-2 shrink-0 flex items-center justify-center
-        ${active ? 'border-primary-600 bg-primary-600' : 'border-dark-300 bg-white'}`}>
+        ${active ? 'border-primary-600 bg-primary-600' : 'border-strong bg-surface'}`}>
         {active && <span className="w-1.5 h-1.5 rounded-full bg-white block" />}
       </div>
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className="text-dark-500">{icon}</span>
-          <span className="text-sm font-medium text-dark-800">{title}</span>
+          <span className="text-content-secondary">{icon}</span>
+          <span className="text-sm font-medium text-content-primary">{title}</span>
         </div>
-        <p className="text-xs text-dark-500 mt-0.5">{desc}</p>
+        <p className="text-xs text-content-secondary mt-0.5">{desc}</p>
       </div>
     </div>
   );
@@ -474,10 +475,10 @@ function SegmentBtn({
       className={`flex items-center gap-2 px-4 py-2 text-sm rounded-lg border transition-colors
         ${active
           ? 'bg-primary-50 text-primary-700 border-primary-300 ring-2 ring-primary-100'
-          : 'bg-white text-dark-600 border-dark-200 hover:bg-dark-50'}`}
+          : 'bg-surface text-content-secondary border-default hover:bg-subtle'}`}
     >
       <span className={`w-3 h-3 rounded-full border-2
-        ${active ? 'border-primary-600 bg-primary-600' : 'border-dark-300 bg-white'}`} />
+        ${active ? 'border-primary-600 bg-primary-600' : 'border-strong bg-surface'}`} />
       {children}
     </button>
   );

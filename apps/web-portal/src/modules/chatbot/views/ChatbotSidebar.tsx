@@ -19,9 +19,8 @@ export function ChatbotSidebar({
   onStartCreate, onStartEdit, onDelete,
 }: Props) {
   return (
-    <aside className="w-[320px] shrink-0 border-r border-dark-200 bg-white flex flex-col">
-      {/* CTA — Thêm chatbot mới */}
-      <div className="p-4 border-b border-dark-100">
+    <aside className="w-[320px] shrink-0 border-r border-default bg-surface flex flex-col">
+      <div className="p-4 border-b border-default">
         <button
           onClick={onStartCreate}
           className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold
@@ -31,10 +30,9 @@ export function ChatbotSidebar({
         </button>
       </div>
 
-      {/* List */}
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
         {bots.length === 0 && (
-          <div className="text-center text-xs text-dark-400 py-8">
+          <div className="text-center text-xs text-content-muted py-8">
             Chưa có chatbot nào.
           </div>
         )}
@@ -76,15 +74,15 @@ function BotRow({
       className={`w-full text-left rounded-lg border transition-all p-3 group
         ${highlight
           ? 'border-primary-500 bg-primary-50/60 shadow-sm ring-1 ring-primary-200'
-          : 'border-dark-200 bg-white hover:border-dark-300 hover:bg-dark-50'}`}
+          : 'border-default bg-surface hover:border-strong hover:bg-subtle'}`}
     >
       {/* Header row */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <span className={`w-2 h-2 rounded-full shrink-0
             ${bot.active ? 'bg-success-500' : 'bg-dark-300'}`} />
-          <MessageSquare size={14} className="text-dark-400 shrink-0" />
-          <span className="text-sm font-semibold text-dark-800 truncate">
+          <MessageSquare size={14} className="text-content-muted shrink-0" />
+          <span className="text-sm font-semibold text-content-primary truncate">
             {bot.name}
           </span>
         </div>
@@ -93,7 +91,7 @@ function BotRow({
           <div className="flex items-center gap-0.5 shrink-0">
             <button
               onClick={(e) => { e.stopPropagation(); onDelete(); }}
-              className="p-1 text-dark-400 hover:text-danger-600 hover:bg-danger-50 rounded transition-colors"
+              className="p-1 text-content-muted hover:text-danger-600 hover:bg-danger-50 rounded transition-colors"
               title="Xóa"
             >
               <Trash2 size={13} />
@@ -103,7 +101,7 @@ function BotRow({
       </div>
 
       {/* Description */}
-      <p className="mt-1 text-xs text-dark-500 truncate pl-4">
+      <p className="mt-1 text-xs text-content-secondary truncate pl-4">
         {bot.shortDescription || '—'}
       </p>
 

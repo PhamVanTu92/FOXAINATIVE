@@ -17,30 +17,13 @@ interface Props {
   lookup: BotLookup;
 }
 
-/**
- * Trang chat tương tác cho 1 chatbot cụ thể (ví dụ /chatbot/ke-toan).
- *
- * Layout (full-width, KHÔNG có sidebar "GẦN ĐÂY"):
- *   ┌─────────────────────────────────────────────────┐
- *   │ Breadcrumb: Chatbot AI thông minh > <Bot name>  │
- *   ├─────────────────────────────────────────────────┤
- *   │ Bot header: avatar + name + subtitle + actions  │
- *   ├─────────────────────────────────────────────────┤
- *   │                                                 │
- *   │   Empty state (centered) OR message stream      │
- *   │                                                 │
- *   ├─────────────────────────────────────────────────┤
- *   │ Composer: input + mic + send                    │
- *   └─────────────────────────────────────────────────┘
- */
 export function ChatbotChatView({ lookup }: Props) {
   const c = useChatbotChat(lookup);
   const voiceEnabled = c.bot ? (c.bot.mode === 'voice' || c.bot.mode === 'both') : false;
-  const isVoiceActive = c.speaking || c.paused;
 
   if (c.loadingBot) {
     return (
-      <div className="flex-1 flex items-center justify-center text-sm text-dark-400">
+      <div className="flex-1 flex items-center justify-center text-sm text-content-muted">
         Đang tải chatbot...
       </div>
     );
@@ -58,11 +41,10 @@ export function ChatbotChatView({ lookup }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-surface">
       <Breadcrumb botName={c.bot.name} />
 
       <div className="flex-1 flex min-h-0">
-        {/* Sidebar GẦN ĐÂY — danh sách phiên chat của bot */}
         <RecentSidebar
           conversations={c.conversations}
           activeId={c.conversationId}
@@ -72,7 +54,6 @@ export function ChatbotChatView({ lookup }: Props) {
           onDelete={c.deleteConversation}
         />
 
-        {/* Main chat column */}
         <div className="flex-1 flex flex-col min-h-0 w-full px-6">
           <BotHeader
             bot={c.bot}
@@ -87,10 +68,8 @@ export function ChatbotChatView({ lookup }: Props) {
             onVoiceChange={c.setVoiceId}
           />
 
-          {/* Messages / Voice UI / Error */}
           <div className="flex-1 overflow-y-auto py-4">
             {c.bot.mode === 'voice' ? (
-              /* Voice-only: giao diện nói chuyện 1-1, không hiển thị text */
               <VoiceConversationUI
                 bot={c.bot}
                 speaking={c.speaking}
@@ -112,7 +91,7 @@ export function ChatbotChatView({ lookup }: Props) {
                 </div>
               </div>
             ) : c.loadingMessages ? (
-              <div className="h-full flex items-center justify-center text-sm text-dark-400">
+              <div className="h-full flex items-center justify-center text-sm text-content-muted">
                 Đang tải tin nhắn...
               </div>
             ) : c.isEmpty ? (
@@ -150,9 +129,8 @@ function RecentSidebar({
   onDelete: (id: string) => void;
 }) {
   return (
-    <aside className="w-[280px] shrink-0 border-r border-dark-200 bg-white flex flex-col">
-      {/* CTA — Đoạn chat mới */}
-      <div className="p-3 border-b border-dark-100">
+    <aside className="w-[280px] shrink-0 border-r border-default bg-surface flex flex-col">
+      <div className="p-3 border-b border-default">
         <button
           type="button"
           onClick={onNew}
@@ -163,15 +141,15 @@ function RecentSidebar({
         </button>
       </div>
 
-      <p className="px-4 pt-3 pb-1 text-[10px] font-semibold tracking-widest text-dark-400 uppercase">
+      <p className="px-4 pt-3 pb-1 text-[10px] font-semibold tracking-widest text-content-muted uppercase">
         Gần đây
       </p>
 
       <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-0.5">
         {loading && conversations.length === 0 ? (
-          <div className="text-center text-xs text-dark-400 py-6">Đang tải…</div>
+          <div className="text-center text-xs text-content-muted py-6">Đang tải…</div>
         ) : conversations.length === 0 ? (
-          <div className="text-center text-xs text-dark-400 py-6">
+          <div className="text-center text-xs text-content-muted py-6">
             Chưa có đoạn chat nào.
           </div>
         ) : (
@@ -208,9 +186,9 @@ function ConversationRow({
         transition-colors
         ${active
           ? 'bg-primary-50 text-primary-700'
-          : 'text-dark-700 hover:bg-dark-50'}`}
+          : 'text-content-primary hover:bg-subtle'}`}
     >
-      <MessageCircle size={13} className={active ? 'text-primary-600' : 'text-dark-400'} />
+      <MessageCircle size={13} className={active ? 'text-primary-600' : 'text-content-muted'} />
       <span className="flex-1 truncate text-[13px]">
         {conv.title || 'Đoạn chat'}
       </span>
@@ -220,7 +198,7 @@ function ConversationRow({
           e.stopPropagation();
           if (confirm('Xóa đoạn chat này?')) onDelete();
         }}
-        className="p-1 rounded text-dark-400 opacity-0 group-hover:opacity-100
+        className="p-1 rounded text-content-muted opacity-0 group-hover:opacity-100
           hover:text-danger-600 hover:bg-danger-50 transition-all"
         title="Xóa đoạn chat"
       >
@@ -232,11 +210,11 @@ function ConversationRow({
 
 function Breadcrumb({ botName }: { botName: string }) {
   return (
-    <div className="flex items-center gap-2 px-6 py-3 border-b border-dark-200 bg-white">
+    <div className="flex items-center gap-2 px-6 py-3 border-b border-default bg-surface">
       <MessageSquare size={14} className="text-violet-600" />
-      <span className="text-sm text-dark-400">Chatbot AI thông minh</span>
+      <span className="text-sm text-content-muted">Chatbot AI thông minh</span>
       <ChevronRight size={14} className="text-dark-300" />
-      <span className="text-sm font-semibold text-dark-700">{botName}</span>
+      <span className="text-sm font-semibold text-content-primary">{botName}</span>
     </div>
   );
 }
@@ -263,16 +241,16 @@ function BotHeader({
                   : <MessageSquare size={11} className="text-primary-600" />;
   const modeCls   = bot.mode === 'chat' ? 'text-primary-600' : 'text-violet-600 font-medium';
   return (
-    <div className="flex items-center gap-3 py-4 border-b border-dark-100">
+    <div className="flex items-center gap-3 py-4 border-b border-default">
       <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${tone.bg}`}>
         <MessageSquare size={20} className={tone.fg} />
       </div>
       <div className="min-w-0 flex-1">
-        <h1 className="text-base font-semibold text-dark-800 truncate">
+        <h1 className="text-base font-semibold text-content-primary truncate">
           {activeTitle || bot.name}
         </h1>
-        <p className="text-xs text-dark-500 mt-0.5 inline-flex items-center gap-1.5">
-          <span className="text-dark-600 font-medium">{bot.name}</span>
+        <p className="text-xs text-content-secondary mt-0.5 inline-flex items-center gap-1.5">
+          <span className="text-content-secondary font-medium">{bot.name}</span>
           <span className="text-dark-300">·</span>
           {PURPOSE_LABELS[bot.purpose]}
           <span className="text-dark-300">·</span>
@@ -285,14 +263,13 @@ function BotHeader({
       </div>
 
       <div className="flex items-center gap-2">
-        {/* Dropdown chọn giọng — luôn hiện khi bot có voice mode */}
         {(bot.mode === 'voice' || bot.mode === 'both') && (
           <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium
             transition-colors
             ${speaking
               ? 'border-violet-300 bg-violet-50 text-violet-700'
-              : 'border-dark-200 bg-white text-dark-600 hover:border-primary-300 hover:bg-primary-50'}`}>
-            <Volume2 size={12} className={speaking ? 'text-violet-600 animate-pulse' : 'text-dark-400'} />
+              : 'border-default bg-surface text-content-secondary hover:border-primary-300 hover:bg-primary-50'}`}>
+            <Volume2 size={12} className={speaking ? 'text-violet-600 animate-pulse' : 'text-content-muted'} />
             <select
               value={voiceId}
               onChange={e => onVoiceChange(e.target.value)}
@@ -309,7 +286,7 @@ function BotHeader({
                   ))
               }
             </select>
-            <ChevronDown size={10} className="text-dark-400 pointer-events-none shrink-0" />
+            <ChevronDown size={10} className="text-content-muted pointer-events-none shrink-0" />
           </div>
         )}
 
@@ -333,14 +310,14 @@ function BotHeader({
               </button>
             )}
             <button onClick={onStopSpeaking}
-              className="p-1.5 text-dark-400 hover:text-danger-600 hover:bg-danger-50 rounded-lg transition-colors"
+              className="p-1.5 text-content-muted hover:text-danger-600 hover:bg-danger-50 rounded-lg transition-colors"
               title="Dừng hẳn">
               <VolumeX size={13} />
             </button>
           </>
         )}
         <button
-          className="p-2 text-dark-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+          className="p-2 text-content-muted hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
           title="Tải xuống đoạn chat"
         >
           <Download size={15} />
@@ -361,10 +338,10 @@ function EmptyState({
       <div className="w-14 h-14 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center mb-3">
         <MessageSquare size={26} />
       </div>
-      <h2 className="text-base font-semibold text-dark-800">
+      <h2 className="text-base font-semibold text-content-primary">
         Xin chào! Tôi có thể giúp gì cho bạn?
       </h2>
-      <p className="text-xs text-dark-500 mt-1">
+      <p className="text-xs text-content-secondary mt-1">
         Nhập câu hỏi hoặc chọn gợi ý bên dưới để bắt đầu.
       </p>
 
@@ -411,12 +388,11 @@ function VoiceConversationUI({
   const statusColor = paused   ? 'text-warning-500'
                     : speaking ? 'text-violet-600'
                     : sending  ? 'text-primary-600'
-                    : 'text-dark-400';
+                    : 'text-content-muted';
 
   return (
     <div className="h-full flex flex-col items-center justify-center gap-8 select-none">
 
-      {/* Avatar với rings animate khi speaking */}
       <div className="relative flex items-center justify-center">
         <span className={`absolute rounded-full transition-all duration-700
           ${speaking ? `w-44 h-44 ${tone.bg} opacity-20 animate-ping` : 'w-0 h-0 opacity-0'}`}
@@ -436,9 +412,8 @@ function VoiceConversationUI({
         </div>
       </div>
 
-      {/* Bot name + status */}
       <div className="text-center space-y-1.5">
-        <h2 className="text-2xl font-semibold text-dark-800">{bot.name}</h2>
+        <h2 className="text-2xl font-semibold text-content-primary">{bot.name}</h2>
         <div className={`flex items-center justify-center gap-1.5 text-sm font-medium transition-colors ${statusColor}`}>
           {speaking && (
             <span className="flex gap-0.5">
@@ -463,10 +438,8 @@ function VoiceConversationUI({
         </div>
       </div>
 
-      {/* Controls — chỉ hiện khi đang phát hoặc paused */}
       {isActive && (
         <div className="flex items-center gap-3">
-          {/* Pause / Resume */}
           {paused ? (
             <button onClick={onResume}
               className="flex items-center gap-2 px-5 py-2.5 rounded-full
@@ -482,11 +455,10 @@ function VoiceConversationUI({
               <Pause size={15} /> Tạm dừng
             </button>
           )}
-          {/* Stop */}
           <button onClick={onStop}
             className="flex items-center gap-2 px-4 py-2.5 rounded-full
-              border border-dark-200 bg-white hover:bg-dark-50
-              text-dark-500 text-sm font-medium transition-colors shadow-sm">
+              border border-default bg-surface hover:bg-subtle
+              text-content-secondary text-sm font-medium transition-colors shadow-sm">
             <VolumeX size={15} /> Dừng hẳn
           </button>
         </div>
@@ -513,7 +485,7 @@ function MessageList({
           <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${tone.bg}`}>
             <MessageSquare size={14} className={tone.fg} />
           </div>
-          <div className="bg-dark-50 border border-dark-100 rounded-2xl rounded-tl-sm px-4 py-2.5">
+          <div className="bg-subtle border border-default rounded-2xl rounded-tl-sm px-4 py-2.5">
             <Typing />
           </div>
         </div>
@@ -544,8 +516,8 @@ function Bubble({
       <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${botTone.bg}`}>
         <MessageSquare size={14} className={botTone.fg} />
       </div>
-      <div className="max-w-[78%] bg-dark-50 border border-dark-100 rounded-2xl rounded-tl-sm
-        px-4 py-2.5 text-sm text-dark-800 whitespace-pre-wrap leading-relaxed">
+      <div className="max-w-[78%] bg-subtle border border-default rounded-2xl rounded-tl-sm
+        px-4 py-2.5 text-sm text-content-primary whitespace-pre-wrap leading-relaxed">
         {msg.content}
       </div>
     </div>
@@ -620,14 +592,12 @@ function VoiceOnlyComposer({
   const toggle = () => (stt.recording ? stt.stop() : stt.start());
 
   return (
-    <div className="border-t border-dark-100 py-5 flex flex-col items-center gap-3">
-      {/* Interim transcript */}
-      <div className="min-h-[20px] text-sm text-dark-600 italic text-center max-w-lg px-4 transition-all">
+    <div className="border-t border-default py-5 flex flex-col items-center gap-3">
+      <div className="min-h-[20px] text-sm text-content-secondary italic text-center max-w-lg px-4 transition-all">
         {stt.recording && interimText && `"${interimText}"`}
         {sending && <span className="text-primary-600 not-italic">Đang gửi...</span>}
       </div>
 
-      {/* Mic button */}
       <button
         type="button"
         onClick={toggle}
@@ -648,7 +618,7 @@ function VoiceOnlyComposer({
           : <Mic size={30} className="text-white" />}
       </button>
 
-      <p className="text-xs text-dark-400 text-center">
+      <p className="text-xs text-content-muted text-center">
         {stt.error
           ? <span className="text-danger-600">⚠ {stt.error}</span>
           : stt.recording ? 'Đang nghe… nhấn để dừng' : 'Nhấn mic để nói (tiếng Việt)'}
@@ -686,8 +656,8 @@ function ChatComposer({
     : stt.recording ? 'Nhấn để dừng ghi' : 'Nhập bằng giọng nói';
 
   return (
-    <div className="border-t border-dark-100 py-4">
-      <div className={`relative rounded-2xl border-2 bg-white shadow-sm transition-colors
+    <div className="border-t border-default py-4">
+      <div className={`relative rounded-2xl border-2 bg-surface shadow-sm transition-colors
         ${stt.recording
           ? 'border-danger-300 ring-2 ring-danger-100'
           : 'border-primary-200 focus-within:border-primary-400'}`}>
@@ -698,8 +668,8 @@ function ChatComposer({
           onChange={e => onChange(e.target.value)}
           onKeyDown={onKeyDown}
           placeholder={stt.recording ? 'Đang nghe…' : 'Nhập câu hỏi...'}
-          className="w-full resize-none bg-transparent text-sm text-dark-800
-            placeholder:text-dark-400 px-4 py-3 focus:outline-none max-h-40"
+          className="w-full resize-none bg-transparent text-sm text-content-primary
+            placeholder:text-content-muted px-4 py-3 focus:outline-none max-h-40"
           style={{ paddingRight: showMic ? '6rem' : '3.5rem' }}
         />
         <div className="absolute right-2 bottom-2 flex items-center gap-1">
@@ -712,8 +682,8 @@ function ChatComposer({
               className={`p-2 rounded-lg transition-colors
                 ${stt.recording
                   ? 'bg-danger-500 text-white hover:bg-danger-600 animate-pulse'
-                  : 'text-dark-400 hover:text-primary-600 hover:bg-primary-50'}
-                disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-dark-400`}
+                  : 'text-content-muted hover:text-primary-600 hover:bg-primary-50'}
+                disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-content-muted`}
             >
               {stt.recording ? <MicOff size={16} /> : <Mic size={16} />}
             </button>
@@ -731,11 +701,11 @@ function ChatComposer({
           </button>
         </div>
       </div>
-      <p className="mt-2 text-center text-[11px] text-dark-400">
+      <p className="mt-2 text-center text-[11px] text-content-muted">
         {stt.error && <span className="text-danger-600">⚠ {stt.error} · </span>}
-        © Nhấn <kbd className="px-1 rounded bg-dark-100 text-dark-600 font-mono">Enter</kbd> để gửi
+        © Nhấn <kbd className="px-1 rounded bg-subtle text-content-secondary font-mono">Enter</kbd> để gửi
         {' · '}
-        <kbd className="px-1 rounded bg-dark-100 text-dark-600 font-mono">Shift+Enter</kbd> để xuống dòng
+        <kbd className="px-1 rounded bg-subtle text-content-secondary font-mono">Shift+Enter</kbd> để xuống dòng
         {showMic && ' · Nhấn mic để nói (tiếng Việt)'}
       </p>
     </div>
