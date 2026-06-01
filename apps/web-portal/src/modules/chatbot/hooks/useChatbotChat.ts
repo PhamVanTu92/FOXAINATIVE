@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { chatbotApi, chatApi, conversationsApi } from '@/lib/chatbot-api';
+import { useUIStore } from '@/stores/ui';
 import type {
   ChatbotItem, ChatMessage, ChatbotPurpose, ConversationItem, TtsVoice,
 } from '@/lib/chatbot-api';
@@ -31,6 +32,7 @@ const LS_VOICE     = (botId: string) => `chatbot:voice:${botId}`;
  *  - TTS auto-play nếu bot.mode ∈ {voice, both}
  */
 export function useChatbotChat(lookup: BotLookup) {
+  const { showToast } = useUIStore();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -499,9 +501,9 @@ export function useChatbotChat(lookup: BotLookup) {
       if (id === conversationId) newSession();
       await refreshConversations(bot.id);
     } catch (e: unknown) {
-      alert((e as Error).message);
+      showToast((e as Error).message, 'error');
     }
-  }, [bot, conversationId, newSession]);
+  }, [bot, conversationId, newSession, showToast]);
 
   const submitInput = () => sendMessage(input);
   const stopSpeaking = () => stopSpeakingNow();

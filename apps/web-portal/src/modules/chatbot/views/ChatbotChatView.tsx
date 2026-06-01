@@ -11,6 +11,7 @@ import { useChatbotChat } from '../hooks/useChatbotChat';
 import type { BotLookup } from '../hooks/useChatbotChat';
 import { useChatbotSTT } from '../hooks/useChatbotSTT';
 import { PURPOSE_LABELS } from '@/lib/chatbot-api';
+import { useUIStore } from '@/stores/ui';
 import type {
   ChatbotItem, ChatMessage, ChatbotMode, ConversationItem, TtsVoice,
 } from '@/lib/chatbot-api';
@@ -178,6 +179,7 @@ function ConversationRow({
   onSelect: () => void;
   onDelete: () => void;
 }) {
+  const { showConfirm } = useUIStore();
   return (
     <div
       role="button"
@@ -198,7 +200,7 @@ function ConversationRow({
         type="button"
         onClick={(e) => {
           e.stopPropagation();
-          if (confirm('Xóa đoạn chat này?')) onDelete();
+          showConfirm({ title: 'Xóa đoạn chat', body: 'Xóa đoạn chat này?', onOk: onDelete });
         }}
         className="p-1 rounded text-content-muted opacity-0 group-hover:opacity-100
           hover:text-danger-600 hover:bg-danger-50 transition-all"

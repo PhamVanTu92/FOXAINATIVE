@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ocrApi } from '@/lib/ocr-api';
 import type { SchemaDetail, SchemaField, SchemaTable, DataType, FieldPosition, DocType } from '@/lib/ocr-api';
 import { toKey } from '../constants';
+import { useUIStore } from '@/stores/ui';
 
 export interface FieldEdit { label: string; dataType: DataType; position: FieldPosition; description: string; saving: boolean; }
 export interface ColEdit   { label: string; dataType: DataType; description: string; saving: boolean; }
@@ -17,6 +18,7 @@ const emptyField = (): NewFieldForm => ({ label: '', fieldKey: '', dataType: 'TE
 const emptyTable = (): NewTableForm => ({ name: '', initColLabel: '', initColType: 'TEXT' });
 
 export function useOcrSchemaEdit(id: string) {
+  const { showToast, showConfirm } = useUIStore();
   const router = useRouter();
 
   const [schema, setSchema]       = useState<SchemaDetail | null>(null);
@@ -191,12 +193,18 @@ export function useOcrSchemaEdit(id: string) {
   };
 
   const handleRemoveField = async (field: SchemaField) => {
-    if (!confirm(`Xóa trường "${field.label}"?`)) return;
-    try {
-      await ocrApi.removeField(id, field.id);
-      setSchema(prev => prev ? { ...prev, fields: prev.fields.filter(f => f.id !== field.id) } : prev);
-      setFieldEdits(prev => { const next = { ...prev }; delete next[field.id]; return next; });
-    } catch (e: unknown) { alert((e as Error).message); }
+    showConfirm({
+      title: `Xóa trường "${field.label}"`,
+      body: `Xóa trường "${field.label}"? Hành động này không thể hoàn tác.`,
+      onOk: async () => {
+        try {
+          await ocrApi.removeField(id, field.id);
+          setSchema(prev => prev ? { ...prev, fields: prev.fields.filter(f => f.id !== field.id) } : prev);
+          setFieldEdits(prev => { const next = { ...prev }; delete next[field.id]; return next; });
+        } catch (e: unknown) { showToast((e as Error).message, 'error'); }
+      },
+    });
+    return;
   };
 
   // ── Table add / remove ────────────────────────────────────────────────────────
@@ -216,11 +224,17 @@ export function useOcrSchemaEdit(id: string) {
   };
 
   const handleRemoveTable = async (table: SchemaTable) => {
-    if (!confirm(`Xóa bảng "${table.name}"?`)) return;
-    try {
-      await ocrApi.removeTable(id, table.id);
-      setSchema(prev => prev ? { ...prev, tables: prev.tables.filter(t => t.id !== table.id) } : prev);
-    } catch (e: unknown) { alert((e as Error).message); }
+    showConfirm({
+      title: `Xóa bảng "${table.name}"`,
+      body: `Xóa bảng "${table.name}"? Hành động này không thể hoàn tác.`,
+      onOk: async () => {
+        try {
+          await ocrApi.removeTable(id, table.id);
+          setSchema(prev => prev ? { ...prev, tables: prev.tables.filter(t => t.id !== table.id) } : prev);
+        } catch (e: unknown) { showToast((e as Error).message, 'error'); }
+      },
+    });
+    return;
   };
 
   const toggleExpand = (tableId: string) =>
@@ -243,15 +257,21 @@ export function useOcrSchemaEdit(id: string) {
   // ── Column remove ─────────────────────────────────────────────────────────────
 
   const handleRemoveColumn = async (tableId: string, columnId: string, label: string) => {
-    if (!confirm(`Xóa cột "${label}"?`)) return;
-    try {
-      await ocrApi.removeTableColumn(id, tableId, columnId);
-      setSchema(prev => {
-        if (!prev) return prev;
-        return { ...prev, tables: prev.tables.map(t => t.id === tableId ? { ...t, columns: t.columns.filter(c => c.id !== columnId) } : t) };
-      });
-      setColEdits(prev => { const next = { ...prev }; delete next[columnId]; return next; });
-    } catch (e: unknown) { alert((e as Error).message); }
+    showConfirm({
+      title: `Xóa cột "${label}"`,
+      body: `Xóa cột "${label}"? Hành động này không thể hoàn tác.`,
+      onOk: async () => {
+        try {
+          await ocrApi.removeTableColumn(id, tableId, columnId);
+          setSchema(prev => {
+            if (!prev) return prev;
+            return { ...prev, tables: prev.tables.map(t => t.id === tableId ? { ...t, columns: t.columns.filter(c => c.id !== columnId) } : t) };
+          });
+          setColEdits(prev => { const next = { ...prev }; delete next[columnId]; return next; });
+        } catch (e: unknown) { showToast((e as Error).message, 'error'); }
+      },
+    });
+    return;
   };
 
   // ── Validation ────────────────────────────────────────────────────────────────

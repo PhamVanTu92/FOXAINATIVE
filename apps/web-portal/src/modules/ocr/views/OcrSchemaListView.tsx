@@ -9,6 +9,7 @@ import { useOcrSchemas } from '../hooks/useOcrSchemas';
 import { TYPE_CONFIG, TYPE_OPTIONS } from '../constants';
 import type { DocType } from '@/lib/ocr-api';
 import { useRoutePermission } from '@/hooks/usePermission';
+import { useUIStore } from '@/stores/ui';
 
 function StatusToggle({ active, onToggle }: { active: boolean; onToggle: () => void }) {
   return (
@@ -29,6 +30,7 @@ function StatusToggle({ active, onToggle }: { active: boolean; onToggle: () => v
 
 export function OcrSchemaListView() {
   const router = useRouter();
+  const { showToast } = useUIStore();
   const {
     schemas, stats, loading, error,
     search, setSearch, typeFilter, setTypeFilter,
@@ -113,7 +115,7 @@ export function OcrSchemaListView() {
 
           {canExport && (
             <button
-              onClick={() => alert('Tính năng xuất Excel đang phát triển.')}
+              onClick={() => showToast('Tính năng xuất Excel đang phát triển.', 'error')}
               className="flex items-center gap-2 px-4 py-2 text-sm text-content-secondary border border-default rounded-lg hover:bg-subtle transition-colors"
             >
               <Download className="w-4 h-4" />

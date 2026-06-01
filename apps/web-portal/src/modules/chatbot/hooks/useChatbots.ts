@@ -5,6 +5,7 @@ import { chatbotApi } from '@/lib/chatbot-api';
 import { collectionsApi } from '@/lib/collections-api';
 import type { ChatbotItem, UpdateChatbotPayload } from '@/lib/chatbot-api';
 import type { Collection } from '@/lib/collections-api';
+import { useUIStore } from '@/stores/ui';
 
 /** Báo cho Sidebar (hoặc consumer khác) biết để refetch list chatbot. */
 function notifyChatbotsChanged() {
@@ -18,6 +19,7 @@ function notifyChatbotsChanged() {
  * View chỉ gọi các hàm/giá trị trả ra từ hook này, không trực tiếp gọi chatbotApi.
  */
 export function useChatbots() {
+  const { showToast, showConfirm } = useUIStore();
   const [bots, setBots] = useState<ChatbotItem[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
 
@@ -97,7 +99,7 @@ export function useChatbots() {
       const next = await chatbotApi.update(bot.id, { active: !bot.active });
       setBots(prev => prev.map(b => b.id === bot.id ? next : b));
     } catch (e: unknown) {
-      alert((e as Error).message);
+      showToast((e as Error).message, 'error');
     }
   };
 
@@ -106,23 +108,29 @@ export function useChatbots() {
       const next = await chatbotApi.update(id, patch);
       setBots(prev => prev.map(b => b.id === id ? next : b));
     } catch (e: unknown) {
-      alert((e as Error).message);
+      showToast((e as Error).message, 'error');
     }
   };
 
   const handleDelete = async (bot: ChatbotItem) => {
-    if (!confirm(`Xóa chatbot "${bot.name}"? Hành động này không thể hoàn tác.`)) return;
-    try {
-      await chatbotApi.remove(bot.id);
-      setBots(prev => {
-        const next = prev.filter(b => b.id !== bot.id);
-        if (selectedId === bot.id) setSelectedId(next[0]?.id ?? null);
-        return next;
-      });
-      notifyChatbotsChanged();
-    } catch (e: unknown) {
-      alert((e as Error).message);
-    }
+    showConfirm({
+      title: `Xóa chatbot "${bot.name}"`,
+      body: `Xóa chatbot "${bot.name}"? Hành động này không thể hoàn tác.`,
+      onOk: async () => {
+        try {
+          await chatbotApi.remove(bot.id);
+          setBots(prev => {
+            const next = prev.filter(b => b.id !== bot.id);
+            if (selectedId === bot.id) setSelectedId(next[0]?.id ?? null);
+            return next;
+          });
+          notifyChatbotsChanged();
+        } catch (e: unknown) {
+          showToast((e as Error).message, 'error');
+        }
+      },
+    });
+    return;
   };
 
   return {

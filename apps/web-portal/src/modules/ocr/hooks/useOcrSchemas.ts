@@ -3,8 +3,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ocrApi } from '@/lib/ocr-api';
 import type { SchemaListItem, SchemaStats, DocType } from '@/lib/ocr-api';
+import { useUIStore } from '@/stores/ui';
 
 export function useOcrSchemas() {
+  const { showToast, showConfirm } = useUIStore();
   const [schemas, setSchemas] = useState<SchemaListItem[]>([]);
   const [stats, setStats] = useState<SchemaStats>({ totalSchemas: 0, activeSchemas: 0, totalFields: 0, totalTables: 0 });
   const [loading, setLoading] = useState(true);
@@ -44,26 +46,32 @@ export function useOcrSchemas() {
       }));
       // Notify sidebar to refresh schema list
       window.dispatchEvent(new CustomEvent('schemas:updated'));
-    } catch (e: unknown) { alert((e as Error).message); }
+    } catch (e: unknown) { showToast((e as Error).message, 'error'); }
   };
 
   const handleDelete = async (schema: SchemaListItem) => {
     if (schema._count.documents > 0) {
-      alert(`Không thể xóa: schema đang được dùng bởi ${schema._count.documents} chứng từ.`);
+      showToast(`Không thể xóa: schema đang được dùng bởi ${schema._count.documents} chứng từ.`, 'error');
       return;
     }
-    if (!confirm(`Xóa schema "${schema.name}"? Hành động này không thể hoàn tác.`)) return;
-    try {
-      await ocrApi.deleteSchema(schema.id);
-      setSchemas(prev => prev.filter(s => s.id !== schema.id));
-      setStats(prev => ({
-        ...prev,
-        totalSchemas: prev.totalSchemas - 1,
-        activeSchemas: schema.isActive ? prev.activeSchemas - 1 : prev.activeSchemas,
-        totalFields: prev.totalFields - schema._count.fields,
-        totalTables: prev.totalTables - schema._count.tables,
-      }));
-    } catch (e: unknown) { alert((e as Error).message); }
+    showConfirm({
+      title: `Xóa schema "${schema.name}"`,
+      body: `Xóa schema "${schema.name}"? Hành động này không thể hoàn tác.`,
+      onOk: async () => {
+        try {
+          await ocrApi.deleteSchema(schema.id);
+          setSchemas(prev => prev.filter(s => s.id !== schema.id));
+          setStats(prev => ({
+            ...prev,
+            totalSchemas: prev.totalSchemas - 1,
+            activeSchemas: schema.isActive ? prev.activeSchemas - 1 : prev.activeSchemas,
+            totalFields: prev.totalFields - schema._count.fields,
+            totalTables: prev.totalTables - schema._count.tables,
+          }));
+        } catch (e: unknown) { showToast((e as Error).message, 'error'); }
+      },
+    });
+    return;
   };
 
   return {

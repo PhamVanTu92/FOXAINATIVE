@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { usersApi, rolesApi, orgsApi } from '@/lib/users-api';
 import type { UserItem, RoleItem, OrgNode } from '@/lib/users-api';
+import { useUIStore } from '@/stores/ui';
 
 export interface UserStats {
   total: number;
@@ -22,6 +23,7 @@ function flattenOrg(nodes: OrgNode[]): OrgNode[] {
 }
 
 export function useUsers() {
+  const { showToast } = useUIStore();
   // ── Table data ──────────────────────────────────────────────────────────────
   const [users, setUsers] = useState<UserItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -144,7 +146,7 @@ export function useUsers() {
       await loadUsers();
       loadStats();
     } catch (e: unknown) {
-      alert((e as Error).message);
+      showToast((e as Error).message, 'error');
     }
   };
 

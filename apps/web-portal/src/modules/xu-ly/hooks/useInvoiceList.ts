@@ -3,10 +3,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ocrApi } from '@/lib/ocr-api';
 import type { DocDetail, DocListItem, DocStats, SchemaListItem, LineItem } from '@/lib/ocr-api';
+import { useUIStore } from '@/stores/ui';
 
 type DocsResult = { items: DocListItem[]; total: number; totalPages: number; page: number };
 
 export function useInvoiceList() {
+  const { showToast, showConfirm } = useUIStore();
   const [stats, setStats]             = useState<DocStats | null>(null);
   const [docs, setDocs]               = useState<DocsResult | null>(null);
   const [schemas, setSchemas]         = useState<SchemaListItem[]>([]);
@@ -103,20 +105,26 @@ export function useInvoiceList() {
       const res = await ocrApi.bulkConfirm([...selectedIds]);
       setSelectedIds(new Set());
       await Promise.all([loadStats(), loadDocs()]);
-      alert(`Đã xác nhận ${res.confirmed} chứng từ.`);
-    } catch (e: unknown) { alert((e as Error).message); }
+      showToast(`Đã xác nhận ${res.confirmed} chứng từ.`, 'success');
+    } catch (e: unknown) { showToast((e as Error).message, 'error'); }
   };
 
   const bulkDelete = async () => {
-    if (!confirm(`Xóa ${selectedIds.size} chứng từ đã chọn?`)) return;
-    try {
-      const ids = [...selectedIds];
-      const res = await ocrApi.bulkDelete(ids);
-      setSelectedIds(new Set());
-      if (selectedDoc && ids.includes(selectedDoc.id)) setSelectedDoc(null);
-      await Promise.all([loadStats(), loadDocs()]);
-      alert(`Đã xóa ${res.deleted} chứng từ.`);
-    } catch (e: unknown) { alert((e as Error).message); }
+    showConfirm({
+      title: 'Xóa chứng từ đã chọn',
+      body: `Xóa ${selectedIds.size} chứng từ đã chọn? Hành động này không thể hoàn tác.`,
+      onOk: async () => {
+        try {
+          const ids = [...selectedIds];
+          const res = await ocrApi.bulkDelete(ids);
+          setSelectedIds(new Set());
+          if (selectedDoc && ids.includes(selectedDoc.id)) setSelectedDoc(null);
+          await Promise.all([loadStats(), loadDocs()]);
+          showToast(`Đã xóa ${res.deleted} chứng từ.`, 'success');
+        } catch (e: unknown) { showToast((e as Error).message, 'error'); }
+      },
+    });
+    return;
   };
 
   const handleUpload = async () => {
@@ -148,28 +156,41 @@ export function useInvoiceList() {
       setSelectedDoc(updated);
       setEditDirty(false);
       await loadDocs();
-    } catch (e: unknown) { alert((e as Error).message); }
+    } catch (e: unknown) { showToast((e as Error).message, 'error'); }
     finally { setSaveLoading(false); }
   };
 
   const confirmDoc = async () => {
-    if (!selectedDoc || !confirm('Xác nhận chứng từ này?')) return;
-    setConfirmLoading(true);
-    try {
-      const updated = await ocrApi.confirmDocument(selectedDoc.id);
-      setSelectedDoc(updated);
-      await Promise.all([loadStats(), loadDocs()]);
-    } catch (e: unknown) { alert((e as Error).message); }
-    finally { setConfirmLoading(false); }
+    if (!selectedDoc) return;
+    showConfirm({
+      title: 'Xác nhận chứng từ',
+      body: 'Xác nhận chứng từ này? Hành động này không thể hoàn tác.',
+      onOk: async () => {
+        setConfirmLoading(true);
+        try {
+          const updated = await ocrApi.confirmDocument(selectedDoc.id);
+          setSelectedDoc(updated);
+          await Promise.all([loadStats(), loadDocs()]);
+        } catch (e: unknown) { showToast((e as Error).message, 'error'); }
+        finally { setConfirmLoading(false); }
+      },
+    });
+    return;
   };
 
   const deleteDoc = async (id: string) => {
-    if (!confirm('Xóa chứng từ này?')) return;
-    try {
-      await ocrApi.deleteDocument(id);
-      if (selectedDoc?.id === id) setSelectedDoc(null);
-      await Promise.all([loadStats(), loadDocs()]);
-    } catch (e: unknown) { alert((e as Error).message); }
+    showConfirm({
+      title: 'Xóa chứng từ',
+      body: 'Xóa chứng từ này? Hành động này không thể hoàn tác.',
+      onOk: async () => {
+        try {
+          await ocrApi.deleteDocument(id);
+          if (selectedDoc?.id === id) setSelectedDoc(null);
+          await Promise.all([loadStats(), loadDocs()]);
+        } catch (e: unknown) { showToast((e as Error).message, 'error'); }
+      },
+    });
+    return;
   };
 
   const addLineItem = () => {
