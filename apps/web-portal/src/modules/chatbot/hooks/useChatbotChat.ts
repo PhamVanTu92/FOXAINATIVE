@@ -429,6 +429,7 @@ export function useChatbotChat(lookup: BotLookup) {
       message: trimmed,
       conversationId,
       inlineAudio: hasVoice,
+      voiceId: hasVoice ? (voiceId || undefined) : undefined,
       onChunk: (chunk) => {
         accumulated += chunk;
         setMessages(prev => prev.map(m =>

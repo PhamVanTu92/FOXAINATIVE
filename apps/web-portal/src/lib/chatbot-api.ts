@@ -575,6 +575,7 @@ export interface ChatStreamArgs {
   message: string;
   conversationId?: string | null;
   inlineAudio?: boolean;                               // true = bật audio_chunk streaming
+  voiceId?: string;                                    // voice_id gửi lên backend cho inline TTS
   onChunk: (text: string) => void;
   onAudioChunk?: (seq: number, audioBase64: string) => void;
   onMeta?: (meta: { conversationId?: string }) => void;
@@ -606,7 +607,8 @@ export const chatApi = {
             message:         args.message,
             conversation_id: args.conversationId ?? null,
             chatbot_id:      args.botId,
-            ...(args.inlineAudio ? { inline_audio: true } : {}),
+            ...(args.inlineAudio              ? { inline_audio: true }          : {}),
+            ...(args.inlineAudio && args.voiceId ? { voice_id: args.voiceId }  : {}),
           }),
           signal,
         });
