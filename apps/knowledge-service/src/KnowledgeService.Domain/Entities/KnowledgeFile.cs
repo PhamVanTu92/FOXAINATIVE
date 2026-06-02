@@ -25,5 +25,8 @@ public class KnowledgeFile : BaseEntity
     /// <summary>ID tài liệu nguồn — được set khi file tự động tạo lúc duyệt KnowledgeDocument.</summary>
     public Guid? SourceDocumentId { get; set; }
 
+    /// <summary>ID tài liệu trong index-service — được set sau khi file được đẩy sang index-service thành công.</summary>
+    public Guid? DocumentIndexId { get; set; }
+
     public ICollection<KnowledgeFilePermission> Permissions { get; set; } = new List<KnowledgeFilePermission>();
 }

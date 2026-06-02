@@ -21,6 +21,7 @@ public class KnowledgeFileConfiguration : IEntityTypeConfiguration<KnowledgeFile
         builder.HasIndex(x => x.FileType);
         builder.HasIndex(x => x.UploadedAt);
         builder.HasIndex(x => x.SourceDocumentId);
+        builder.HasIndex(x => x.DocumentIndexId);
 
         builder.HasMany(x => x.Permissions)
                .WithOne(x => x.KnowledgeFile)

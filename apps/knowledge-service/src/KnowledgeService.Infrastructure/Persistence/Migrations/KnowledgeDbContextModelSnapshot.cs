@@ -278,6 +278,10 @@ namespace KnowledgeService.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<Guid?>("DocumentIndexId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("document_index_id");
+
                     b.Property<string>("FileName")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -320,6 +324,9 @@ namespace KnowledgeService.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_knowledge_files");
+
+                    b.HasIndex("DocumentIndexId")
+                        .HasDatabaseName("ix_knowledge_files_document_index_id");
 
                     b.HasIndex("FileType")
                         .HasDatabaseName("ix_knowledge_files_file_type");

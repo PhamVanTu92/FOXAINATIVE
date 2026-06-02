@@ -53,7 +53,7 @@ public sealed partial class IndexServiceClient(
         }
     }
 
-    public async Task UploadAndProcessDocumentAsync(
+    public async Task<Guid?> UploadAndProcessDocumentAsync(
         Guid collectionId,
         string fileUrl,
         string fileName,
@@ -74,7 +74,7 @@ public sealed partial class IndexServiceClient(
             {
                 var errBody = await fileResponse.Content.ReadAsStringAsync(ct);
                 logger.LogWarning("IndexService Download FAILED ({Status}): {Body}", fileResponse.StatusCode, errBody);
-                return;
+                return null;
             }
 
             await using var fileStream = await fileResponse.Content.ReadAsStreamAsync(ct);
@@ -98,7 +98,7 @@ public sealed partial class IndexServiceClient(
             if (!uploadResponse.IsSuccessStatusCode)
             {
                 logger.LogWarning("IndexService BatchUpload FAILED ({Status}): {Body}", uploadResponse.StatusCode, uploadBody);
-                return;
+                return null;
             }
 
             var uploadResult = JsonSerializer.Deserialize<BatchUploadResponse>(uploadBody, JsonOptions);
@@ -112,8 +112,10 @@ public sealed partial class IndexServiceClient(
             if (documentIds.Count == 0)
             {
                 logger.LogWarning("IndexService BatchUpload returned no document_ids for collection {CollectionId}", collectionId);
-                return;
+                return null;
             }
+
+            Guid.TryParse(documentIds[0], out var firstDocumentId);
 
             // Step 3: batch-process
             using var processRequest = new HttpRequestMessage(HttpMethod.Post,
@@ -138,10 +140,13 @@ public sealed partial class IndexServiceClient(
             {
                 logger.LogWarning("IndexService BatchProcess FAILED ({Status}): {Body}", processResponse.StatusCode, processBody);
             }
+
+            return firstDocumentId == Guid.Empty ? null : firstDocumentId;
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "IndexService UploadAndProcess EXCEPTION for collection {CollectionId}", collectionId);
+            return null;
         }
     }
 

@@ -2,6 +2,7 @@ using KnowledgeService.Application.Common.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using KnowledgeService.Domain.Entities;
 
 namespace KnowledgeService.Infrastructure.IndexService;
 
@@ -41,10 +42,10 @@ public class IndexingWorker : BackgroundService
                 var client = scope.ServiceProvider.GetRequiredService<IIndexServiceClient>();
 
                 _logger.LogInformation(
-                    "IndexingWorker → processing collectionId={CollectionId}, file={FileName}, ext={Ext}, version={Version}",
-                    task.CollectionId, task.FileName, task.FileExtension, task.Version);
+                    "IndexingWorker → processing collectionId={CollectionId}, file={FileName}, ext={Ext}, version={Version}, knowledgeFileId={KnowledgeFileId}",
+                    task.CollectionId, task.FileName, task.FileExtension, task.Version, task.KnowledgeFileId);
 
-                await client.UploadAndProcessDocumentAsync(
+                var documentIndexId = await client.UploadAndProcessDocumentAsync(
                     task.CollectionId,
                     task.StoragePath,
                     task.FileName,
@@ -53,8 +54,21 @@ public class IndexingWorker : BackgroundService
                     stoppingToken);
 
                 _logger.LogInformation(
-                    "IndexingWorker → done collectionId={CollectionId}, file={FileName}",
-                    task.CollectionId, task.FileName);
+                    "IndexingWorker → done collectionId={CollectionId}, file={FileName}, documentIndexId={DocumentIndexId}",
+                    task.CollectionId, task.FileName, documentIndexId);
+
+                if (documentIndexId.HasValue)
+                {
+                    var fileRepo = scope.ServiceProvider.GetRequiredService<IKnowledgeFileRepository>();
+                    var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                    var knowledgeFile = await fileRepo.GetByIdAsync(task.KnowledgeFileId, stoppingToken);
+                    if (knowledgeFile is not null)
+                    {
+                        knowledgeFile.DocumentIndexId = documentIndexId;
+                        fileRepo.Update(knowledgeFile);
+                        await uow.SaveChangesAsync(stoppingToken);
+                    }
+                }
             }
             catch (Exception ex)
             {

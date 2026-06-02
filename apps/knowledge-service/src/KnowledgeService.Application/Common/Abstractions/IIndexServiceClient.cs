@@ -5,8 +5,8 @@ public interface IIndexServiceClient
     /// <summary>Tạo collection trong index-service. Trả về collection_id hoặc null nếu lỗi.</summary>
     Task<Guid?> CreateCollectionAsync(string collectionName, string? description, CancellationToken ct = default);
 
-    /// <summary>Upload file và xử lý (batch-upload + batch-process) vào collection.</summary>
-    Task UploadAndProcessDocumentAsync(
+    /// <summary>Upload file và xử lý (batch-upload + batch-process) vào collection. Trả về document_id từ index-service hoặc null nếu lỗi.</summary>
+    Task<Guid?> UploadAndProcessDocumentAsync(
         Guid collectionId,
         string fileUrl,
         string fileName,

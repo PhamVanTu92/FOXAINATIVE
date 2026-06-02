@@ -43,12 +43,13 @@ public class ApproveDocumentCommandHandler : IRequestHandler<ApproveDocumentComm
         _repo.Update(doc);
 
         // Đồng bộ KnowledgeFile trong bộ tri thức tương ứng (chỉ khi tài liệu thuộc một bộ tri thức)
+        KnowledgeFile? knowledgeFile = null;
         if (doc.KnowledgeBaseId.HasValue)
         {
-            var existingFile = await _fileRepo.GetBySourceDocumentIdAsync(doc.Id, ct);
-            if (existingFile is null)
+            knowledgeFile = await _fileRepo.GetBySourceDocumentIdAsync(doc.Id, ct);
+            if (knowledgeFile is null)
             {
-                await _fileRepo.AddAsync(new KnowledgeFile
+                knowledgeFile = new KnowledgeFile
                 {
                     KnowledgeBaseId = doc.KnowledgeBaseId.Value,
                     FileName = doc.Title,
@@ -58,16 +59,17 @@ public class ApproveDocumentCommandHandler : IRequestHandler<ApproveDocumentComm
                     UploadedBy = doc.UploadedBy,
                     UploadedAt = doc.UploadedAt,
                     SourceDocumentId = doc.Id,
-                }, ct);
+                };
+                await _fileRepo.AddAsync(knowledgeFile, ct);
             }
             else
             {
                 // Cập nhật lại nếu đã tồn tại (re-approve sau rollback)
-                existingFile.FileName = doc.Title;
-                existingFile.FileType = doc.FileType;
-                existingFile.FileSizeMb = doc.FileSizeMb;
-                existingFile.StoragePath = doc.StoragePath;
-                _fileRepo.Update(existingFile);
+                knowledgeFile.FileName = doc.Title;
+                knowledgeFile.FileType = doc.FileType;
+                knowledgeFile.FileSizeMb = doc.FileSizeMb;
+                knowledgeFile.StoragePath = doc.StoragePath;
+                _fileRepo.Update(knowledgeFile);
             }
         }
 
@@ -81,7 +83,7 @@ public class ApproveDocumentCommandHandler : IRequestHandler<ApproveDocumentComm
             "ApproveDocument → docId={DocId}, kbId={KbId}, collectionId={CollectionId}, storagePath={StoragePath}",
             doc.Id, doc.KnowledgeBaseId, kb?.CollectionId?.ToString() ?? "null", doc.StoragePath ?? "null");
 
-        if (kb?.CollectionId is Guid collectionId && doc.StoragePath is not null)
+        if (kb?.CollectionId is Guid collectionId && doc.StoragePath is not null && knowledgeFile is not null)
         {
             var ext = Path.GetExtension(doc.StoragePath).TrimStart('.').ToLower();
             _logger.LogInformation(
@@ -92,13 +94,14 @@ public class ApproveDocumentCommandHandler : IRequestHandler<ApproveDocumentComm
                 doc.StoragePath,
                 doc.Title,
                 ext,
-                doc.CurrentVersion));
+                doc.CurrentVersion,
+                knowledgeFile.Id));
         }
         else
         {
             _logger.LogWarning(
-                "ApproveDocument → SKIP index-service: collectionId={CollectionId}, storagePath={StoragePath}",
-                kb?.CollectionId?.ToString() ?? "null", doc.StoragePath ?? "null");
+                "ApproveDocument → SKIP index-service: collectionId={CollectionId}, storagePath={StoragePath}, knowledgeFileId={KnowledgeFileId}",
+                kb?.CollectionId?.ToString() ?? "null", doc.StoragePath ?? "null", knowledgeFile?.Id.ToString() ?? "null");
         }
 
         return doc.Adapt<KnowledgeDocumentDto>();

@@ -90,7 +90,8 @@ public class AddKnowledgeFileCommandHandler : IRequestHandler<AddKnowledgeFileCo
                 file.StoragePath,
                 file.FileName,
                 ext,
-                "1"));
+                "1",
+                file.Id));
         }
         else
         {

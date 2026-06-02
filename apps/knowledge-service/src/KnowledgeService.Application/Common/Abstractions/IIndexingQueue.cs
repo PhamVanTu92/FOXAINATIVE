@@ -5,7 +5,8 @@ public record IndexingTask(
     string StoragePath,
     string FileName,
     string FileExtension,
-    string Version);
+    string Version,
+    Guid KnowledgeFileId);
 
 public interface IIndexingQueue
 {
