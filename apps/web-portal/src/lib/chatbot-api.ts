@@ -556,22 +556,31 @@ export const knowledgeBasesApi = {
 // ─── Chat streaming (SSE) ────────────────────────────────────────────────────
 
 export interface ChatStreamEvent {
-  name: string;            // 'agent'
-  type: string;            // 'message_chunk' | 'message_end' | ...
-  id: string;              // run id
-  content: string;
+  name?: string;
+  type: string;            // 'message_chunk' | 'message_complete' | 'audio_chunk' | 'conversation_started' | ...
+  id?: string;
+  content?: string;
   language?: string;
   finishReason?: string;
   artifact?: unknown;
   conversation_id?: string;
+  // audio_chunk fields
+  seq?: number;
+  audio?: string;          // base64 WAV
+  audio_format?: string;
 }
 
 export interface ChatStreamArgs {
   botId: string;                                       // ChatbotItem.id
   message: string;
   conversationId?: string | null;
+  inlineAudio?: boolean;                               // true = bật audio_chunk streaming
   onChunk: (text: string) => void;
+  onAudioChunk?: (seq: number, audioBase64: string) => void;
   onMeta?: (meta: { conversationId?: string }) => void;
+  /** Text generation hoàn tất (message_complete). Audio_chunks có thể vẫn đang đến. */
+  onTextDone?: () => void;
+  /** SSE stream thực sự đóng — sau khi tất cả audio_chunk đã được gửi. */
   onDone?: () => void;
   onError?: (err: Error) => void;
   signal?: AbortSignal;
@@ -594,9 +603,10 @@ export const chatApi = {
             ...authHeader(),
           },
           body: JSON.stringify({
-            message:        args.message,
+            message:         args.message,
             conversation_id: args.conversationId ?? null,
             chatbot_id:      args.botId,
+            ...(args.inlineAudio ? { inline_audio: true } : {}),
           }),
           signal,
         });
@@ -656,8 +666,11 @@ export const chatApi = {
                 if (ev.type === 'message_chunk' && ev.content) {
                   args.onChunk(ev.content);
                 }
-                if (ev.finishReason) {
-                  args.onDone?.();
+                if (ev.type === 'audio_chunk' && typeof ev.audio === 'string') {
+                  args.onAudioChunk?.(ev.seq ?? 0, ev.audio);
+                }
+                if (ev.type === 'message_complete' || ev.finishReason) {
+                  args.onTextDone?.();
                 }
               } catch {
                 // bỏ qua keepalive / dữ liệu không-JSON

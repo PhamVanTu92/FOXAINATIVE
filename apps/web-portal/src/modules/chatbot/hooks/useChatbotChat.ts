@@ -365,26 +365,6 @@ export function useChatbotChat(lookup: BotLookup) {
       });
   }
 
-  /** Tách câu hoàn chỉnh từ buffer stream (min 10 ký tự). */
-  function extractSentences(buf: string): { sentences: string[]; rest: string } {
-    const sentences: string[] = [];
-    let rest = buf;
-    const re = /^([\s\S]{10,}?[.?!。！？])(\s+|$)/;
-    let m;
-    while ((m = rest.match(re)) !== null) {
-      const s = (m[1] ?? '').replace(/\n+/g, ' ').trim();
-      if (s) sentences.push(s);
-      rest = rest.slice(m[0].length);
-    }
-    // Tách theo newline nếu đoạn đủ dài
-    const nlIdx = rest.indexOf('\n');
-    if (nlIdx >= 15) {
-      sentences.push(rest.slice(0, nlIdx).trim());
-      rest = rest.slice(nlIdx + 1);
-    }
-    return { sentences, rest };
-  }
-
   const speak = useCallback(async (text: string, b: ChatbotItem, vid?: string) => {
     if (!text.trim() || (b.mode !== 'voice' && b.mode !== 'both')) return;
     stopSpeakingNow();
@@ -421,8 +401,8 @@ export function useChatbotChat(lookup: BotLookup) {
     if (!trimmed || sending || !bot) return;
 
     stopSpeakingNow();
-    sentBufRef.current = '';
-    if (bot.mode === 'voice' || bot.mode === 'both') ttsStreamingRef.current = true;
+    const hasVoice = bot.mode === 'voice' || bot.mode === 'both';
+    if (hasVoice) ttsStreamingRef.current = true;
 
     const userMsg: ChatMessage = {
       id:        `msg-u-${Date.now()}`,
@@ -448,18 +428,32 @@ export function useChatbotChat(lookup: BotLookup) {
       botId: bot.id,
       message: trimmed,
       conversationId,
+      inlineAudio: hasVoice,
       onChunk: (chunk) => {
         accumulated += chunk;
         setMessages(prev => prev.map(m =>
           m.id === assistantId ? { ...m, content: m.content + chunk } : m,
         ));
-        // Sentence-streaming TTS: phát từng câu ngay khi hoàn chỉnh
-        if (bot.mode === 'voice' || bot.mode === 'both') {
-          sentBufRef.current += chunk;
-          const { sentences, rest } = extractSentences(sentBufRef.current);
-          sentBufRef.current = rest;
-          for (const s of sentences) enqueueTts(s, bot, voiceId || undefined);
+      },
+      onAudioChunk: (seq, audioBase64) => {
+        if (!hasVoice) return;
+        const session = ttsSessionRef.current;
+        // Đảm bảo slot array đủ chỗ
+        while (ttsSlotsRef.current.length <= seq) {
+          ttsSlotsRef.current.push({ blob: null, ready: false, error: false });
         }
+        try {
+          const binary = atob(audioBase64);
+          const bytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+          const blob = new Blob([bytes], { type: 'audio/wav' });
+          ttsSlotsRef.current[seq]!.blob  = blob;
+          ttsSlotsRef.current[seq]!.ready = true;
+        } catch {
+          ttsSlotsRef.current[seq]!.error = true;
+          ttsSlotsRef.current[seq]!.ready = true;
+        }
+        void tryPlayNext(session);
       },
       onMeta: (meta) => {
         if (meta.conversationId && meta.conversationId !== conversationId) {
@@ -467,22 +461,20 @@ export function useChatbotChat(lookup: BotLookup) {
           setConversationId(meta.conversationId);
         }
       },
-      onDone: () => {
+      onTextDone: () => {
+        // Text generation xong → ẩn spinner, refresh sidebar
+        // Audio_chunks vẫn có thể đang đến qua SSE, KHÔNG dừng TTS pipeline
         setSending(false);
+        void refreshConversations(bot.id, !wasNewConversation);
+      },
+      onDone: () => {
+        // SSE stream thực sự đóng (sau tất cả audio_chunk)
         cancelRef.current = null;
-        if (bot.mode === 'voice' || bot.mode === 'both') {
-          // Flush phần text còn dư (câu cuối không có dấu chấm)
-          if (sentBufRef.current.trim()) {
-            enqueueTts(sentBufRef.current.trim(), bot, voiceId || undefined);
-            sentBufRef.current = '';
-          }
-          // Báo stream xong để tryPlayNext biết khi slots hết thì setSpeaking(false)
+        if (hasVoice) {
           ttsStreamingRef.current = false;
-          // Nếu tất cả slots đã ready mà player đang chờ → kick-start
           const session = ttsSessionRef.current;
           void tryPlayNext(session);
         }
-        void refreshConversations(bot.id, !wasNewConversation);
       },
       onError: (err) => {
         setMessages(prev => prev.map(m =>
@@ -490,6 +482,7 @@ export function useChatbotChat(lookup: BotLookup) {
         ));
         setSending(false);
         cancelRef.current = null;
+        if (hasVoice) ttsStreamingRef.current = false;
       },
     });
   }, [bot, conversationId, sending, speak, setConversationId]);
