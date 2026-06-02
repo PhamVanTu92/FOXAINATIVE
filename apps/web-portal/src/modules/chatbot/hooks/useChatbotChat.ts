@@ -66,8 +66,11 @@ export function useChatbotChat(lookup: BotLookup) {
   const ttsSlotsRef     = useRef<Array<{ blob: Blob | null; ready: boolean; error: boolean }>>([]);
   const ttsPlayIdxRef   = useRef(0);
   const ttsPlayingRef   = useRef(false);
-  const ttsStreamingRef = useRef(false); // true khi bot vẫn đang stream
-  const sentBufRef      = useRef('');
+  const ttsStreamingRef  = useRef(false); // true khi bot vẫn đang stream
+  const sentBufRef       = useRef('');
+  // Khi conversationId được set bởi chính luồng stream (onMeta),
+  // bỏ qua 1 lần fetch messages để tránh ghi đè optimistic UI
+  const skipMsgFetchRef  = useRef(false);
 
   /**
    * Helper: cập nhật conversationId đồng thời sync URL `?c=` + localStorage.
@@ -173,6 +176,12 @@ export function useChatbotChat(lookup: BotLookup) {
     if (!conversationId) {
       setMessages([]);
       setMessagesError(null);
+      return;
+    }
+    // Nếu conversationId vừa được set bởi onMeta trong luồng stream,
+    // bỏ qua fetch lần này để không ghi đè optimistic UI
+    if (skipMsgFetchRef.current) {
+      skipMsgFetchRef.current = false;
       return;
     }
     let cancelled = false;
@@ -454,6 +463,7 @@ export function useChatbotChat(lookup: BotLookup) {
       },
       onMeta: (meta) => {
         if (meta.conversationId && meta.conversationId !== conversationId) {
+          skipMsgFetchRef.current = true; // ngăn effect ghi đè optimistic messages
           setConversationId(meta.conversationId);
         }
       },

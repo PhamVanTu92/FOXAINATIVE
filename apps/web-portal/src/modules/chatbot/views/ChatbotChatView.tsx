@@ -461,7 +461,7 @@ function MessageList({
   const tone = avatarTone(bot.purpose);
   return (
     <div className="space-y-4">
-      {messages.map(m => (
+      {messages.filter(m => !(m.role === 'assistant' && !m.content)).map(m => (
         <Bubble key={m.id} msg={m} botTone={tone} />
       ))}
       {sending && (
