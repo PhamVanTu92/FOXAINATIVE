@@ -2,8 +2,8 @@
 
 import {
   Search, ChevronLeft, ChevronRight, FileText, AlertCircle,
-  Pencil, Trash2, Download, X, Database, Check, Eye,
-  ClipboardList, Clock, Loader2, ZoomIn, Table2, Image as ImageIcon,
+  Pencil, Trash2, Download, X, Check, Eye,
+  ClipboardList, Clock, Loader2, ZoomIn, Table2, Image as ImageIcon, FileJson,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ocrApi } from '@/lib/ocr-api';
@@ -159,6 +159,17 @@ function DetailDrawer({
 
   if (!detailOpen) return null;
 
+  const handleExportJson = () => {
+    if (!detailDoc) return;
+    const blob = new Blob([JSON.stringify(detailDoc, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${detailDoc.fileName?.replace(/\.[^.]+$/, '') ?? detailDoc.id}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const allFiles = detailDoc ? [
     { url: ocrApi.getDocumentFileUrl(detailDoc.id), fileName: detailDoc.fileName, mimeType: detailDoc.mimeType, isPrimary: true },
     ...(detailDoc.extraFileUrls ?? []).map((f, i) => ({
@@ -262,9 +273,19 @@ function DetailDrawer({
               </div>
             )}
           </div>
+          {detailDoc && (
+            <button
+              onClick={handleExportJson}
+              title="Xuất JSON"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-content-muted hover:text-primary-600 hover:bg-primary-50 shrink-0 ml-1 transition-colors text-xs font-medium"
+            >
+              <FileJson className="w-4 h-4" />
+              Xuất JSON
+            </button>
+          )}
           <button
             onClick={() => setDetailOpen(false)}
-            className="p-1.5 rounded-lg text-content-muted hover:text-content-secondary hover:bg-subtle shrink-0 ml-3"
+            className="p-1.5 rounded-lg text-content-muted hover:text-content-secondary hover:bg-subtle shrink-0 ml-1"
           >
             <X className="w-4 h-4" />
           </button>
@@ -422,10 +443,12 @@ export function ChungTuView() {
     search, setSearch, statusFilter, setStatusFilter, typeFilter, setTypeFilter,
     dateFrom, setDateFrom, dateTo, setDateTo, exporting, page, setPage,
     editDoc, setEditDoc, editStatus, setEditStatus, editSaving,
-    transferOpen, setTransferOpen, transferIds, transferring, loadingTransfer,
+    kbModalOpen, setKbModalOpen, kbPendingIds, kbList, kbListLoading,
+    selectedKbId, setSelectedKbId, kbConfirming,
     confirmDialog, setConfirmDialog, toast, setToast, showToast,
-    handleBulkConfirm, handleBulkDelete, openTransferModal, openTransferAllConfirmed,
-    handleTransfer, deleteDoc, openEditModal, handleSaveEdit, handleExportExcel,
+    handleBulkConfirm, handleBulkDelete,
+    handleConfirmWithKb,
+    deleteDoc, openEditModal, handleSaveEdit, handleExportExcel,
     toggleSelect, toggleAll,
   } = list;
 
@@ -457,25 +480,6 @@ export function ChungTuView() {
               {exporting ? 'Đang xuất...' : (selectedIds.size > 0 ? `Xuất Excel (${selectedIds.size})` : 'Xuất Excel')}
             </button>
           )}
-          {(() => {
-            const confirmedCount = selectedIds.size > 0
-              ? [...selectedIds].filter(id => docs?.items.find(d => d.id === id)?.status === 'CONFIRMED').length
-              : (stats?.confirmed ?? 0);
-            const isDisabled = loadingTransfer || confirmedCount === 0;
-            return (
-              <button
-                onClick={() => selectedIds.size > 0 ? openTransferModal([...selectedIds]) : openTransferAllConfirmed()}
-                disabled={isDisabled}
-                title={confirmedCount === 0 ? 'Không có chứng từ "Đã xác nhận" nào để chuyển' : undefined}
-                className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                <Database className="w-4 h-4" />
-                {loadingTransfer ? 'Đang tải...' : (
-                  <>Chuyển vào kho tri thức{confirmedCount > 0 && <span className="ml-1.5 bg-white/20 px-1.5 py-0.5 rounded text-xs">{confirmedCount}</span>}</>
-                )}
-              </button>
-            );
-          })()}
         </div>
       </div>
 
@@ -564,11 +568,6 @@ export function ChungTuView() {
             {canUpdate && (
               <button onClick={handleBulkConfirm} className="flex items-center gap-1.5 text-sm text-emerald-600 hover:text-emerald-500 font-medium">
                 <Check className="w-4 h-4" /> Xác nhận hàng loạt
-              </button>
-            )}
-            {canUpdate && (
-              <button onClick={() => openTransferModal([...selectedIds])} className="flex items-center gap-1.5 text-sm text-teal-600 hover:text-teal-500 font-medium">
-                <Database className="w-4 h-4" /> Chuyển vào kho tri thức
               </button>
             )}
             {canDelete && (
@@ -745,10 +744,40 @@ export function ChungTuView() {
                   </p>
                 )}
               </div>
+
+              {/* KB selector — hiện khi chuyển sang Đã xác nhận */}
+              {editStatus === 'CONFIRMED' && editDoc.status !== 'CONFIRMED' && editDoc.status !== 'TRANSFERRED' && (
+                <div className="pt-1 border-t border-default">
+                  <label className="block text-xs font-medium text-content-secondary mb-1.5">
+                    Bộ tri thức <span className="text-danger-600">*</span>
+                  </label>
+                  {kbListLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-content-muted py-1">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Đang tải...
+                    </div>
+                  ) : (
+                    <select
+                      value={selectedKbId}
+                      onChange={e => setSelectedKbId(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary"
+                    >
+                      <option value="">-- Chọn bộ tri thức --</option>
+                      {kbList.map(kb => (
+                        <option key={kb.id} value={kb.id}>{kb.name}</option>
+                      ))}
+                    </select>
+                  )}
+                  <p className="text-xs text-content-muted mt-1">Chứng từ sẽ được gửi vào luồng kiểm duyệt & phê duyệt.</p>
+                </div>
+              )}
             </div>
             <div className="px-6 py-4 border-t border-default flex justify-end gap-3">
               <button onClick={() => setEditDoc(null)} className="px-4 py-2 text-sm text-content-secondary border border-default rounded-lg hover:bg-subtle">Hủy</button>
-              <button onClick={handleSaveEdit} disabled={editSaving} className="px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50">
+              <button
+                onClick={handleSaveEdit}
+                disabled={editSaving || (editStatus === 'CONFIRMED' && editDoc.status !== 'CONFIRMED' && editDoc.status !== 'TRANSFERRED' && !selectedKbId)}
+                className="px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+              >
                 {editSaving ? 'Đang lưu...' : 'Lưu'}
               </button>
             </div>
@@ -759,36 +788,54 @@ export function ChungTuView() {
       {/* Detail drawer */}
       <DetailDrawer detail={detail} list={list} />
 
-      {/* Transfer modal */}
-      {transferOpen && (
+      {/* KB Selection Modal — xác nhận & đưa vào kiểm duyệt */}
+      {kbModalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-surface border border-default rounded-xl shadow-2xl w-full max-w-sm">
-            <div className="p-6 text-center">
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 ${transferIds.length > 0 ? 'bg-teal-500/20' : 'bg-orange-500/20'}`}>
-                <Database className={`w-6 h-6 ${transferIds.length > 0 ? 'text-teal-500' : 'text-orange-400'}`} />
-              </div>
-              <h2 className="text-base font-semibold text-content-primary mb-2">Chuyển vào kho tri thức</h2>
-              {transferIds.length > 0 ? (
-                <p className="text-sm text-content-muted">
-                  Chuyển <span className="font-semibold text-content-primary">{transferIds.length}</span> chứng từ <span className="text-emerald-500 font-medium">đã xác nhận</span> vào kho tri thức?
-                </p>
-              ) : (
-                <p className="text-sm text-content-muted">
-                  Không có chứng từ nào ở trạng thái <span className="font-medium text-emerald-500">"Đã xác nhận"</span> trong lựa chọn hiện tại.
-                  <br />
-                  <span className="text-xs text-content-muted mt-1 block opacity-80">Vui lòng xác nhận chứng từ trước khi chuyển kho.</span>
-                </p>
-              )}
-            </div>
-            <div className="px-6 py-4 border-t border-default flex justify-center gap-3">
-              <button onClick={() => setTransferOpen(false)} disabled={transferring} className="px-6 py-2 text-sm text-content-secondary border border-default rounded-lg hover:bg-subtle disabled:opacity-50">
-                {transferIds.length > 0 ? 'Hủy' : 'Đóng'}
+          <div className="bg-surface border border-default rounded-xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-default">
+              <h2 className="text-base font-semibold text-content-primary">Xác nhận & Đưa vào kiểm duyệt</h2>
+              <button onClick={() => setKbModalOpen(false)} disabled={kbConfirming} className="p-1.5 rounded-lg text-content-muted hover:text-content-secondary hover:bg-subtle disabled:opacity-50">
+                <X className="w-4 h-4" />
               </button>
-              {transferIds.length > 0 && (
-                <button onClick={handleTransfer} disabled={transferring} className="px-6 py-2 text-sm font-medium bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50">
-                  {transferring ? 'Đang chuyển...' : 'Chuyển'}
-                </button>
-              )}
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-content-secondary">
+                <span className="font-semibold text-content-primary">{kbPendingIds.length}</span> chứng từ sẽ được xác nhận và gửi vào luồng <span className="font-medium text-primary-600">Kiểm duyệt & Phê duyệt</span>.
+              </p>
+              <div>
+                <label className="block text-xs font-medium text-content-secondary mb-1.5">
+                  Bộ tri thức <span className="text-danger-600">*</span>
+                </label>
+                {kbListLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-content-muted py-2">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Đang tải danh sách...
+                  </div>
+                ) : (
+                  <select
+                    value={selectedKbId}
+                    onChange={e => setSelectedKbId(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary"
+                  >
+                    <option value="">-- Chọn bộ tri thức --</option>
+                    {kbList.map(kb => (
+                      <option key={kb.id} value={kb.id}>{kb.name}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-default flex justify-end gap-3">
+              <button onClick={() => setKbModalOpen(false)} disabled={kbConfirming} className="px-4 py-2 text-sm text-content-secondary border border-default rounded-lg hover:bg-subtle disabled:opacity-50">
+                Hủy
+              </button>
+              <button
+                onClick={handleConfirmWithKb}
+                disabled={!selectedKbId || kbConfirming}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors"
+              >
+                {kbConfirming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                {kbConfirming ? 'Đang xử lý...' : 'Xác nhận'}
+              </button>
             </div>
           </div>
         </div>
