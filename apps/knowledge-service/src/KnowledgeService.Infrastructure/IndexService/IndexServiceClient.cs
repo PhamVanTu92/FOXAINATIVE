@@ -86,6 +86,40 @@ public sealed partial class IndexServiceClient(
         }
     }
 
+    public async Task<bool> DeleteDocumentAsync(Guid documentId, CancellationToken ct = default)
+    {
+        logger.LogInformation("IndexService DeleteDocument → documentId={DocumentId}", documentId);
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Delete, $"/v1/documents/{documentId}");
+            AddAuth(request);
+
+            using var response = await http.SendAsync(request, ct);
+            var body = await response.Content.ReadAsStringAsync(ct);
+
+            // 404 = đã bị xóa trước đó → coi như thành công
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                logger.LogInformation("IndexService DeleteDocument → documentId={DocumentId} not found (already deleted)", documentId);
+                return true;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogWarning("IndexService DeleteDocument FAILED ({Status}): {Body}", response.StatusCode, body);
+                return false;
+            }
+
+            logger.LogInformation("IndexService DeleteDocument OK ({Status}): {Body}", response.StatusCode, body);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "IndexService DeleteDocument EXCEPTION for documentId={DocumentId}", documentId);
+            return false;
+        }
+    }
+
     public async Task<Guid?> UploadAndProcessDocumentAsync(
         Guid collectionId,
         string fileUrl,
