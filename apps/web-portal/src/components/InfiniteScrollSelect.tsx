@@ -53,14 +53,34 @@ export function InfiniteScrollSelect({
   const updateDropdownPosition = useCallback(() => {
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
-    setDropdownStyle({
-      position: 'fixed',
-      top: rect.bottom + 4,
-      left: rect.left,
-      width: rect.width,
-      minWidth: 220,
-      zIndex: 9999,
-    });
+    const viewportHeight = window.innerHeight;
+    // Ước tính chiều cao dropdown: search bar ~52px + list items
+    const estimatedHeight = PAGE_SIZE * 38 + 60;
+    const spaceBelow = viewportHeight - rect.bottom - 8;
+    const spaceAbove = rect.top - 8;
+    const openUpward = spaceBelow < estimatedHeight && spaceAbove > spaceBelow;
+
+    setDropdownStyle(
+      openUpward
+        ? {
+            position: 'fixed',
+            bottom: viewportHeight - rect.top + 4,
+            left: rect.left,
+            width: rect.width,
+            minWidth: 220,
+            zIndex: 9999,
+            maxHeight: Math.min(spaceAbove, estimatedHeight),
+          }
+        : {
+            position: 'fixed',
+            top: rect.bottom + 4,
+            left: rect.left,
+            width: rect.width,
+            minWidth: 220,
+            zIndex: 9999,
+            maxHeight: Math.min(spaceBelow, estimatedHeight),
+          },
+    );
   }, []);
 
   // Debounce search input 300ms
@@ -171,7 +191,7 @@ export function InfiniteScrollSelect({
         ref={listRef}
         onScroll={handleScroll}
         className="overflow-y-auto"
-        style={{ maxHeight: `${PAGE_SIZE * 38}px` }}
+        style={{ maxHeight: `${Math.max(120, ((dropdownStyle.maxHeight as number) ?? PAGE_SIZE * 38 + 60) - 60)}px` }}
       >
         {loading ? (
           <div className="flex items-center justify-center py-7 gap-2 text-dark-400 text-sm">

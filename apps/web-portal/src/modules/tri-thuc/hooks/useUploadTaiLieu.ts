@@ -65,6 +65,14 @@ export function useUploadTaiLieu() {
   }, []);
 
   const processOne = useCallback(async (item: QueueItem): Promise<boolean> => {
+    if (!item.knowledgeBaseId) {
+      setQueue(prev => prev.map(i =>
+        i.id === item.id
+          ? { ...i, status: 'error' as UploadStatus, errorMsg: 'Vui lòng chọn bộ tri thức' }
+          : i,
+      ));
+      return false;
+    }
     if (!item.title.trim()) {
       setQueue(prev => prev.map(i =>
         i.id === item.id

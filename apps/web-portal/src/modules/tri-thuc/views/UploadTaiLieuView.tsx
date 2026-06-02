@@ -106,7 +106,7 @@ function QueueItemRow({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-content-secondary mb-1">
-                  Bộ tri thức
+                  Bộ tri thức <span className="text-danger-500">*</span>
                 </label>
                 <InfiniteScrollSelect
                   value={item.knowledgeBaseId}
