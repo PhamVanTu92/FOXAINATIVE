@@ -649,7 +649,7 @@ export function ChungTuView() {
                     </td>
                     <td className="px-4 py-3"><TypeBadge type={doc.schema.type} /></td>
                     <td className="px-4 py-3 text-content-muted text-xs whitespace-nowrap">{fmtDate(doc.createdAt)}</td>
-                    <td className="px-4 py-3 text-content-muted text-xs">—</td>
+                    <td className="px-4 py-3 text-content-muted text-xs">{doc.createdBy ?? '—'}</td>
                     <td className="px-4 py-3"><StatusBadge status={doc.status} /></td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1">

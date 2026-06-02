@@ -78,9 +78,9 @@ export class DocumentService {
     if (filter.type) where.schema = { type: filter.type };
     if (filter.sellerTaxCode) where.sellerTaxCode = filter.sellerTaxCode;
     if (filter.dateFrom || filter.dateTo) {
-      where.issueDate = {
+      where.createdAt = {
         gte: filter.dateFrom ? new Date(filter.dateFrom) : undefined,
-        lte: filter.dateTo ? new Date(filter.dateTo) : undefined,
+        lte: filter.dateTo ? new Date(`${filter.dateTo}T23:59:59.999Z`) : undefined,
       };
     }
     const page = filter.page ?? 1;
