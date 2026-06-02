@@ -32,9 +32,15 @@ class GeminiEmbeddingProvider(BaseEmbeddingProvider, BaseModel):
 
         if _client is None:
             logger.info('Initializing Gemini Embeddings client')
+            # Gemini API requires the model name in the "models/<id>" form;
+            # a bare id (e.g. from a stale env or the default) yields a
+            # 400 "BatchEmbedContentsRequest.model: unexpected model name format".
+            model = self.settings.embedding_model
+            if not model.startswith(('models/', 'tunedModels/')):
+                model = f'models/{model}'
             _client = GoogleGenerativeAIEmbeddings(
                 google_api_key=self.settings.api_key,
-                model=self.settings.embedding_model,
+                model=model,
             )
             logger.info('Gemini Embeddings client initialized')
 

@@ -27,8 +27,8 @@ class GeminiSettings(BaseModel):
         description='Temperature for LLM generation. Higher values make output more random.',
     )
     embedding_model: str = Field(
-        'gemini-embedding-exp-03-07',
-        description="Gemini embedding Model to use. Example: 'gemini-embedding-exp-03-07'.",
+        'models/gemini-embedding-001',
+        description="Gemini embedding Model to use. Must be in 'models/<id>' form. Example: 'models/gemini-embedding-001'.",
     )
     max_retries: str = Field(
         3,

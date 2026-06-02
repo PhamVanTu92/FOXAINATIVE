@@ -354,6 +354,7 @@ services:
       REDIS__PASSWORD: ${REDIS_PASSWORD:-}
       # LLM providers (set real keys for providers you use; empty = disabled)
       GEMINI__API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI__EMBEDDING_MODEL: ${GEMINI_EMBEDDING_MODEL:-models/gemini-embedding-001}
       OPENAI__API_KEY: ${OPENAI_API_KEY:-}
       CLAUDE__API_KEY: ${CLAUDE_API_KEY:-}
       # Trigger section construction so pydantic sees these sections as present
