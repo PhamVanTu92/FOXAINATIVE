@@ -262,7 +262,8 @@ public class KnowledgeGrpcService : Protos.KnowledgeService.KnowledgeServiceBase
         UploadDocumentRequest request, ServerCallContext context)
     {
         Guid? uploadedBy = Guid.TryParse(request.UploadedBy, out var ub) ? ub : null;
-        Guid? knowledgeBaseId = Guid.TryParse(request.KnowledgeBaseId, out var kbId) ? kbId : null;
+        if (!Guid.TryParse(request.KnowledgeBaseId, out var knowledgeBaseId) || knowledgeBaseId == Guid.Empty)
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "KnowledgeBaseId là bắt buộc khi upload tài liệu."));
         var result = await _mediator.Send(new UploadDocumentCommand(
             knowledgeBaseId,
             request.Title,

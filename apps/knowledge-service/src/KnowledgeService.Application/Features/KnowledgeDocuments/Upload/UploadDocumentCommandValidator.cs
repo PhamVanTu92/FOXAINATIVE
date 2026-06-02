@@ -7,6 +7,7 @@ public class UploadDocumentCommandValidator : AbstractValidator<UploadDocumentCo
 {
     public UploadDocumentCommandValidator()
     {
+        RuleFor(x => x.KnowledgeBaseId).NotEmpty().WithMessage("KnowledgeBaseId là bắt buộc khi upload tài liệu.");
         RuleFor(x => x.Title).NotEmpty().MaximumLength(500);
         RuleFor(x => x.FileType)
             .NotEmpty()
