@@ -29,6 +29,9 @@ public class UploadDocumentCommandHandler : IRequestHandler<UploadDocumentComman
         var kb = await _kbRepo.GetByIdAsync(cmd.KnowledgeBaseId, ct)
             ?? throw new NotFoundException(nameof(KnowledgeBase), cmd.KnowledgeBaseId);
 
+        if (await _docRepo.ExistsByTitleInKnowledgeBaseAsync(cmd.KnowledgeBaseId, cmd.Title, ct))
+            throw new ConflictException($"Tài liệu '{cmd.Title}' đã tồn tại trong bộ tri thức này.");
+
         var fileType = Enum.Parse<FileType>(cmd.FileType);
 
         var document = KnowledgeDocument.Create(
