@@ -6,7 +6,8 @@ public record IndexingTask(
     string FileName,
     string FileExtension,
     string Version,
-    Guid KnowledgeFileId);
+    Guid KnowledgeFileId,
+    string? AuthToken = null);
 
 public interface IIndexingQueue
 {

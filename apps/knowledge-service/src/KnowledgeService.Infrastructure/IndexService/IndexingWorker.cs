@@ -51,6 +51,7 @@ public class IndexingWorker : BackgroundService
                     task.FileName,
                     task.FileExtension,
                     task.Version,
+                    task.AuthToken,
                     stoppingToken);
 
                 _logger.LogInformation(

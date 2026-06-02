@@ -416,7 +416,8 @@ public class KnowledgeGrpcService : Protos.KnowledgeService.KnowledgeServiceBase
             FileSizeMb = (double)dto.FileSizeMb,
             StoragePath = dto.StoragePath ?? "",
             UploadedAt = dto.UploadedAt.ToString("O"),
-            UpdatedAt = dto.UpdatedAt.ToString("O")
+            UpdatedAt = dto.UpdatedAt.ToString("O"),
+            DocumentIndexId = dto.DocumentIndexId?.ToString() ?? ""
         };
         msg.Permissions.AddRange(dto.Permissions.Select(p => new DepartmentRef
         {

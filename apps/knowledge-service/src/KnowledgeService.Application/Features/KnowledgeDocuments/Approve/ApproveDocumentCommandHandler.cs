@@ -16,6 +16,7 @@ public class ApproveDocumentCommandHandler : IRequestHandler<ApproveDocumentComm
     private readonly IKnowledgeBaseRepository _kbRepo;
     private readonly IUnitOfWork _uow;
     private readonly IIndexingQueue _indexingQueue;
+    private readonly ICurrentTokenProvider _tokenProvider;
     private readonly ILogger<ApproveDocumentCommandHandler> _logger;
 
     public ApproveDocumentCommandHandler(
@@ -24,6 +25,7 @@ public class ApproveDocumentCommandHandler : IRequestHandler<ApproveDocumentComm
         IKnowledgeBaseRepository kbRepo,
         IUnitOfWork uow,
         IIndexingQueue indexingQueue,
+        ICurrentTokenProvider tokenProvider,
         ILogger<ApproveDocumentCommandHandler> logger)
     {
         _repo = repo;
@@ -31,6 +33,7 @@ public class ApproveDocumentCommandHandler : IRequestHandler<ApproveDocumentComm
         _kbRepo = kbRepo;
         _uow = uow;
         _indexingQueue = indexingQueue;
+        _tokenProvider = tokenProvider;
         _logger = logger;
     }
 
@@ -86,16 +89,18 @@ public class ApproveDocumentCommandHandler : IRequestHandler<ApproveDocumentComm
         if (kb?.CollectionId is Guid collectionId && doc.StoragePath is not null && knowledgeFile is not null)
         {
             var ext = Path.GetExtension(doc.StoragePath).TrimStart('.').ToLower();
+            var authToken = _tokenProvider.GetToken();
             _logger.LogInformation(
-                "ApproveDocument → enqueue index-service collectionId={CollectionId}, ext={Ext}, version={Version}",
-                collectionId, ext, doc.CurrentVersion);
+                "ApproveDocument → enqueue index-service collectionId={CollectionId}, ext={Ext}, version={Version}, hasToken={HasToken}",
+                collectionId, ext, doc.CurrentVersion, authToken is not null);
             _indexingQueue.Enqueue(new IndexingTask(
                 collectionId,
                 doc.StoragePath,
                 doc.Title,
                 ext,
                 doc.CurrentVersion,
-                knowledgeFile.Id));
+                knowledgeFile.Id,
+                authToken));
         }
         else
         {

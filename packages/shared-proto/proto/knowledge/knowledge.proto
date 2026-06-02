@@ -44,6 +44,8 @@ message KnowledgeFileMessage {
   string         uploaded_at         = 8;
   string         updated_at          = 9;
   repeated DepartmentRef permissions = 10;
+  /** UUID tài liệu trong index-service. Rỗng ("") nếu chưa được index. */
+  string         document_index_id   = 11;
 }
 
 message KnowledgeBaseFileCount {

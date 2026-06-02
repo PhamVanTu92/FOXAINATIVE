@@ -18,5 +18,6 @@ public interface IIndexServiceClient
         string fileName,
         string fileExtension,
         string version,
+        string? authToken = null,
         CancellationToken ct = default);
 }

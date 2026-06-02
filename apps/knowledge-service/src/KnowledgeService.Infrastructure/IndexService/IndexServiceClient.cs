@@ -126,12 +126,13 @@ public sealed partial class IndexServiceClient(
         string fileName,
         string fileExtension,
         string version,
+        string? authToken = null,
         CancellationToken ct = default)
     {
         var resolvedUrl = ResolveInternalUrl(fileUrl);
         logger.LogInformation(
-            "IndexService UploadAndProcess → collectionId={CollectionId}, fileUrl='{FileUrl}' (resolved='{Resolved}'), fileName='{FileName}', ext={Ext}, version={Version}",
-            collectionId, fileUrl, resolvedUrl, fileName, fileExtension, version);
+            "IndexService UploadAndProcess → collectionId={CollectionId}, fileUrl='{FileUrl}' (resolved='{Resolved}'), fileName='{FileName}', ext={Ext}, version={Version}, hasToken={HasToken}",
+            collectionId, fileUrl, resolvedUrl, fileName, fileExtension, version, !string.IsNullOrEmpty(authToken));
         try
         {
             // Step 1: download file qua internal URL
@@ -150,7 +151,7 @@ public sealed partial class IndexServiceClient(
             // Step 2: batch-upload (multipart/form-data)
             using var uploadRequest = new HttpRequestMessage(HttpMethod.Post,
                 $"/v1/collections/{collectionId}/documents/batch-upload");
-            AddAuth(uploadRequest);
+            AddAuth(uploadRequest, authToken);
 
             using var form = new MultipartFormDataContent();
             var streamContent = new StreamContent(fileStream);
@@ -187,7 +188,7 @@ public sealed partial class IndexServiceClient(
             // Step 3: batch-process
             using var processRequest = new HttpRequestMessage(HttpMethod.Post,
                 $"/v1/collections/{collectionId}/documents/batch-process");
-            AddAuth(processRequest);
+            AddAuth(processRequest, authToken);
             var processingType = fileExtension.ToLower() is "xls" or "xlsx" ? "excel" : "document_structured_llm";
             var now = DateTime.UtcNow;
             processRequest.Content = JsonContent.Create(new
@@ -244,9 +245,10 @@ public sealed partial class IndexServiceClient(
         return builder.Uri.ToString();
     }
 
-    private void AddAuth(HttpRequestMessage request)
+    private void AddAuth(HttpRequestMessage request, string? tokenOverride = null)
     {
-        var authHeader = httpContextAccessor.HttpContext?.Request.Headers.Authorization.ToString();
+        var authHeader = tokenOverride
+            ?? httpContextAccessor.HttpContext?.Request.Headers.Authorization.ToString();
         if (!string.IsNullOrEmpty(authHeader))
             request.Headers.TryAddWithoutValidation("Authorization", authHeader);
     }

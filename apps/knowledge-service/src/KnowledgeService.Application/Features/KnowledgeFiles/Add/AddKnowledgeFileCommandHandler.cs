@@ -16,6 +16,7 @@ public class AddKnowledgeFileCommandHandler : IRequestHandler<AddKnowledgeFileCo
     private readonly IKnowledgeFileRepository _fileRepo;
     private readonly IUnitOfWork _uow;
     private readonly IIndexingQueue _indexingQueue;
+    private readonly ICurrentTokenProvider _tokenProvider;
     private readonly ILogger<AddKnowledgeFileCommandHandler> _logger;
 
     public AddKnowledgeFileCommandHandler(
@@ -23,12 +24,14 @@ public class AddKnowledgeFileCommandHandler : IRequestHandler<AddKnowledgeFileCo
         IKnowledgeFileRepository fileRepo,
         IUnitOfWork uow,
         IIndexingQueue indexingQueue,
+        ICurrentTokenProvider tokenProvider,
         ILogger<AddKnowledgeFileCommandHandler> logger)
     {
         _kbRepo = kbRepo;
         _fileRepo = fileRepo;
         _uow = uow;
         _indexingQueue = indexingQueue;
+        _tokenProvider = tokenProvider;
         _logger = logger;
     }
 
@@ -82,16 +85,18 @@ public class AddKnowledgeFileCommandHandler : IRequestHandler<AddKnowledgeFileCo
         if (kb?.CollectionId is Guid collectionId && file.StoragePath is not null)
         {
             var ext = Path.GetExtension(file.StoragePath).TrimStart('.').ToLower();
+            var authToken = _tokenProvider.GetToken();
             _logger.LogInformation(
-                "AddKnowledgeFile → enqueue index-service collectionId={CollectionId}, ext={Ext}",
-                collectionId, ext);
+                "AddKnowledgeFile → enqueue index-service collectionId={CollectionId}, ext={Ext}, hasToken={HasToken}",
+                collectionId, ext, authToken is not null);
             _indexingQueue.Enqueue(new IndexingTask(
                 collectionId,
                 file.StoragePath,
                 file.FileName,
                 ext,
                 "1",
-                file.Id));
+                file.Id,
+                authToken));
         }
         else
         {

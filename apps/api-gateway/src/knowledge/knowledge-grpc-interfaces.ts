@@ -44,6 +44,8 @@ export interface KnowledgeFileMessage {
   uploadedAt: string;
   updatedAt: string;
   permissions: DepartmentRef[];
+  /** UUID tài liệu trong index-service. Rỗng ("") nếu chưa được index. */
+  documentIndexId: string;
 }
 
 export interface AllFileCountsMessage {

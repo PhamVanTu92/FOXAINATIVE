@@ -8,6 +8,7 @@ public class KnowledgeFileDto
     public Guid Id { get; set; }
     public Guid? KnowledgeBaseId { get; set; }
     public string KnowledgeBaseName { get; set; } = default!;
+    public Guid? DocumentIndexId { get; set; }
     public string FileName { get; set; } = default!;
     public string FileType { get; set; } = default!;
     public decimal FileSizeMb { get; set; }
