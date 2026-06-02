@@ -59,46 +59,48 @@ export function useUsers() {
     setLoading(true);
     setError(null);
     try {
-      const data = await usersApi.list({ page, pageSize, search, status: statusFilter || undefined });
-      setUsers(data.items);
-      const tot = Number(data.page?.totalItems ?? 0);
-      setTotal(tot);
-      setTotalPages(data.page?.totalPages ?? (Math.ceil(tot / pageSize) || 1));
+      if (roleFilter) {
+        // API không hỗ trợ filter role → fetch tất cả (tối đa pageSize=100) rồi filter client-side
+        const first = await usersApi.list({ page: 1, pageSize: 100, search, status: statusFilter || undefined });
+        const totalPg = first.page?.totalPages ?? 1;
+        let allItems = [...first.items];
+        if (totalPg > 1) {
+          const rest = await Promise.all(
+            Array.from({ length: totalPg - 1 }, (_, i) =>
+              usersApi.list({ page: i + 2, pageSize: 100, search, status: statusFilter || undefined })
+            )
+          );
+          rest.forEach(r => allItems.push(...r.items));
+        }
+        const filtered = allItems.filter(u => u.roles.includes(roleFilter));
+        const start = (page - 1) * pageSize;
+        setUsers(filtered.slice(start, start + pageSize));
+        setTotal(filtered.length);
+        setTotalPages(Math.ceil(filtered.length / pageSize) || 1);
+      } else {
+        const data = await usersApi.list({ page, pageSize, search, status: statusFilter || undefined });
+        setUsers(data.items);
+        const tot = Number(data.page?.totalItems ?? 0);
+        setTotal(tot);
+        setTotalPages(data.page?.totalPages ?? (Math.ceil(tot / pageSize) || 1));
+      }
     } catch (e: unknown) {
       setError((e as Error).message);
     } finally {
       setLoading(false);
     }
-  }, [page, search, statusFilter]);
+  }, [page, search, statusFilter, roleFilter]);
 
   // ── Load stats ────────────────────────────────────────────────────────────────
   const loadStats = useCallback(async () => {
     try {
-      const [d1, d2, d3] = await Promise.all([
+      const [d1, d2] = await Promise.all([
         usersApi.list({ page: 1, pageSize: 1 }),
         usersApi.list({ page: 1, pageSize: 1, status: 'ACTIVE' }),
-        usersApi.list({ page: 1, pageSize: 1, status: 'INACTIVE' }),
       ]);
-      const tot = Number(d1.page?.totalItems ?? 0);
+      const tot    = Number(d1.page?.totalItems ?? 0);
       const active = Number(d2.page?.totalItems ?? 0);
-      const inactive = Number(d3.page?.totalItems ?? 0);
-
-      const firstPage = await usersApi.list({ page: 1, pageSize: 100 });
-      const totalPages = firstPage.page?.totalPages ?? 1;
-      let allItems = [...firstPage.items];
-      if (totalPages > 1) {
-        const rest = await Promise.all(
-          Array.from({ length: totalPages - 1 }, (_, i) =>
-            usersApi.list({ page: i + 2, pageSize: 100 })
-          )
-        );
-        rest.forEach(r => allItems.push(...r.items));
-      }
-      const admins = allItems.filter(u =>
-        u.roles.some(r => r.toLowerCase().includes('quản trị') || r.toLowerCase() === 'admin')
-      ).length;
-
-      setStats({ total: tot, active, inactive, admins });
+      setStats(prev => ({ ...prev, total: tot, active, inactive: tot - active }));
     } catch {
       // stats errors are non-fatal
     }
@@ -143,8 +145,13 @@ export function useUsers() {
     const next = user.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     try {
       await usersApi.changeStatus(user.id, next);
-      await loadUsers();
-      loadStats();
+      // Optimistic update — không cần gọi lại API
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, status: next } : u));
+      setStats(prev => ({
+        ...prev,
+        active:   prev.active   + (next === 'ACTIVE'   ? 1 : -1),
+        inactive: prev.inactive + (next === 'INACTIVE' ? 1 : -1),
+      }));
     } catch (e: unknown) {
       showToast((e as Error).message, 'error');
     }
@@ -155,14 +162,9 @@ export function useUsers() {
     loadStats();
   };
 
-  // ── Role filter (client-side — API has no roleCode filter param) ───────────────
-  const displayedUsers = roleFilter
-    ? users.filter(u => u.roles.includes(roleFilter))
-    : users;
-
   return {
     // table
-    users: displayedUsers, total, totalPages, page, setPage, pageSize,
+    users, total, totalPages, page, setPage, pageSize,
     // filters
     search, setSearch,
     roleFilter, setRoleFilter,

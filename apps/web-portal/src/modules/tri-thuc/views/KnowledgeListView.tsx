@@ -407,7 +407,6 @@ function AllFilesModal({ onClose }: { onClose: () => void }) {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Loại</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Kích thước</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Ngày tải</th>
-                  <th className="px-4 py-3 w-20" />
                 </tr>
               </thead>
               <tbody>
@@ -434,24 +433,6 @@ function AllFilesModal({ onClose }: { onClose: () => void }) {
                       </td>
                       <td className="px-4 py-3 text-dark-500 text-xs whitespace-nowrap">
                         {f.uploadedAt?.slice(0, 10)}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => setEditingFile(f)}
-                            className="p-1.5 text-dark-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                            title="Đổi tên / Chuyển bộ tri thức"
-                          >
-                            <Pencil size={13} />
-                          </button>
-                          <button
-                            onClick={() => setPermanentDeleteFile(f)}
-                            className="p-1.5 text-dark-400 hover:text-danger-600 hover:bg-danger-50 rounded-lg transition-colors"
-                            title="Xóa vĩnh viễn"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
                       </td>
                     </tr>
                   );

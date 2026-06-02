@@ -419,7 +419,7 @@ export function UserListView() {
           <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)}
             className="px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/40 bg-surface text-content-secondary transition-all">
             <option value="">Tất cả vai trò</option>
-            {roles.map(r => <option key={r.code} value={r.name}>{r.name}</option>)}
+            {roles.map(r => <option key={r.code} value={r.code}>{r.name}</option>)}
           </select>
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
             className="px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/40 bg-surface text-content-secondary transition-all">
