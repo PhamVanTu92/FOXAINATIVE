@@ -383,13 +383,12 @@ function DeleteFileModal({
         </div>
         <div className="px-6 py-5 space-y-2">
           <p className="text-sm text-content-secondary">
-            Bạn có chắc muốn xóa tệp{' '}
+            Bạn có chắc muốn xóa vĩnh viễn tệp{' '}
             <strong className="text-content-primary">{file.fileName}</strong>?
-            Hành động này không thể hoàn tác.
+            Hành động này <strong className="text-danger-600">không thể hoàn tác</strong>.
           </p>
           <p className="text-xs text-content-muted">
-            Tệp sẽ được gỡ khỏi bộ tri thức này nhưng vẫn còn trong hệ thống.
-            Để xóa vĩnh viễn, truy cập <span className="font-medium text-content-secondary">Tổng tri thức</span>.
+            Tệp sẽ bị xóa hoàn toàn khỏi hệ thống và không thể khôi phục.
           </p>
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-strong bg-surface">
@@ -400,7 +399,7 @@ function DeleteFileModal({
           <button onClick={onConfirm} disabled={deleting}
             className="flex items-center gap-1.5 px-4 py-2 text-sm bg-danger-600 text-white rounded-lg hover:bg-danger-700 disabled:opacity-60 transition-colors">
             {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-            Gỡ khỏi bộ tri thức
+            {deleting ? 'Đang xóa...' : 'Xóa vĩnh viễn'}
           </button>
         </div>
       </div>
