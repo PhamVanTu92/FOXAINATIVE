@@ -53,6 +53,39 @@ public sealed partial class IndexServiceClient(
         }
     }
 
+    public async Task<bool> UpdateCollectionAsync(Guid collectionId, string collectionName, string? description, CancellationToken ct = default)
+    {
+        logger.LogInformation(
+            "IndexService UpdateCollection → collectionId={CollectionId}, name='{Name}'",
+            collectionId, collectionName);
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Put, $"/v1/collections/collections/{collectionId}");
+            AddAuth(request);
+            request.Content = JsonContent.Create(new
+            {
+                collection_name = collectionName,
+                description = description ?? string.Empty
+            });
+
+            using var response = await http.SendAsync(request, ct);
+            var body = await response.Content.ReadAsStringAsync(ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogWarning("IndexService UpdateCollection FAILED ({Status}): {Body}", response.StatusCode, body);
+                return false;
+            }
+
+            logger.LogInformation("IndexService UpdateCollection OK ({Status}): {Body}", response.StatusCode, body);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "IndexService UpdateCollection EXCEPTION for collectionId={CollectionId}", collectionId);
+            return false;
+        }
+    }
+
     public async Task<Guid?> UploadAndProcessDocumentAsync(
         Guid collectionId,
         string fileUrl,
