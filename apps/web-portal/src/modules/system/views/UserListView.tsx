@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import {
-  Search, Download, Plus, Pencil, Trash2,
+  Search, Download, Plus, Pencil,
   ChevronRight, X, Users, UserCheck, UserX,
   Shield, Key, AlertCircle, RefreshCw,
 } from 'lucide-react';
@@ -519,12 +519,6 @@ export function UserListView() {
                           <Key size={14} />
                         </button>
                       )}
-                      {canDelete && (
-                        <button onClick={() => setDeletingUser(user)}
-                          className="p-1.5 text-content-muted hover:text-danger-600 hover:bg-danger-50/10 rounded-lg transition-colors" title="Xóa">
-                          <Trash2 size={14} />
-                        </button>
-                      )}
                     </div>
                   </td>
                 </tr>
@@ -576,12 +570,6 @@ export function UserListView() {
       )}
       {permissionsUser && (
         <UserPermissionsModal user={permissionsUser} onClose={() => setPermissionsUser(null)} />
-      )}
-      {deletingUser && (
-        <DeleteDialog user={deletingUser}
-          onClose={() => setDeletingUser(null)}
-          onDeleted={() => { loadUsers(); loadStats(); }}
-        />
       )}
     </div>
   );
