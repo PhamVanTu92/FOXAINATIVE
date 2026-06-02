@@ -43,9 +43,9 @@ public class ApproveDocumentCommandHandler : IRequestHandler<ApproveDocumentComm
         doc.Approve();
         _repo.Update(doc);
 
-        // Đồng bộ KnowledgeFile nếu tài liệu thuộc ít nhất một bộ tri thức
-        if (doc.KnowledgeBases.Any())
-        {
+        // Đồng bộ KnowledgeFile cho tài liệu đã được approve
+        //if (doc.KnowledgeBases.Any())
+        //{
             var existingFile = await _fileRepo.GetBySourceDocumentIdAsync(doc.Id, ct);
             if (existingFile is null)
             {
@@ -76,7 +76,7 @@ public class ApproveDocumentCommandHandler : IRequestHandler<ApproveDocumentComm
                     await _fileRepo.AddToKnowledgeBaseAsync(existingFile.Id, kb.Id, ct);
                 _fileRepo.Update(existingFile);
             }
-        }
+        //}
 
         await _uow.SaveChangesAsync(ct);
 
