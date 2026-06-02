@@ -87,9 +87,16 @@ export class KnowledgeDocumentsController {
     const fileType = dto.fileType ?? (file ? detectFileType(file.originalname) : 'PDF');
     const storagePath = file ? `uploads/knowledge-docs/${file.filename}` : undefined;
 
+    // Gom knowledgeBaseIds (nhiều KB) và knowledgeBaseId (đơn lẻ, backward compat) thành một list duy nhất
+    const kbIds = Array.from(new Set([
+      ...(dto.knowledgeBaseIds ?? []),
+      ...(dto.knowledgeBaseId ? [dto.knowledgeBaseId] : []),
+    ]));
+
     const result = await this.knowledge.uploadDocument(
       {
-        knowledgeBaseId: dto.knowledgeBaseId ?? '',
+        knowledgeBaseIds: kbIds,          // field 9 (repeated) — nhiều KB
+        knowledgeBaseId: kbIds[0] ?? '',  // field 1 (single) — backward compat với C# cũ
         title: dto.title,
         fileType,
         fileSizeMb,

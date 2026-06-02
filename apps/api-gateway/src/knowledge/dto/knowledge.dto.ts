@@ -142,6 +142,29 @@ export class ListDocumentsQueryDto {
 export class UploadDocumentDto {
   @IsOptional() @IsUUID() knowledgeBaseId?: string;
 
+  @IsOptional()
+  @Transform(({ value }) => {
+    // Xử lý mọi dạng gửi từ multipart form:
+    // 1. Đã là array (multer repeated fields): ["uuid1", "uuid2"]
+    // 2. JSON string thường: '["uuid1","uuid2"]'
+    // 3. Double-encoded JSON (curl với outer quotes): '"[\"uuid1\",\"uuid2\"]"' -> parse 2 lần
+    // 4. Single string UUID
+    let v: unknown = value;
+    if (typeof v === 'string') {
+      try { v = JSON.parse(v); } catch { /* không phải JSON */ }
+    }
+    // Handle double-encoded: lần parse đầu vẫn trả về string
+    if (typeof v === 'string') {
+      try { v = JSON.parse(v); } catch { /* không phải JSON */ }
+    }
+    if (Array.isArray(v)) return v.map(String).filter(Boolean);
+    if (v) return [String(v)];
+    return [];
+  })
+  @IsArray()
+  @IsUUID('4', { each: true })
+  knowledgeBaseIds?: string[];
+
   @IsString() @IsNotEmpty() @MaxLength(500) title!: string;
 
   @IsOptional() @IsString() @IsIn(FILE_TYPES) fileType?: string;

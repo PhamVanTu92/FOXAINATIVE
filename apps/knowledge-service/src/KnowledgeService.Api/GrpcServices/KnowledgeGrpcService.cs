@@ -262,9 +262,28 @@ public class KnowledgeGrpcService : Protos.KnowledgeService.KnowledgeServiceBase
         UploadDocumentRequest request, ServerCallContext context)
     {
         Guid? uploadedBy = Guid.TryParse(request.UploadedBy, out var ub) ? ub : null;
-        Guid? knowledgeBaseId = Guid.TryParse(request.KnowledgeBaseId, out var kbId) ? kbId : null;
+
+        // Ưu tiên knowledge_base_ids (repeated), fallback về knowledge_base_id đơn lẻ
+        List<Guid> kbIds;
+        if (request.KnowledgeBaseIds.Count > 0)
+        {
+            kbIds = request.KnowledgeBaseIds
+                .Select(id => Guid.TryParse(id, out var g) ? (Guid?)g : null)
+                .Where(g => g.HasValue)
+                .Select(g => g!.Value)
+                .ToList();
+        }
+        else if (Guid.TryParse(request.KnowledgeBaseId, out var singleKbId))
+        {
+            kbIds = [singleKbId];
+        }
+        else
+        {
+            kbIds = [];
+        }
+
         var result = await _mediator.Send(new UploadDocumentCommand(
-            knowledgeBaseId,
+            kbIds,
             request.Title,
             request.FileType,
             (decimal)request.FileSizeMb,
@@ -429,7 +448,7 @@ public class KnowledgeGrpcService : Protos.KnowledgeService.KnowledgeServiceBase
     private static KnowledgeDocumentMessage ToProto(KnowledgeDocumentDto dto)
     {
         var firstKb = dto.KnowledgeBases.FirstOrDefault();
-        return new KnowledgeDocumentMessage
+        var msg = new KnowledgeDocumentMessage
         {
             Id = dto.Id.ToString(),
             KnowledgeBaseId = firstKb?.Id.ToString() ?? "",
@@ -446,6 +465,12 @@ public class KnowledgeGrpcService : Protos.KnowledgeService.KnowledgeServiceBase
             CreatedAt = dto.CreatedAt.ToString("O"),
             UpdatedAt = dto.UpdatedAt.ToString("O"),
         };
+        msg.KnowledgeBases.AddRange(dto.KnowledgeBases.Select(kb => new KnowledgeBaseRef
+        {
+            Id = kb.Id.ToString(),
+            Name = kb.Name
+        }));
+        return msg;
     }
 
     private static KnowledgeDocumentVersionMessage ToProto(KnowledgeDocumentVersionDto dto)

@@ -1,0 +1,95 @@
+# docker-compose.local.yml
+# Chỉ chạy api-gateway + knowledge-service trên máy local
+# Các service còn lại kết nối tới server Ubuntu qua SERVER_IP
+
+services:
+  # ─── Knowledge DB (local) ───────────────────────────────────────────────────
+  knowledge-db:
+    image: postgres:16-alpine
+    container_name: foxai-knowledge-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${KNOWLEDGE_DB_USER:-kb_user}
+      POSTGRES_PASSWORD: ${KNOWLEDGE_DB_PASSWORD:-kb_pass}
+      POSTGRES_DB: ${KNOWLEDGE_DB_NAME:-knowledge_db}
+    ports:
+      - '5435:5432'
+    volumes:
+      - knowledge_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${KNOWLEDGE_DB_USER:-kb_user} -d ${KNOWLEDGE_DB_NAME:-knowledge_db}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Knowledge Service (.NET 9 + gRPC) ──────────────────────────────────────
+  knowledge-service:
+    build:
+      context: .
+      dockerfile: apps/knowledge-service/Dockerfile
+    container_name: foxai-knowledge-service
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      KNOWLEDGE_DATABASE_URL: postgresql://${KNOWLEDGE_DB_USER:-kb_user}:${KNOWLEDGE_DB_PASSWORD:-kb_pass}@knowledge-db:5432/${KNOWLEDGE_DB_NAME:-knowledge_db}
+      GRPC_PORT: '50052'
+      HTTP_PORT: '3005'
+      KNOWLEDGE_SERVICE_AUTOMIGRATE: 'true'
+      KNOWLEDGE_SERVICE_SEED: 'true'
+      # Index service chạy trên server Ubuntu
+      INDEX_SERVICE_URL: http://${SERVER_IP}:3006
+      # File URL nội bộ - api-gateway chạy local cùng mạng Docker
+      FILE_BASE_URL_INTERNAL: http://api-gateway:3001
+    ports:
+      - '52052:50052'
+      - '3005:3005'
+    depends_on:
+      knowledge-db:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:3005/health']
+      interval: 20s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  # ─── API Gateway (NestJS) ───────────────────────────────────────────────────
+  api-gateway:
+    build:
+      context: .
+      dockerfile: apps/api-gateway/Dockerfile
+    container_name: foxai-api-gateway
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      API_GATEWAY_PORT: 3001
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      JWT_ISSUER: foxai-system-service
+      JWT_AUDIENCE: foxai-platform
+      # gRPC: system-service trên server, knowledge-service chạy local
+      SYSTEM_SERVICE_GRPC_URL: ${SERVER_IP}:51051
+      KNOWLEDGE_SERVICE_GRPC_URL: knowledge-service:50052
+      # HTTP proxy: các service trên server Ubuntu
+      OCR_SERVICE_URL: http://${SERVER_IP}:3003
+      CHATBOT_SERVICE_URL: http://${SERVER_IP}:3004
+      INDEX_SERVICE_URL: http://${SERVER_IP}:3006
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3001}
+    ports:
+      - '3001:3001'
+    depends_on:
+      knowledge-service:
+        condition: service_healthy
+    volumes:
+      - api_gateway_uploads:/app/apps/api-gateway/uploads
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:3001/health']
+      interval: 20s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+volumes:
+  knowledge_db_data:
+  api_gateway_uploads:

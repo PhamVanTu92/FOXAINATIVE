@@ -4,7 +4,7 @@ using MediatR;
 namespace KnowledgeService.Application.Features.KnowledgeDocuments.Upload;
 
 public record UploadDocumentCommand(
-    Guid? KnowledgeBaseId,
+    List<Guid> KnowledgeBaseIds,
     string Title,
     string FileType,
     decimal FileSizeMb,

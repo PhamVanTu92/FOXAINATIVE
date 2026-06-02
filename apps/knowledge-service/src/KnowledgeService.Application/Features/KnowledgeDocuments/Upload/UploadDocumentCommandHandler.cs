@@ -26,10 +26,10 @@ public class UploadDocumentCommandHandler : IRequestHandler<UploadDocumentComman
 
     public async Task<KnowledgeDocumentDto> Handle(UploadDocumentCommand cmd, CancellationToken ct)
     {
-        if (cmd.KnowledgeBaseId.HasValue)
+        foreach (var kbId in cmd.KnowledgeBaseIds)
         {
-            _ = await _kbRepo.GetByIdAsync(cmd.KnowledgeBaseId.Value, ct)
-                ?? throw new NotFoundException(nameof(KnowledgeBase), cmd.KnowledgeBaseId.Value);
+            _ = await _kbRepo.GetByIdAsync(kbId, ct)
+                ?? throw new NotFoundException(nameof(KnowledgeBase), kbId);
         }
 
         var fileType = Enum.Parse<FileType>(cmd.FileType);
@@ -45,8 +45,8 @@ public class UploadDocumentCommandHandler : IRequestHandler<UploadDocumentComman
 
         await _docRepo.AddAsync(document, ct);
 
-        if (cmd.KnowledgeBaseId.HasValue)
-            await _docRepo.AddToKnowledgeBaseAsync(document.Id, cmd.KnowledgeBaseId.Value, ct);
+        foreach (var kbId in cmd.KnowledgeBaseIds)
+            await _docRepo.AddToKnowledgeBaseAsync(document.Id, kbId, ct);
 
         await _uow.SaveChangesAsync(ct);
 

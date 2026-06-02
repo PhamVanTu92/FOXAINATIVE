@@ -8,6 +8,11 @@ export interface DepartmentRef {
   departmentName: string;
 }
 
+export interface KnowledgeBaseRef {
+  id: string;
+  name: string;
+}
+
 export interface FileCounts {
   word: number;
   excel: number;
@@ -179,8 +184,9 @@ export interface UpdateFilePermissionsRequest {
 
 export interface KnowledgeDocumentMessage {
   id: string;
-  knowledgeBaseId: string;
-  knowledgeBaseName: string;
+  knowledgeBaseId: string;        // deprecated — dùng knowledgeBases
+  knowledgeBaseName: string;      // deprecated — dùng knowledgeBases
+  knowledgeBases: KnowledgeBaseRef[];
   title: string;
   fileType: string;
   fileSizeMb: number;
@@ -206,7 +212,8 @@ export interface KnowledgeDocumentVersionMessage {
 }
 
 export interface UploadDocumentRequest {
-  knowledgeBaseId: string;
+  knowledgeBaseId?: string;       // deprecated — dùng knowledgeBaseIds
+  knowledgeBaseIds?: string[];    // nhiều KB
   title: string;
   fileType: string;
   fileSizeMb?: number;
