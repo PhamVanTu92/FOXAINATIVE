@@ -145,7 +145,7 @@ export function useDocumentList() {
 
       // Tạo knowledge document cho từng chứng từ (best-effort)
       const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-      const authHdr = token ? { Authorization: `Bearer ${token}` } : {};
+      const authHdr: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
       const docsToProcess = (docs?.items ?? []).filter(d => kbPendingIds.includes(d.id));
       await Promise.allSettled(docsToProcess.map(async doc => {
         try {
@@ -208,7 +208,7 @@ export function useDocumentList() {
         await ocrApi.confirmDocument(editDoc.id);
         // Tạo knowledge document (best-effort)
         const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-        const authHdr = token ? { Authorization: `Bearer ${token}` } : {};
+        const authHdr: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
         try {
           const fileRes = await fetch(ocrApi.getDocumentFileUrl(editDoc.id), { headers: authHdr });
           if (fileRes.ok) {
