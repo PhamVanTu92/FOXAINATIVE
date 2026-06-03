@@ -181,7 +181,7 @@ class DocumentCreationService(BaseService):
             # Generate unique object name
             file_extension = Path(inputs.storage_path).suffix
             object_name = f'{uuid.uuid4()}_{doc_name}{file_extension}'
-            bucket_name = os.getenv('MINIO__BUCKET_NAME')
+            bucket_name = self.settings.minio.bucket_name
 
             # Read file content
             with open(inputs.storage_path, 'rb') as file:

@@ -15,6 +15,14 @@
 5. [Tệp tri thức](#5-tệp-tri-thức)
 6. [Tài liệu tri thức (Workflow kiểm duyệt)](#6-tài-liệu-tri-thức--workflow-kiểm-duyệt)
 7. [Quy ước chung](#7-quy-ước-chung)
+8. [Thống kê Dashboard](#8-thống-kê-dashboard)
+
+> **Xem nhanh endpoint mới:**  
+> `GET /api/knowledge-bases/stats` — [4.1 Thống kê bộ tri thức](#41-thống-kê-bộ-tri-thức) *(cập nhật — thêm `pdfFilesCount`, `filesByKnowledgeBase`)*  
+> `GET /api/system/stats` — [8.1 Thống kê hệ thống](#81-thống-kê-hệ-thống) *(mới)*  
+> `GET /api/knowledge-bases/files` — [4.7 Danh sách tệp toàn bộ bộ tri thức](#47-danh-sách-tệp-toàn-bộ-bộ-tri-thức)  
+> `PATCH /api/knowledge-bases/files/:fileId` — [4.8 Đổi tên / Chuyển bộ tri thức cho tệp](#48-đổi-tên--chuyển-bộ-tri-thức-cho-tệp)  
+> `POST /api/knowledge-files` — [5.8 Tải lên tệp không cần chọn bộ tri thức](#58-tải-lên-tệp-không-cần-chọn-bộ-tri-thức) *(mới — `knowledgeBaseId` tùy chọn)*
 
 ---
 
@@ -439,21 +447,41 @@ DELETE /api/roles/:id/permissions   ← thu hồi
 
 ## 4. Bộ tri thức
 
-### 4.1 Thống kê tổng quan
+### 4.1 Thống kê bộ tri thức
 
 ```
 GET /api/knowledge-bases/stats
 ```
 
+Trả về tổng quan số liệu của toàn bộ kho tri thức, bao gồm số lượng file PDF và phân bổ tệp theo từng bộ tri thức (dùng cho biểu đồ dashboard).
+
 **Response 200:**
 ```json
 {
-  "totalKnowledgeBases": 12,
-  "totalFiles": 347,
-  "departmentsUsingCount": 8,
+  "totalKnowledgeBases": 11,
+  "totalFiles": 25,
+  "departmentsUsingCount": 9,
+  "pdfFilesCount": 10,
+  "filesByKnowledgeBase": [
+    { "knowledgeBaseName": "Tri thức Kinh doanh & Bán hàng", "fileCount": 5 },
+    { "knowledgeBaseName": "Tri thức Kế toán – Tài chính",   "fileCount": 5 },
+    { "knowledgeBaseName": "Tri thức Công nghệ & AI",         "fileCount": 4 },
+    { "knowledgeBaseName": "Tri thức Nhân sự & Lao động",     "fileCount": 4 },
+    { "knowledgeBaseName": "Quy định & Pháp lý",              "fileCount": 3 },
+    { "knowledgeBaseName": "Bộ tri thức Luật công đoàn",      "fileCount": 2 }
+  ],
   "lastUpdatedAt": "2026-05-26T07:30:00Z"
 }
 ```
+
+| Field | Kiểu | Mô tả |
+|-------|------|-------|
+| `totalKnowledgeBases` | number | Tổng số bộ tri thức |
+| `totalFiles` | number | Tổng số tệp trong toàn hệ thống |
+| `departmentsUsingCount` | number | Số phòng ban đang dùng (managing hoặc có quyền truy cập) |
+| `pdfFilesCount` | number | Số tệp định dạng PDF |
+| `filesByKnowledgeBase` | array | Danh sách bộ tri thức có tệp, sắp xếp theo số lượng giảm dần |
+| `lastUpdatedAt` | ISO 8601 \| null | Thời điểm cập nhật gần nhất |
 
 ---
 
@@ -570,6 +598,130 @@ DELETE /api/knowledge-bases/:id
 
 ---
 
+### 4.7 Danh sách tệp toàn bộ bộ tri thức
+
+```
+GET /api/knowledge-bases/files
+```
+
+Trả về danh sách tệp trên **tất cả** bộ tri thức kèm thống kê số lượng theo từng định dạng file. Dùng để hiển thị dashboard tổng quan hoặc tìm kiếm file xuyên bộ tri thức.
+
+**Query params:**
+
+| Param | Kiểu | Mặc định | Mô tả |
+|-------|------|----------|-------|
+| `search` | string | — | Tìm theo tên file |
+| `fileType` | string | — | `Word` \| `Excel` \| `PDF` \| `Image` \| `PowerPoint` \| `Text` — lọc kết quả phân trang, **không** ảnh hưởng đến `counts` |
+| `page` | number | 1 | Trang |
+| `pageSize` | number | 50 | Số bản ghi/trang (max 200) |
+
+**Ví dụ:**
+```
+GET /api/knowledge-bases/files?search=quy+trinh&page=1&pageSize=20
+GET /api/knowledge-bases/files?fileType=PDF&page=1
+```
+
+**Response 200:**
+```json
+{
+  "items": [
+    {
+      "id": "file-uuid-001",
+      "knowledgeBaseId": "kb-uuid-001",
+      "knowledgeBaseName": "Tri thức Kế toán – Tài chính",
+      "fileName": "Quy trình kế toán nội bộ 2025.docx",
+      "fileType": "Word",
+      "fileSizeMb": 1.8,
+      "storagePath": "http://localhost:3001/uploads/knowledge-files/1748230000-abc123.docx",
+      "uploadedAt": "2026-05-20T10:00:00Z",
+      "updatedAt": "2026-05-20T10:00:00Z",
+      "permissions": [
+        { "departmentId": "dept-uuid-ketoan", "departmentName": "Phòng Kế toán – Tài chính" }
+      ]
+    }
+  ],
+  "total": 42,
+  "page": 1,
+  "pageSize": 50,
+  "counts": {
+    "word": 15,
+    "excel": 8,
+    "pdf": 12,
+    "image": 3,
+    "powerPoint": 4,
+    "text": 0,
+    "total": 42
+  }
+}
+```
+
+> **Lưu ý:** `counts` luôn phản ánh số lượng theo từng định dạng của **toàn bộ** dữ liệu (theo `search` nếu có), bất kể đang lọc `fileType` hay không. `total` trong `counts` là tổng số file thực, còn `total` ngoài cùng là tổng kết quả **sau khi lọc** `fileType`.
+
+---
+
+### 4.8 Đổi tên / Chuyển bộ tri thức cho tệp
+
+```
+PATCH /api/knowledge-bases/files/:fileId
+```
+
+Cho phép **đổi tên** tệp và/hoặc **chuyển tệp sang bộ tri thức khác** mà không cần biết bộ tri thức hiện tại của tệp. Thường dùng từ màn hình quản lý tệp toàn hệ thống (xem [4.7](#47-danh-sách-tệp-toàn-bộ-bộ-tri-thức)).
+
+**Body (tất cả optional, gửi ít nhất 1 field):**
+
+| Field | Kiểu | Mô tả |
+|-------|------|-------|
+| `fileName` | string | Tên hiển thị mới (max 500 ký tự) |
+| `targetKnowledgeBaseId` | UUID | ID bộ tri thức đích — tệp sẽ được chuyển sang bộ này |
+
+**Ví dụ — đổi tên:**
+```json
+{
+  "fileName": "Quy trình kế toán nội bộ 2026.docx"
+}
+```
+
+**Ví dụ — chuyển bộ tri thức:**
+```json
+{
+  "targetKnowledgeBaseId": "kb-uuid-002"
+}
+```
+
+**Ví dụ — vừa đổi tên vừa chuyển:**
+```json
+{
+  "fileName": "Báo cáo tài chính Q1-2026.xlsx",
+  "targetKnowledgeBaseId": "kb-uuid-003"
+}
+```
+
+**Response 200:** object tệp sau khi cập nhật.
+```json
+{
+  "id": "file-uuid-001",
+  "knowledgeBaseId": "kb-uuid-003",
+  "knowledgeBaseName": "Tri thức Báo cáo – Thống kê",
+  "fileName": "Báo cáo tài chính Q1-2026.xlsx",
+  "fileType": "Excel",
+  "fileSizeMb": 2.4,
+  "storagePath": "http://localhost:3001/uploads/knowledge-files/1748230000-abc123.xlsx",
+  "uploadedAt": "2026-05-20T10:00:00Z",
+  "updatedAt": "2026-05-29T08:15:00Z",
+  "permissions": []
+}
+```
+
+**Lỗi:**
+
+| Mã | Nguyên nhân |
+|----|-------------|
+| 404 | Tệp không tồn tại |
+| 404 | `targetKnowledgeBaseId` không tồn tại |
+| 400 | `fileName` rỗng hoặc vượt 500 ký tự |
+
+---
+
 ## 5. Tệp tri thức
 
 Base path: `/api/knowledge-bases/:kbId/files`
@@ -596,6 +748,7 @@ GET /api/knowledge-bases/:kbId/files
     {
       "id": "file-uuid-001",
       "knowledgeBaseId": "kb-uuid-001",
+      "knowledgeBaseName": "Tri thức Kế toán – Tài chính",
       "fileName": "Quy trình kế toán nội bộ 2025.docx",
       "fileType": "Word",
       "fileSizeMb": 1.8,
@@ -717,6 +870,46 @@ DELETE /api/knowledge-bases/:kbId/files/:fileId
 ```
 
 **Response:** `204 No Content`
+
+---
+
+### 5.8 Tải lên tệp không cần chọn bộ tri thức
+
+Endpoint đứng độc lập (không nằm dưới `:kbId`), cho phép tải lên tệp mà **không bắt buộc gắn vào bộ tri thức**. Bỏ trống `knowledgeBaseId` để tạo tệp chưa phân loại (`knowledgeBaseId = null`); hoặc gửi kèm `knowledgeBaseId` để gắn vào một bộ tri thức cụ thể.
+
+```
+POST /api/knowledge-files
+Content-Type: multipart/form-data
+```
+
+**Form fields:**
+
+| Field | Bắt buộc | Mô tả |
+|-------|----------|-------|
+| `file` | Không | File đính kèm (max 50MB) |
+| `knowledgeBaseId` | Không | UUID bộ tri thức. Bỏ trống = tệp chưa phân loại (`null`) |
+| `fileName` | Không | Tên hiển thị (mặc định: tên file gốc) |
+| `fileType` | Không | Tự động phát hiện từ extension nếu không gửi |
+| `permittedDepartments` | Không | JSON string: `[{"departmentId":"...","departmentName":"..."}]` |
+
+**Ví dụ (curl) — không gắn bộ tri thức:**
+```bash
+curl -X POST "http://localhost:3001/api/knowledge-files" \
+  -H "Authorization: Bearer <token>" \
+  -F "file=@/path/to/document.pdf"
+```
+
+**Ví dụ (curl) — gắn vào một bộ tri thức:**
+```bash
+curl -X POST "http://localhost:3001/api/knowledge-files" \
+  -H "Authorization: Bearer <token>" \
+  -F "file=@/path/to/document.pdf" \
+  -F "knowledgeBaseId=kb-uuid-001"
+```
+
+**Response 201:** object tệp vừa tạo (giống 1 phần tử trong [5.1 Danh sách tệp](#51-danh-sách-tệp)). Khi không gắn bộ tri thức, `knowledgeBaseId` trả về rỗng/`null` và `knowledgeBaseName` rỗng.
+
+> Quy ước extension → FileType giống [5.2 Tải lên tệp mới](#52-tải-lên-tệp-mới). Quyền yêu cầu: `KNOWLEDGE_UPLOAD` / `CREATE`.
 
 ---
 
@@ -1001,6 +1194,54 @@ Content-Type: application/json
 ```
 
 **Response 200:** object tài liệu với `status: "Draft"` và `currentVersion: "v1.1"`
+
+---
+
+## 8. Thống kê Dashboard
+
+Nhóm endpoint trả về số liệu tổng hợp phục vụ màn hình dashboard quản trị.
+
+---
+
+### 8.1 Thống kê hệ thống
+
+```
+GET /api/system/stats
+```
+
+Trả về số liệu người dùng, vai trò và phân bổ người dùng theo phòng ban — hiển thị trên card **"Cấu hình hệ thống"** của dashboard.
+
+**Response 200:**
+```json
+{
+  "totalUsers": 22,
+  "activeUsers": 17,
+  "totalRoles": 9,
+  "usersByDepartment": [
+    { "departmentName": "Phòng Kế toán & Tài chính",     "userCount": 6 },
+    { "departmentName": "Phòng Công nghệ Thông tin",      "userCount": 5 },
+    { "departmentName": "Phòng OCR & Xử lý Tài liệu",    "userCount": 5 },
+    { "departmentName": "Phòng Kinh doanh & CSKH",        "userCount": 4 },
+    { "departmentName": "Phòng nhân sự",                  "userCount": 1 },
+    { "departmentName": "FOXAI Corporation",              "userCount": 1 }
+  ]
+}
+```
+
+| Field | Kiểu | Mô tả |
+|-------|------|-------|
+| `totalUsers` | number | Tổng số tài khoản người dùng |
+| `activeUsers` | number | Số tài khoản có trạng thái `ACTIVE` |
+| `totalRoles` | number | Tổng số vai trò trong hệ thống |
+| `usersByDepartment` | array | Danh sách phòng ban có người dùng, sắp xếp theo số lượng giảm dần (chỉ phòng ban có ít nhất 1 người dùng) |
+
+> **Lưu ý:** Số liệu `Mẫu OCR` (OCR templates) không nằm trong endpoint này — frontend lấy riêng từ OCR service.
+
+---
+
+### 8.2 Thống kê bộ tri thức (tham chiếu)
+
+Xem [4.1 Thống kê bộ tri thức](#41-thống-kê-bộ-tri-thức) — `GET /api/knowledge-bases/stats`
 
 ---
 

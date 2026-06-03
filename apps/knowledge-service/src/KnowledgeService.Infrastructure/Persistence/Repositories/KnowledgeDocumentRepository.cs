@@ -52,9 +52,19 @@ public class KnowledgeDocumentRepository : IKnowledgeDocumentRepository
             .OrderBy(x => x.CreatedAt)
             .ToListAsync(ct);
 
+    public Task<bool> ExistsByTitleInKnowledgeBaseAsync(Guid knowledgeBaseId, string title, CancellationToken ct)
+        => _db.KnowledgeDocuments.AnyAsync(
+            x => x.KnowledgeBaseId == knowledgeBaseId
+              && x.Status != DocumentStatus.Archived
+              && EF.Functions.ILike(x.Title, title),
+            ct);
+
     public async Task AddAsync(KnowledgeDocument document, CancellationToken ct)
         => await _db.KnowledgeDocuments.AddAsync(document, ct);
 
     public void Update(KnowledgeDocument document)
         => _db.KnowledgeDocuments.Update(document);
+
+    public void AddVersion(KnowledgeDocumentVersion version)
+        => _db.KnowledgeDocumentVersions.Add(version);
 }

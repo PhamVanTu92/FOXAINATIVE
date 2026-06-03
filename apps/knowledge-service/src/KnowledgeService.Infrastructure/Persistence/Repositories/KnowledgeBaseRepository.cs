@@ -1,5 +1,6 @@
 using KnowledgeService.Application.Common.Abstractions;
 using KnowledgeService.Domain.Entities;
+using KnowledgeService.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace KnowledgeService.Infrastructure.Persistence.Repositories;
@@ -51,10 +52,12 @@ public class KnowledgeBaseRepository : IKnowledgeBaseRepository
         return (items, total);
     }
 
-    public async Task<(int totalBases, int totalFiles, int departmentsUsing, DateTime? lastUpdatedAt)> GetStatsAsync(CancellationToken ct)
+    public async Task<(int totalBases, int totalFiles, int departmentsUsing, int pdfFilesCount, IReadOnlyList<(string KnowledgeBaseName, int FileCount)> filesByKnowledgeBase, DateTime? lastUpdatedAt)> GetStatsAsync(CancellationToken ct)
     {
         var totalBases = await _db.KnowledgeBases.CountAsync(ct);
         var totalFiles = await _db.KnowledgeFiles.CountAsync(ct);
+        var pdfFilesCount = await _db.KnowledgeFiles.CountAsync(f => f.FileType == FileType.PDF, ct);
+
         var lastUpdatedAt = await _db.KnowledgeBases
             .OrderByDescending(x => x.UpdatedAt)
             .Select(x => (DateTime?)x.UpdatedAt)
@@ -67,7 +70,17 @@ public class KnowledgeBaseRepository : IKnowledgeBaseRepository
             .Select(x => x.DepartmentId).Distinct().ToListAsync(ct);
         var departmentsUsing = managingDepts.Union(permittedDepts).Distinct().Count();
 
-        return (totalBases, totalFiles, departmentsUsing, lastUpdatedAt);
+        // Files grouped by knowledge base, sorted descending
+        var filesByKbRaw = await _db.KnowledgeBases
+            .Where(kb => kb.Files.Any())
+            .Select(kb => new { kb.Name, Count = kb.Files.Count })
+            .OrderByDescending(x => x.Count)
+            .ToListAsync(ct);
+
+        IReadOnlyList<(string KnowledgeBaseName, int FileCount)> filesByKnowledgeBase =
+            filesByKbRaw.Select(x => (x.Name, x.Count)).ToList();
+
+        return (totalBases, totalFiles, departmentsUsing, pdfFilesCount, filesByKnowledgeBase, lastUpdatedAt);
     }
 
     public async Task AddAsync(KnowledgeBase kb, CancellationToken ct)
@@ -78,4 +91,10 @@ public class KnowledgeBaseRepository : IKnowledgeBaseRepository
 
     public void Delete(KnowledgeBase kb)
         => _db.KnowledgeBases.Remove(kb);
+
+    public void RemovePermissions(IEnumerable<KnowledgeBasePermission> permissions)
+        => _db.KnowledgeBasePermissions.RemoveRange(permissions);
+
+    public async Task AddPermissionsAsync(IEnumerable<KnowledgeBasePermission> permissions, CancellationToken ct)
+        => await _db.KnowledgeBasePermissions.AddRangeAsync(permissions, ct);
 }

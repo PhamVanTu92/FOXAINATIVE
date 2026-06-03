@@ -27,23 +27,25 @@ public class UpdateFilePermissionsCommandHandler : IRequestHandler<UpdateFilePer
             throw new NotFoundException(nameof(KnowledgeFile), cmd.Id);
 
         var now = DateTime.UtcNow;
-        file.Permissions.Clear();
-        foreach (var d in cmd.PermittedDepartments)
-        {
-            file.Permissions.Add(new KnowledgeFilePermission
-            {
-                KnowledgeFileId = file.Id,
-                DepartmentId = d.DepartmentId,
-                DepartmentName = d.DepartmentName,
-                CreatedAt = now,
-                UpdatedAt = now
-            });
-        }
         file.UpdatedAt = now;
 
-        _repo.Update(file);
+        // Xóa permission cũ qua DbSet.RemoveRange → đảm bảo trạng thái Deleted
+        _repo.RemovePermissions(file.Permissions.ToList());
+
+        // Thêm permission mới qua DbSet.AddRange → đảm bảo trạng thái Added
+        var newPermissions = cmd.PermittedDepartments.Select(d => new KnowledgeFilePermission
+        {
+            KnowledgeFileId = file.Id,
+            DepartmentId = d.DepartmentId,
+            DepartmentName = d.DepartmentName,
+            CreatedAt = now,
+            UpdatedAt = now
+        }).ToList();
+        await _repo.AddPermissionsAsync(newPermissions, ct);
+
         await _uow.SaveChangesAsync(ct);
 
+        file.Permissions = newPermissions;
         return file.Adapt<KnowledgeFileDto>();
     }
 }

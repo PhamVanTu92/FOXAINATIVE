@@ -24,8 +24,10 @@ public class CreateDocumentVersionCommandHandler
         var doc = await _repo.GetByIdWithVersionsAsync(cmd.Id, ct)
             ?? throw new NotFoundException(nameof(KnowledgeDocument), cmd.Id);
 
-        doc.CreateNewVersion(cmd.ChangeNote, cmd.ContentSummary, cmd.CreatedBy);
-        _repo.Update(doc);
+        // CreateNewVersion trả về version mới; thêm qua DbSet.Add → đảm bảo trạng thái Added
+        var newVersion = doc.CreateNewVersion(cmd.ChangeNote, cmd.ContentSummary, cmd.CreatedBy);
+        _repo.AddVersion(newVersion);
+
         await _uow.SaveChangesAsync(ct);
 
         return doc.Adapt<KnowledgeDocumentDetailDto>();

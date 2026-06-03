@@ -12,8 +12,10 @@ out/
 # Environment
 .env
 .env.local
+.env.uat
 .env.*.local
 !.env.example
+!.env.production.example
 
 # Logs
 logs/

@@ -36,6 +36,7 @@ export interface KnowledgeBaseMessage {
 export interface KnowledgeFileMessage {
   id: string;
   knowledgeBaseId: string;
+  knowledgeBaseName: string;
   fileName: string;
   fileType: string;
   fileSizeMb: number;
@@ -43,6 +44,33 @@ export interface KnowledgeFileMessage {
   uploadedAt: string;
   updatedAt: string;
   permissions: DepartmentRef[];
+  /** UUID tài liệu trong index-service. Rỗng ("") nếu chưa được index. */
+  documentIndexId: string;
+}
+
+export interface AllFileCountsMessage {
+  word: number;
+  excel: number;
+  pdf: number;
+  image: number;
+  powerPoint: number;
+  text: number;
+  total: number;
+}
+
+export interface ListAllKnowledgeFilesRequest {
+  search?: string;
+  fileType?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface ListAllKnowledgeFilesResponse {
+  items: KnowledgeFileMessage[];
+  total: number;
+  page: number;
+  pageSize: number;
+  counts: AllFileCountsMessage;
 }
 
 export interface StatsMessage {
@@ -113,6 +141,12 @@ export interface ListKnowledgeFilesResponse {
 }
 
 export interface GetKnowledgeFileRequest { id: string; knowledgeBaseId: string; }
+
+export interface MoveKnowledgeFileRequest {
+  id: string;
+  fileName?: string;
+  targetKnowledgeBaseId?: string;
+}
 
 export interface AddKnowledgeFileRequest {
   knowledgeBaseId: string;
@@ -230,12 +264,14 @@ export interface KnowledgeGrpcService {
   updateKnowledgeBase(req: UpdateKnowledgeBaseRequest, md?: Metadata): Observable<KnowledgeBaseMessage>;
   deleteKnowledgeBase(req: DeleteKnowledgeBaseRequest, md?: Metadata): Observable<DeleteResponse>;
   getStats(req: GetStatsRequest, md?: Metadata): Observable<StatsMessage>;
+  listAllKnowledgeFiles(req: ListAllKnowledgeFilesRequest, md?: Metadata): Observable<ListAllKnowledgeFilesResponse>;
   listKnowledgeFiles(req: ListKnowledgeFilesRequest, md?: Metadata): Observable<ListKnowledgeFilesResponse>;
   getKnowledgeFile(req: GetKnowledgeFileRequest, md?: Metadata): Observable<KnowledgeFileMessage>;
   addKnowledgeFile(req: AddKnowledgeFileRequest, md?: Metadata): Observable<KnowledgeFileMessage>;
   updateKnowledgeFile(req: UpdateKnowledgeFileRequest, md?: Metadata): Observable<KnowledgeFileMessage>;
   deleteKnowledgeFile(req: DeleteKnowledgeFileRequest, md?: Metadata): Observable<DeleteResponse>;
   updateFilePermissions(req: UpdateFilePermissionsRequest, md?: Metadata): Observable<KnowledgeFileMessage>;
+  moveKnowledgeFile(req: MoveKnowledgeFileRequest, md?: Metadata): Observable<KnowledgeFileMessage>;
   // Knowledge Documents
   uploadDocument(req: UploadDocumentRequest, md?: Metadata): Observable<KnowledgeDocumentMessage>;
   getDocument(req: GetDocumentRequest, md?: Metadata): Observable<KnowledgeDocumentMessage>;

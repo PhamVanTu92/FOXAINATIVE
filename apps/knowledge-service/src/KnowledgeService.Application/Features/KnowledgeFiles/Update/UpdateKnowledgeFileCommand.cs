@@ -6,7 +6,7 @@ namespace KnowledgeService.Application.Features.KnowledgeFiles.Update;
 
 public record UpdateKnowledgeFileCommand(
     Guid Id,
-    Guid KnowledgeBaseId,
+    Guid? KnowledgeBaseId,
     string FileName,
     string FileType,
     decimal FileSizeMb

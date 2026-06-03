@@ -19,6 +19,7 @@ public class KnowledgeFileRepository : IKnowledgeFileRepository
         Guid knowledgeBaseId, string? search, FileType? fileType, int page, int pageSize, CancellationToken ct)
     {
         var query = _db.KnowledgeFiles
+            .Include(x => x.KnowledgeBase)
             .Include(x => x.Permissions)
             .Where(x => x.KnowledgeBaseId == knowledgeBaseId)
             .AsNoTracking();
@@ -39,6 +40,38 @@ public class KnowledgeFileRepository : IKnowledgeFileRepository
         return (items, total);
     }
 
+    public async Task<(IReadOnlyList<KnowledgeFile> Items, int Total, Dictionary<FileType, int> TypeCounts)> ListAllAsync(
+        string? search, FileType? fileType, int page, int pageSize, CancellationToken ct)
+    {
+        var baseFilter = _db.KnowledgeFiles.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(search))
+            baseFilter = baseFilter.Where(x => EF.Functions.ILike(x.FileName, $"%{search}%"));
+
+        var typeCounts = await baseFilter
+            .GroupBy(x => x.FileType)
+            .Select(g => new { Type = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        var counts = typeCounts.ToDictionary(x => x.Type, x => x.Count);
+
+        IQueryable<KnowledgeFile> filteredQuery = baseFilter
+            .Include(x => x.KnowledgeBase)
+            .Include(x => x.Permissions);
+
+        if (fileType.HasValue)
+            filteredQuery = filteredQuery.Where(x => x.FileType == fileType.Value);
+
+        var total = await filteredQuery.CountAsync(ct);
+        var items = await filteredQuery
+            .OrderByDescending(x => x.UploadedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return (items, total, counts);
+    }
+
     public Task<KnowledgeFile?> GetBySourceDocumentIdAsync(Guid documentId, CancellationToken ct)
         => _db.KnowledgeFiles.FirstOrDefaultAsync(f => f.SourceDocumentId == documentId, ct);
 
@@ -50,4 +83,10 @@ public class KnowledgeFileRepository : IKnowledgeFileRepository
 
     public void Delete(KnowledgeFile file)
         => _db.KnowledgeFiles.Remove(file);
+
+    public void RemovePermissions(IEnumerable<KnowledgeFilePermission> permissions)
+        => _db.KnowledgeFilePermissions.RemoveRange(permissions);
+
+    public async Task AddPermissionsAsync(IEnumerable<KnowledgeFilePermission> permissions, CancellationToken ct)
+        => await _db.KnowledgeFilePermissions.AddRangeAsync(permissions, ct);
 }

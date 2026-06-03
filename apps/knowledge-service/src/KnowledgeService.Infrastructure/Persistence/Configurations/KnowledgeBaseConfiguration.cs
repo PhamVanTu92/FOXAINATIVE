@@ -30,6 +30,7 @@ public class KnowledgeBaseConfiguration : IEntityTypeConfiguration<KnowledgeBase
         builder.HasMany(x => x.Files)
                .WithOne(x => x.KnowledgeBase)
                .HasForeignKey(x => x.KnowledgeBaseId)
+               .IsRequired(false)
                .OnDelete(DeleteBehavior.Cascade);
     }
 }

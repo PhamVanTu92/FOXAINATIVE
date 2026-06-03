@@ -34,15 +34,23 @@ message KnowledgeBaseMessage {
 }
 
 message KnowledgeFileMessage {
-  string         id                = 1;
-  string         knowledge_base_id = 2;
-  string         file_name         = 3;
-  string         file_type         = 4;
-  double         file_size_mb      = 5;
-  string         storage_path      = 6;
-  string         uploaded_at       = 7;
-  string         updated_at        = 8;
-  repeated DepartmentRef permissions = 9;
+  string         id                  = 1;
+  string         knowledge_base_id   = 2;
+  string         knowledge_base_name = 3;
+  string         file_name           = 4;
+  string         file_type           = 5;
+  double         file_size_mb        = 6;
+  string         storage_path        = 7;
+  string         uploaded_at         = 8;
+  string         updated_at          = 9;
+  repeated DepartmentRef permissions = 10;
+  /** UUID tài liệu trong index-service. Rỗng ("") nếu chưa được index. */
+  string         document_index_id   = 11;
+}
+
+message KnowledgeBaseFileCount {
+  string name  = 1;
+  int32  count = 2;
 }
 
 message StatsMessage {
@@ -50,6 +58,8 @@ message StatsMessage {
   int32  total_files             = 2;
   int32  departments_using_count = 3;
   string last_updated_at         = 4;
+  int32  pdf_files_count         = 5;
+  repeated KnowledgeBaseFileCount files_by_knowledge_base = 6;
 }
 
 // ─── Knowledge Base requests ────────────────────────────────────────────────
@@ -101,6 +111,33 @@ message DeleteResponse {
 
 message GetStatsRequest {}
 
+// ─── All Files (cross knowledge-bases) ──────────────────────────────────────
+
+message AllFileCountsMessage {
+  int32 word        = 1;
+  int32 excel       = 2;
+  int32 pdf         = 3;
+  int32 image       = 4;
+  int32 power_point = 5;
+  int32 text        = 6;
+  int32 total       = 7;
+}
+
+message ListAllKnowledgeFilesRequest {
+  string search    = 1;
+  string file_type = 2;
+  int32  page      = 3;
+  int32  page_size = 4;
+}
+
+message ListAllKnowledgeFilesResponse {
+  repeated KnowledgeFileMessage items = 1;
+  int32                total          = 2;
+  int32                page           = 3;
+  int32                page_size      = 4;
+  AllFileCountsMessage counts         = 5;
+}
+
 // ─── Knowledge File requests ─────────────────────────────────────────────────
 
 message ListKnowledgeFilesRequest {
@@ -150,6 +187,12 @@ message UpdateFilePermissionsRequest {
 message GetKnowledgeFileRequest {
   string id                = 1;
   string knowledge_base_id = 2;
+}
+
+message MoveKnowledgeFileRequest {
+  string id                        = 1;
+  string file_name                 = 2;
+  string target_knowledge_base_id  = 3;
 }
 
 // ─── Knowledge Document messages ─────────────────────────────────────────────
@@ -248,6 +291,7 @@ service KnowledgeService {
   rpc UpdateKnowledgeBase  (UpdateKnowledgeBaseRequest)  returns (KnowledgeBaseMessage);
   rpc DeleteKnowledgeBase  (DeleteKnowledgeBaseRequest)  returns (DeleteResponse);
   rpc GetStats             (GetStatsRequest)             returns (StatsMessage);
+  rpc ListAllKnowledgeFiles(ListAllKnowledgeFilesRequest) returns (ListAllKnowledgeFilesResponse);
 
   // Knowledge Files
   rpc ListKnowledgeFiles   (ListKnowledgeFilesRequest)   returns (ListKnowledgeFilesResponse);
@@ -256,6 +300,7 @@ service KnowledgeService {
   rpc UpdateKnowledgeFile  (UpdateKnowledgeFileRequest)  returns (KnowledgeFileMessage);
   rpc DeleteKnowledgeFile  (DeleteKnowledgeFileRequest)  returns (DeleteResponse);
   rpc UpdateFilePermissions(UpdateFilePermissionsRequest) returns (KnowledgeFileMessage);
+  rpc MoveKnowledgeFile    (MoveKnowledgeFileRequest)     returns (KnowledgeFileMessage);
 
   // Knowledge Documents (upload + approval workflow)
   rpc UploadDocument             (UploadDocumentRequest)             returns (KnowledgeDocumentMessage);

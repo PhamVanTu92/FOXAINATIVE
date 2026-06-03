@@ -50,6 +50,15 @@ function detectFileType(filename: string): string {
   return FILE_TYPE_MAP[ext] ?? 'PDF';
 }
 
+function toPublicUrl(path: string | undefined): string | undefined {
+  if (!path) return undefined;
+  const base = (process.env['PUBLIC_URL'] ?? 'http://localhost:3001').replace(/\/$/, '');
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    try { return `${base}${new URL(path).pathname}`; } catch { return path; }
+  }
+  return `${base}/${path}`;
+}
+
 const multerOptions = {
   storage: diskStorage({
     destination: join(process.cwd(), 'uploads', 'knowledge-docs'),
@@ -68,7 +77,7 @@ export class KnowledgeDocumentsController {
   @Post()
   @UseInterceptors(FileInterceptor('file', multerOptions))
   @RequirePermission('KNOWLEDGE_UPLOAD', 'CREATE')
-  upload(
+  async upload(
     @UploadedFile() file: Express.Multer.File | undefined,
     @Body() dto: UploadDocumentDto,
     @AccessToken() token: string,
@@ -76,10 +85,9 @@ export class KnowledgeDocumentsController {
   ) {
     const fileSizeMb = file ? +(file.size / (1024 * 1024)).toFixed(4) : 0;
     const fileType = dto.fileType ?? (file ? detectFileType(file.originalname) : 'PDF');
-    const baseUrl = (process.env['PUBLIC_URL'] ?? 'http://localhost:3001').replace(/\/$/, '');
-    const storagePath = file ? `${baseUrl}/uploads/knowledge-docs/${file.filename}` : undefined;
+    const storagePath = file ? `uploads/knowledge-docs/${file.filename}` : undefined;
 
-    return this.knowledge.uploadDocument(
+    const result = await this.knowledge.uploadDocument(
       {
         knowledgeBaseId: dto.knowledgeBaseId,
         title: dto.title,
@@ -92,16 +100,17 @@ export class KnowledgeDocumentsController {
       },
       buildForwardMetadata(token, user),
     );
+    return { ...(result as any), storagePath: toPublicUrl((result as any).storagePath) };
   }
 
   @Get()
   @RequirePermission('KNOWLEDGE_MGMT', 'READ')
-  list(
+  async list(
     @Query() q: ListDocumentsQueryDto,
     @AccessToken() token: string,
     @CurrentUser() user: AuthenticatedRequestUser,
   ) {
-    return this.knowledge.listDocuments(
+    const result = await this.knowledge.listDocuments(
       {
         knowledgeBaseId: q.knowledgeBaseId,
         status: q.status,
@@ -111,6 +120,11 @@ export class KnowledgeDocumentsController {
       },
       buildForwardMetadata(token, user),
     );
+    const r = result as any;
+    return {
+      ...r,
+      items: (r.items ?? []).map((item: any) => ({ ...item, storagePath: toPublicUrl(item.storagePath) })),
+    };
   }
 
   @Get(':docId/file')
@@ -122,22 +136,22 @@ export class KnowledgeDocumentsController {
     @Res() res: Response,
   ) {
     const doc = await this.knowledge.getDocument({ id: docId }, buildForwardMetadata(token, user));
-    const storagePath: string = (doc as any).storagePath ?? '';
-    if (!storagePath) {
+    const rawPath: string = (doc as any).storagePath ?? '';
+    if (!rawPath) {
       throw new NotFoundException('Tài liệu chưa có file đính kèm');
     }
-    // storagePath là public URL — redirect trực tiếp
-    (res as any).redirect(storagePath);
+    (res as any).redirect(toPublicUrl(rawPath)!);
   }
 
   @Get(':docId')
   @RequirePermission('KNOWLEDGE_MGMT', 'READ')
-  get(
+  async get(
     @Param('docId', new ParseUUIDPipe()) docId: string,
     @AccessToken() token: string,
     @CurrentUser() user: AuthenticatedRequestUser,
   ) {
-    return this.knowledge.getDocument({ id: docId }, buildForwardMetadata(token, user));
+    const doc = await this.knowledge.getDocument({ id: docId }, buildForwardMetadata(token, user));
+    return { ...(doc as any), storagePath: toPublicUrl((doc as any).storagePath) };
   }
 
   @Post(':docId/submit-review')

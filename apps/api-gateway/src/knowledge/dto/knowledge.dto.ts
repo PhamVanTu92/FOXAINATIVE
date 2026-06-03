@@ -80,7 +80,21 @@ export class ListKnowledgeFilesQueryDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(200) pageSize?: number;
 }
 
+export class MoveKnowledgeFileDto {
+  @IsOptional() @IsString() @IsNotEmpty() @MaxLength(500) fileName?: string;
+  @IsOptional() @IsUUID() targetKnowledgeBaseId?: string;
+}
+
+export class ListAllKnowledgeFilesQueryDto {
+  @IsOptional() @IsString() @MaxLength(200) search?: string;
+  @IsOptional() @IsIn(FILE_TYPES) fileType?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(200) pageSize?: number;
+}
+
 export class AddKnowledgeFileDto {
+  @IsOptional() @IsUUID() knowledgeBaseId?: string;
+
   @IsOptional() @IsString() @MaxLength(500) fileName?: string;
 
   @IsOptional() @IsString() @IsIn(FILE_TYPES) fileType?: string;

@@ -7,8 +7,6 @@ public class AddKnowledgeFileCommandValidator : AbstractValidator<AddKnowledgeFi
 {
     public AddKnowledgeFileCommandValidator()
     {
-        RuleFor(x => x.KnowledgeBaseId).NotEmpty();
-
         RuleFor(x => x.FileName)
             .NotEmpty().WithMessage("Tên tệp không được để trống.")
             .MaximumLength(500).WithMessage("Tên tệp tối đa 500 ký tự.");
