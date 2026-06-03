@@ -8,6 +8,7 @@ import {
 import type { LineItem } from '@/lib/ocr-api';
 import { useInvoiceList } from '../hooks/useInvoiceList';
 import { useRoutePermission } from '@/hooks/usePermission';
+import { SelectDropdown } from '@/components/SelectDropdown';
 
 const STATUS_CONFIG = {
   DRAFT:     { label: 'Nháp',        cls: 'bg-subtle        text-content-secondary border-default' },
@@ -136,17 +137,17 @@ export function HoaDonVatView() {
             </div>
             <div>
               <label className="block text-xs font-medium text-content-secondary mb-1">Trạng thái</label>
-              <select
+              <SelectDropdown
                 value={statusFilter}
-                onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
-                className="h-9 px-3 py-1.5 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary"
-              >
-                <option value="">Tất cả</option>
-                <option value="DRAFT">Nháp</option>
-                <option value="PROCESSED">Đã xử lý</option>
-                <option value="CONFIRMED">Đã xác nhận</option>
-                <option value="ERROR">Lỗi</option>
-              </select>
+                onChange={v => { setStatusFilter(v); setPage(1); }}
+                placeholder="Tất cả"
+                options={[
+                  { value: 'DRAFT', label: 'Nháp' },
+                  { value: 'PROCESSED', label: 'Đã xử lý' },
+                  { value: 'CONFIRMED', label: 'Đã xác nhận' },
+                  { value: 'ERROR', label: 'Lỗi' },
+                ]}
+              />
             </div>
             <div>
               <label className="block text-xs font-medium text-content-secondary mb-1">Từ ngày</label>
@@ -495,19 +496,27 @@ export function HoaDonVatView() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-content-secondary mb-1.5">Schema chứng từ</label>
-                <select value={uploadSchemaId} onChange={e => setUploadSchemaId(e.target.value)} className="w-full px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary">
-                  <option value="">— Chọn schema —</option>
-                  {schemas.map(s => <option key={s.id} value={s.id}>{s.name} ({s.code})</option>)}
-                </select>
+                <SelectDropdown
+                  value={uploadSchemaId}
+                  onChange={setUploadSchemaId}
+                  placeholder="— Chọn schema —"
+                  options={schemas.map(s => ({ value: s.id, label: `${s.name} (${s.code})` }))}
+                  className="w-full"
+                />
                 {schemas.length === 0 && <p className="text-xs text-warning-600 mt-1">Chưa có schema INVOICE. Hãy tạo schema trong Cấu hình OCR.</p>}
               </div>
               <div>
                 <label className="block text-xs font-medium text-content-secondary mb-1.5">Ngôn ngữ</label>
-                <select value={uploadLanguage} onChange={e => setUploadLanguage(e.target.value as 'vi' | 'en' | 'vi+en')} className="w-full px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary">
-                  <option value="vi">Tiếng Việt</option>
-                  <option value="en">English</option>
-                  <option value="vi+en">Việt + English</option>
-                </select>
+                <SelectDropdown
+                  value={uploadLanguage}
+                  onChange={v => setUploadLanguage(v as 'vi' | 'en' | 'vi+en')}
+                  options={[
+                    { value: 'vi', label: 'Tiếng Việt' },
+                    { value: 'en', label: 'English' },
+                    { value: 'vi+en', label: 'Việt + English' },
+                  ]}
+                  className="w-full"
+                />
               </div>
               {uploadMsg && (
                 <div className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm border ${uploadMsg.startsWith('Lỗi') ? 'bg-danger-50/10 text-danger-700 border-danger-500/30' : 'bg-primary-50 text-success-700 border-success-500/30'}`}>

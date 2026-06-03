@@ -7,6 +7,7 @@ import {
   AlertCircle, Cpu, FileText, Settings2, Trash2,
 } from 'lucide-react';
 import { useChatbotForm } from '../hooks/useChatbotForm';
+import { SelectDropdown } from '@/components/SelectDropdown';
 import { PURPOSE_LABELS, MODE_LABELS, buildEmbedSnippet } from '@/lib/chatbot-api';
 import type { ChatbotItem, EmbedKind } from '@/lib/chatbot-api';
 import type { Collection } from '@/lib/collections-api';
@@ -79,22 +80,22 @@ export function ChatbotCreateForm({ collections, editing = null, onSaved, onCanc
             </Field>
             <div className="grid grid-cols-2 gap-4">
               <Field label="Mục đích sử dụng" required>
-                <select className={inputCls} value={f.purpose}
-                  onChange={e => f.setPurpose(e.target.value as typeof f.purpose)}>
-                  <option value="">-- Chọn mục đích --</option>
-                  {Object.entries(PURPOSE_LABELS).map(([k, v]) => (
-                    <option key={k} value={k}>{v}</option>
-                  ))}
-                </select>
+                <SelectDropdown
+                  value={f.purpose}
+                  onChange={v => f.setPurpose(v as typeof f.purpose)}
+                  placeholder="-- Chọn mục đích --"
+                  options={Object.entries(PURPOSE_LABELS).map(([k, v]) => ({ value: k, label: v }))}
+                  className="w-full"
+                />
               </Field>
               <Field label="Hình thức" required>
-                <select className={inputCls} value={f.mode}
-                  onChange={e => f.setMode(e.target.value as typeof f.mode)}>
-                  <option value="">-- Chọn hình thức --</option>
-                  {Object.entries(MODE_LABELS).map(([k, v]) => (
-                    <option key={k} value={k}>{v}</option>
-                  ))}
-                </select>
+                <SelectDropdown
+                  value={f.mode}
+                  onChange={v => f.setMode(v as typeof f.mode)}
+                  placeholder="-- Chọn hình thức --"
+                  options={Object.entries(MODE_LABELS).map(([k, v]) => ({ value: k, label: v }))}
+                  className="w-full"
+                />
               </Field>
             </div>
             <Field label="Trạng thái">

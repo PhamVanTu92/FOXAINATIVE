@@ -12,6 +12,7 @@ import { useDocumentList } from '../hooks/useDocumentList';
 import { useDocumentDetail } from '../hooks/useDocumentDetail';
 import { useRoutePermission } from '@/hooks/usePermission';
 import { STATUS_CONFIG_FULL, TYPE_CONFIG, STANDARD_FIELD_KEYS, fmtDate, fmtNum } from '../constants';
+import { SelectDropdown } from '@/components/SelectDropdown';
 
 function WordPreview({ url }: { url: string }) {
   const [html, setHtml] = useState<string | null>(null);
@@ -277,7 +278,7 @@ function DetailDrawer({
             <button
               onClick={handleExportJson}
               title="Xuất JSON"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-content-muted hover:text-primary-600 hover:bg-primary-50 shrink-0 ml-1 transition-colors text-xs font-medium"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-teal-700 bg-teal-50 border border-teal-200 hover:bg-teal-100 hover:border-teal-300 shrink-0 ml-1 transition-colors text-xs font-medium"
             >
               <FileJson className="w-4 h-4" />
               Xuất JSON
@@ -510,28 +511,24 @@ export function ChungTuView() {
             </div>
           </div>
           <div className="w-px h-6 bg-strong shrink-0" />
-          <select
+          <SelectDropdown
             value={statusFilter}
-            onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
-            className="h-9 px-3 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary"
-          >
-            <option value="">Tất cả trạng thái</option>
-            <option value="DRAFT">Đang xử lý</option>
-            <option value="PROCESSED">Nháp</option>
-            <option value="CONFIRMED">Đã xác nhận</option>
-            <option value="TRANSFERRED">Đã chuyển kho</option>
-            <option value="ERROR">Lỗi</option>
-          </select>
-          <select
+            onChange={v => { setStatusFilter(v); setPage(1); }}
+            placeholder="Tất cả trạng thái"
+            options={[
+              { value: 'DRAFT', label: 'Đang xử lý' },
+              { value: 'PROCESSED', label: 'Nháp' },
+              { value: 'CONFIRMED', label: 'Đã xác nhận' },
+              { value: 'TRANSFERRED', label: 'Đã chuyển kho' },
+              { value: 'ERROR', label: 'Lỗi' },
+            ]}
+          />
+          <SelectDropdown
             value={typeFilter}
-            onChange={e => { setTypeFilter(e.target.value); setPage(1); }}
-            className="h-9 px-3 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary"
-          >
-            <option value="">Tất cả loại</option>
-            {Object.entries(TYPE_CONFIG).map(([k, v]) => (
-              <option key={k} value={k}>{v.label}</option>
-            ))}
-          </select>
+            onChange={v => { setTypeFilter(v); setPage(1); }}
+            placeholder="Tất cả loại"
+            options={Object.entries(TYPE_CONFIG).map(([k, v]) => ({ value: k, label: v.label }))}
+          />
           <div className="flex items-center h-9 border border-default rounded-lg overflow-hidden bg-surface shrink-0 focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-primary-400">
             <span className="pl-2.5 pr-1.5 text-[11px] font-medium text-content-muted whitespace-nowrap select-none">Từ ngày</span>
             <input
@@ -756,16 +753,13 @@ export function ChungTuView() {
                       <Loader2 className="w-3.5 h-3.5 animate-spin" /> Đang tải...
                     </div>
                   ) : (
-                    <select
+                    <SelectDropdown
                       value={selectedKbId}
-                      onChange={e => setSelectedKbId(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary"
-                    >
-                      <option value="">-- Chọn bộ tri thức --</option>
-                      {kbList.map(kb => (
-                        <option key={kb.id} value={kb.id}>{kb.name}</option>
-                      ))}
-                    </select>
+                      onChange={setSelectedKbId}
+                      placeholder="-- Chọn bộ tri thức --"
+                      options={kbList.map(kb => ({ value: kb.id, label: kb.name }))}
+                      className="w-full"
+                    />
                   )}
                   <p className="text-xs text-content-muted mt-1">Chứng từ sẽ được gửi vào luồng kiểm duyệt & phê duyệt.</p>
                 </div>
@@ -811,16 +805,13 @@ export function ChungTuView() {
                     <Loader2 className="w-4 h-4 animate-spin" /> Đang tải danh sách...
                   </div>
                 ) : (
-                  <select
+                  <SelectDropdown
                     value={selectedKbId}
-                    onChange={e => setSelectedKbId(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary"
-                  >
-                    <option value="">-- Chọn bộ tri thức --</option>
-                    {kbList.map(kb => (
-                      <option key={kb.id} value={kb.id}>{kb.name}</option>
-                    ))}
-                  </select>
+                    onChange={setSelectedKbId}
+                    placeholder="-- Chọn bộ tri thức --"
+                    options={kbList.map(kb => ({ value: kb.id, label: kb.name }))}
+                    className="w-full"
+                  />
                 )}
               </div>
             </div>

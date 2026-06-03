@@ -12,6 +12,7 @@ import { knowledgeDocumentsApi } from '@/lib/knowledge-api';
 import type { KnowledgeDocument, DocStatus, DocumentVersion } from '@/lib/knowledge-api';
 import type { DocDetailTab } from '../hooks/useKiemDuyet';
 import { useRoutePermission } from '@/hooks/usePermission';
+import { SelectDropdown } from '@/components/SelectDropdown';
 
 // ─── InfoRow helper ───────────────────────────────────────────────────────────
 
@@ -450,28 +451,22 @@ function VersionCompare({ versions }: { versions: DocumentVersion[] }) {
       <div className="flex items-center gap-3">
         <div className="flex-1">
           <label className="block text-xs font-medium text-content-secondary mb-1">Phiên bản (trái)</label>
-          <select
+          <SelectDropdown
             value={leftId}
-            onChange={e => setLeftId(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary"
-          >
-            {versions.map(v => (
-              <option key={v.id} value={v.id}>{v.versionNumber} — {v.createdAt?.slice(0, 10)}</option>
-            ))}
-          </select>
+            onChange={setLeftId}
+            options={versions.map(v => ({ value: v.id, label: `${v.versionNumber} — ${v.createdAt?.slice(0, 10)}` }))}
+            className="w-full"
+          />
         </div>
         <ArrowLeftRight size={16} className="text-content-muted mt-5 shrink-0" />
         <div className="flex-1">
           <label className="block text-xs font-medium text-content-secondary mb-1">Phiên bản (phải)</label>
-          <select
+          <SelectDropdown
             value={rightId}
-            onChange={e => setRightId(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary"
-          >
-            {versions.map(v => (
-              <option key={v.id} value={v.id}>{v.versionNumber} — {v.createdAt?.slice(0, 10)}</option>
-            ))}
-          </select>
+            onChange={setRightId}
+            options={versions.map(v => ({ value: v.id, label: `${v.versionNumber} — ${v.createdAt?.slice(0, 10)}` }))}
+            className="w-full"
+          />
         </div>
       </div>
 

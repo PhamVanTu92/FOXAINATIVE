@@ -17,6 +17,7 @@ import { knowledgeBasesApi, knowledgeFilesApi, knowledgeFilesStandaloneApi } fro
 import { useRoutePermission } from '@/hooks/usePermission';
 import { InfiniteScrollSelect } from '@/components/InfiniteScrollSelect';
 import type { SelectOption } from '@/components/InfiniteScrollSelect';
+import { SelectDropdown } from '@/components/SelectDropdown';
 
 // ─── File type badges ─────────────────────────────────────────────────────────
 
@@ -156,17 +157,13 @@ function CreateKBModal({
             <label className="block text-sm font-medium text-content-secondary mb-1">
               Phòng ban quản lý <span className="text-danger-600">*</span>
             </label>
-            <select
+            <SelectDropdown
               value={managingId}
-              onChange={e => setManagingId(e.target.value)}
-              required
-              className={inputCls}
-            >
-              <option value="">-- Chọn phòng ban --</option>
-              {orgDepts.map(d => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
-            </select>
+              onChange={setManagingId}
+              placeholder="-- Chọn phòng ban --"
+              options={orgDepts.map(d => ({ value: d.id, label: d.name }))}
+              className="w-full"
+            />
           </div>
 
           {/* Phân quyền truy cập */}
@@ -807,11 +804,12 @@ export function KnowledgeListView() {
                 placeholder="Tìm bộ tri thức..."
                 className="w-full pl-9 pr-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-surface text-content-primary" />
             </div>
-            <select value={departmentFilter} onChange={e => setDepartmentFilter(e.target.value)}
-              className="px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-secondary">
-              <option value="">Tất cả phòng ban</option>
-              {departments.map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
+            <SelectDropdown
+              value={departmentFilter}
+              onChange={setDepartmentFilter}
+              placeholder="Tất cả phòng ban"
+              options={departments.map(d => ({ value: d, label: d }))}
+            />
             <div className="flex-1" />
             {canExport && (
               <button onClick={exportExcel}

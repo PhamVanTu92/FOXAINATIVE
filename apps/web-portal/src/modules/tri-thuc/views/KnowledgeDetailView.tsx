@@ -11,6 +11,7 @@ import { useKnowledgeDetail } from '../hooks/useKnowledgeDetail';
 import { knowledgeFilesApi } from '@/lib/knowledge-api';
 import type { KnowledgeBase, KnowledgeFile, DepartmentRef, CreateKbPayload } from '@/lib/knowledge-api';
 import { useRoutePermission } from '@/hooks/usePermission';
+import { SelectDropdown } from '@/components/SelectDropdown';
 
 // ─── File type config ─────────────────────────────────────────────────────────
 
@@ -245,10 +246,12 @@ function UploadModal({
           </div>
           <div>
             <label className="block text-sm font-medium text-content-secondary mb-1">Loại tệp</label>
-            <select value={fileType} onChange={e => setFileType(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-secondary">
-              {FILE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
+            <SelectDropdown
+              value={fileType}
+              onChange={setFileType}
+              options={FILE_TYPES.map(t => ({ value: t, label: t }))}
+              className="w-full"
+            />
           </div>
           {error && (
             <div className="flex items-center gap-2 bg-danger-50/10 border border-danger-500/30 text-danger-700 rounded-lg px-3 py-2 text-sm">
@@ -489,16 +492,13 @@ function EditKbModal({
               <label className="block text-sm font-medium text-content-secondary mb-1">
                 Phòng ban quản lý <span className="text-danger-600">*</span>
               </label>
-              <select
+              <SelectDropdown
                 value={managingId}
-                onChange={e => setManagingId(e.target.value)}
-                required
-                className="w-full px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-secondary">
-                <option value="">-- Chọn phòng ban --</option>
-                {orgDepts.map(d => (
-                  <option key={d.departmentId} value={d.departmentId}>{d.departmentName}</option>
-                ))}
-              </select>
+                onChange={setManagingId}
+                placeholder="-- Chọn phòng ban --"
+                options={orgDepts.map(d => ({ value: d.departmentId, label: d.departmentName }))}
+                className="w-full"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-content-secondary mb-1">

@@ -9,6 +9,7 @@ import { useOcrSchemaEdit } from '../hooks/useOcrSchemaEdit';
 import { TYPE_OPTIONS, DATA_TYPE_OPTIONS, POSITION_OPTIONS, PROMPT_TEMPLATES, toKey } from '../constants';
 import type { DataType, FieldPosition, DocType } from '@/lib/ocr-api';
 import { useRoutePermission } from '@/hooks/usePermission';
+import { SelectDropdown } from '@/components/SelectDropdown';
 
 interface Props {
   id: string;
@@ -200,22 +201,22 @@ export function OcrSchemaEditView({ id }: Props) {
                         <input disabled value={f.fieldKey} className="w-full px-2.5 py-1.5 text-xs border border-dashed border-default rounded-lg font-mono text-content-secondary bg-subtle cursor-not-allowed" />
                       </td>
                       <td className="px-4 py-3">
-                        <select
+                        <SelectDropdown
                           value={e.dataType}
-                          onChange={ev => setFieldEdits(prev => ({ ...prev, [f.id]: { ...prev[f.id]!, dataType: ev.target.value as DataType } }))}
-                          className="w-full px-2 py-1.5 text-xs border border-default rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500 bg-surface text-content-primary"
-                        >
-                          {DATA_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                        </select>
+                          onChange={v => setFieldEdits(prev => ({ ...prev, [f.id]: { ...prev[f.id]!, dataType: v as DataType } }))}
+                          options={DATA_TYPE_OPTIONS}
+                          size="sm"
+                          className="w-full"
+                        />
                       </td>
                       <td className="px-4 py-3">
-                        <select
+                        <SelectDropdown
                           value={e.position}
-                          onChange={ev => setFieldEdits(prev => ({ ...prev, [f.id]: { ...prev[f.id]!, position: ev.target.value as FieldPosition } }))}
-                          className="w-full px-2 py-1.5 text-xs border border-default rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500 bg-surface text-content-primary"
-                        >
-                          {POSITION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                        </select>
+                          onChange={v => setFieldEdits(prev => ({ ...prev, [f.id]: { ...prev[f.id]!, position: v as FieldPosition } }))}
+                          options={POSITION_OPTIONS}
+                          size="sm"
+                          className="w-full"
+                        />
                       </td>
                       <td className="px-4 py-3 text-center">
                         <button
@@ -387,13 +388,13 @@ export function OcrSchemaEditView({ id }: Props) {
                                     <input disabled value={c.columnKey} className="w-full px-2 py-1.5 text-[11px] border border-dashed border-default rounded font-mono text-content-secondary bg-subtle cursor-not-allowed" />
                                   </td>
                                   <td className="px-3 py-2">
-                                    <select
+                                    <SelectDropdown
                                       value={ce.dataType}
-                                      onChange={ev => setColEdits(prev => ({ ...prev, [c.id]: { ...prev[c.id]!, dataType: ev.target.value as DataType } }))}
-                                      className="w-full px-2 py-1.5 border border-default rounded bg-surface focus:outline-none focus:ring-1 focus:ring-primary-500 text-content-primary"
-                                    >
-                                      {DATA_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                    </select>
+                                      onChange={v => setColEdits(prev => ({ ...prev, [c.id]: { ...prev[c.id]!, dataType: v as DataType } }))}
+                                      options={DATA_TYPE_OPTIONS}
+                                      size="sm"
+                                      className="w-full"
+                                    />
                                   </td>
                                   <td className="px-3 py-2 text-center">
                                     <button onClick={() => handleRemoveColumn(t.id, c.id, c.label)} disabled={t.columns.length === 1} className="p-1 text-content-muted hover:text-danger-400 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="Xóa cột">

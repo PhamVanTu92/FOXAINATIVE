@@ -10,6 +10,7 @@ import {
 import type { DataType, LineItem } from '@/lib/ocr-api';
 import { useOcrRecognition, type QueueItem, type QueueStatus } from '../hooks/useOcrRecognition';
 import { useRoutePermission } from '@/hooks/usePermission';
+import { SelectDropdown } from '@/components/SelectDropdown';
 
 const DATA_TYPE_LABEL: Record<DataType, string> = {
   TEXT: 'Text', DATE: 'Date', NUMBER: 'Number',
@@ -497,15 +498,16 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
           <div className="border-t border-default px-5 py-2.5 flex items-center gap-3 bg-subtle">
             <Bot className="w-3.5 h-3.5 text-content-muted shrink-0" />
             <span className="text-xs text-content-secondary font-medium shrink-0">Model AI</span>
-            <select
+            <SelectDropdown
               value={ocrProvider}
-              onChange={e => setOcrProvider(e.target.value)}
+              onChange={setOcrProvider}
               disabled={anyProcessing}
-              className="text-xs border border-default rounded-md px-2.5 py-1.5 bg-surface text-content-secondary focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-              <option value="gemini">Gemini 2.5 Flash</option>
-              <option value="claude">Claude Sonnet 4.5</option>
-            </select>
+              size="sm"
+              options={[
+                { value: 'gemini', label: 'Gemini 2.5 Flash' },
+                { value: 'claude', label: 'Claude Sonnet 4.5' },
+              ]}
+            />
             {queue.length > 0 && (
               <span className="ml-auto text-xs text-content-muted">
                 {queue.filter(q => q.status === 'done').length}/{queue.length} chứng từ hoàn tất

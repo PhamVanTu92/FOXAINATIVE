@@ -10,6 +10,7 @@ import { TYPE_CONFIG, TYPE_OPTIONS } from '../constants';
 import type { DocType } from '@/lib/ocr-api';
 import { useRoutePermission } from '@/hooks/usePermission';
 import { useUIStore } from '@/stores/ui';
+import { SelectDropdown } from '@/components/SelectDropdown';
 
 function StatusToggle({ active, onToggle }: { active: boolean; onToggle: () => void }) {
   return (
@@ -102,14 +103,12 @@ export function OcrSchemaListView() {
               className="w-full pl-9 pr-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/40 bg-surface transition-all text-content-primary"
             />
           </div>
-          <select
+          <SelectDropdown
             value={typeFilter}
-            onChange={e => setTypeFilter(e.target.value as DocType | '')}
-            className="px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/40 bg-surface text-content-secondary transition-all"
-          >
-            <option value="">Tất cả loại</option>
-            {TYPE_OPTIONS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
-          </select>
+            onChange={v => setTypeFilter(v as DocType | '')}
+            placeholder="Tất cả loại"
+            options={TYPE_OPTIONS.map(({ value, label }) => ({ value, label }))}
+          />
 
           <div className="flex-1" />
 

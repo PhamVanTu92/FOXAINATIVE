@@ -10,6 +10,7 @@ import { useUsers } from '../hooks/useUsers';
 import { UserPermissionsModal } from './UserPermissionsModal';
 import { usersApi } from '@/lib/users-api';
 import type { UserItem, RoleItem, OrgNode } from '@/lib/users-api';
+import { SelectDropdown } from '@/components/SelectDropdown';
 import { useRoutePermission } from '@/hooks/usePermission';
 
 // ─── Shared constants ─────────────────────────────────────────────────────────
@@ -64,6 +65,7 @@ function ErrorBanner({ message }: { message: string }) {
     </div>
   );
 }
+
 
 function StatusToggle({ status, onToggle }: { status: string; onToggle: () => void }) {
   const active = status === 'ACTIVE';
@@ -170,11 +172,13 @@ function UserModal({ editing, roles, orgs, onClose, onSaved }: {
               placeholder="VD: 0901234567" className={inputCls} />
           </Field>
           <Field label="Phòng ban">
-            <select value={organizationId} onChange={e => setOrganizationId(e.target.value)}
-              className={inputCls}>
-              <option value="">— Chưa chọn —</option>
-              {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-            </select>
+            <SelectDropdown
+              value={organizationId}
+              onChange={setOrganizationId}
+              placeholder="— Chưa chọn —"
+              options={orgs.map(o => ({ value: o.id, label: o.name }))}
+              className="w-full"
+            />
           </Field>
           {isNew && (
             <Field label="Vai trò">
@@ -416,18 +420,22 @@ export function UserListView() {
               className="w-full pl-9 pr-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-transparent transition-all bg-surface text-content-primary"
             />
           </div>
-          <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)}
-            className="px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/40 bg-surface text-content-secondary transition-all">
-            <option value="">Tất cả vai trò</option>
-            {roles.map(r => <option key={r.code} value={r.code}>{r.name}</option>)}
-          </select>
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-            className="px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/40 bg-surface text-content-secondary transition-all">
-            <option value="">Tất cả trạng thái</option>
-            <option value="ACTIVE">Hoạt động</option>
-            <option value="INACTIVE">Vô hiệu</option>
-            <option value="LOCKED">Bị khóa</option>
-          </select>
+          <SelectDropdown
+            value={roleFilter}
+            onChange={setRoleFilter}
+            placeholder="Tất cả vai trò"
+            options={roles.map(r => ({ value: r.code, label: r.name }))}
+          />
+          <SelectDropdown
+            value={statusFilter}
+            onChange={setStatusFilter}
+            placeholder="Tất cả trạng thái"
+            options={[
+              { value: 'ACTIVE', label: 'Hoạt động' },
+              { value: 'INACTIVE', label: 'Vô hiệu' },
+              { value: 'LOCKED', label: 'Bị khóa' },
+            ]}
+          />
           <div className="flex-1" />
           <button onClick={handleRefresh}
             className="p-2 rounded-lg text-content-muted hover:text-primary-600 hover:bg-primary-50 transition-colors" title="Làm mới">
@@ -492,9 +500,12 @@ export function UserListView() {
                     <div className="flex flex-wrap gap-1">
                       {user.roles.length === 0
                         ? <span className="text-content-muted text-xs">—</span>
-                        : user.roles.map(r => (
-                          <span key={r} className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleColor(r)}`}>{r}</span>
-                        ))}
+                        : user.roles.map(r => {
+                          const label = roles.find(role => role.code === r)?.name ?? r;
+                          return (
+                            <span key={r} className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleColor(r)}`}>{label}</span>
+                          );
+                        })}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-content-secondary text-sm">
