@@ -60,6 +60,8 @@ export function useChatbotChat(lookup: BotLookup) {
   const cancelRef       = useRef<(() => void) | null>(null);
   const audioRef        = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef     = useRef<string | null>(null);
+  // stream generation: tăng mỗi lần sendMessage để callbacks cũ tự loại bỏ
+  const streamGenRef    = useRef(0);
   // TTS pipeline
   const ttsSessionRef   = useRef(0);
   const ttsPausedRef    = useRef(false); // audio đang pause (không phải stop)
@@ -400,6 +402,13 @@ export function useChatbotChat(lookup: BotLookup) {
     const trimmed = text.trim();
     if (!trimmed || sending || !bot) return;
 
+    // Cancel stream cũ trước khi mở stream mới — tránh onDone/onAudioChunk
+    // của stream cũ can thiệp vào pipeline TTS của message mới.
+    cancelRef.current?.();
+    cancelRef.current = null;
+    streamGenRef.current++;
+    const gen = streamGenRef.current;
+
     stopSpeakingNow();
     const hasVoice = bot.mode === 'voice' || bot.mode === 'both';
     if (hasVoice) ttsStreamingRef.current = true;
@@ -438,6 +447,7 @@ export function useChatbotChat(lookup: BotLookup) {
       },
       onAudioChunk: (seq, audioBase64) => {
         if (!hasVoice) return;
+        if (streamGenRef.current !== gen) return; // stream cũ, bỏ qua
         const session = ttsSessionRef.current;
         // Đảm bảo slot array đủ chỗ
         while (ttsSlotsRef.current.length <= seq) {
@@ -463,12 +473,14 @@ export function useChatbotChat(lookup: BotLookup) {
         }
       },
       onTextDone: () => {
+        if (streamGenRef.current !== gen) return; // stream cũ, bỏ qua
         // Text generation xong → ẩn spinner, refresh sidebar
         // Audio_chunks vẫn có thể đang đến qua SSE, KHÔNG dừng TTS pipeline
         setSending(false);
         void refreshConversations(bot.id, !wasNewConversation);
       },
       onDone: () => {
+        if (streamGenRef.current !== gen) return; // stream cũ, bỏ qua
         // SSE stream thực sự đóng (sau tất cả audio_chunk)
         cancelRef.current = null;
         if (hasVoice) {
@@ -478,6 +490,7 @@ export function useChatbotChat(lookup: BotLookup) {
         }
       },
       onError: (err) => {
+        if (streamGenRef.current !== gen) return; // stream cũ, bỏ qua
         setMessages(prev => prev.map(m =>
           m.id === assistantId ? { ...m, content: `⚠️ Lỗi: ${err.message}` } : m,
         ));
