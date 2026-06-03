@@ -60,7 +60,7 @@ export function DateRangePicker({ from, to, onChange, className = '' }: Props) {
       setPanelStyle({ position: 'fixed', top, left, zIndex: 9999 });
     }
     if (from) {
-      const [y, m] = from.split('-').map(Number);
+      const [y, m] = from.split('-').map(Number) as [number, number, number];
       setViewYear(y); setViewMonth(m - 1);
     }
     setPhase(from && !to ? 'to' : 'from');
