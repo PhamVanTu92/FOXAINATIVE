@@ -9,6 +9,7 @@ import type { LineItem } from '@/lib/ocr-api';
 import { useInvoiceList } from '../hooks/useInvoiceList';
 import { useRoutePermission } from '@/hooks/usePermission';
 import { SelectDropdown } from '@/components/SelectDropdown';
+import { DateRangePicker } from '@/components/DateRangePicker';
 
 const STATUS_CONFIG = {
   DRAFT:     { label: 'Nháp',        cls: 'bg-subtle        text-content-secondary border-default' },
@@ -149,14 +150,11 @@ export function HoaDonVatView() {
                 ]}
               />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-content-secondary mb-1">Từ ngày</label>
-              <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(1); }} className="h-9 px-3 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-content-secondary mb-1">Đến ngày</label>
-              <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(1); }} className="h-9 px-3 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary" />
-            </div>
+            <DateRangePicker
+              from={dateFrom}
+              to={dateTo}
+              onChange={(f, t) => { setDateFrom(f); setDateTo(t); setPage(1); }}
+            />
             {(search || statusFilter || dateFrom || dateTo) && (
               <button
                 onClick={() => { setSearch(''); setStatusFilter(''); setDateFrom(''); setDateTo(''); setPage(1); }}

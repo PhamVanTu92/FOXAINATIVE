@@ -13,6 +13,7 @@ import { useDocumentDetail } from '../hooks/useDocumentDetail';
 import { useRoutePermission } from '@/hooks/usePermission';
 import { STATUS_CONFIG_FULL, TYPE_CONFIG, STANDARD_FIELD_KEYS, fmtDate, fmtNum } from '../constants';
 import { SelectDropdown } from '@/components/SelectDropdown';
+import { DateRangePicker } from '@/components/DateRangePicker';
 
 function WordPreview({ url }: { url: string }) {
   const [html, setHtml] = useState<string | null>(null);
@@ -529,22 +530,11 @@ export function ChungTuView() {
             placeholder="Tất cả loại"
             options={Object.entries(TYPE_CONFIG).map(([k, v]) => ({ value: k, label: v.label }))}
           />
-          <div className="flex items-center h-9 border border-default rounded-lg overflow-hidden bg-surface shrink-0 focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-primary-400">
-            <span className="pl-2.5 pr-1.5 text-[11px] font-medium text-content-muted whitespace-nowrap select-none">Từ ngày</span>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={e => { setDateFrom(e.target.value); setPage(1); }}
-              className="h-full text-sm bg-transparent border-0 focus:outline-none w-[128px] text-content-primary"
-            />
-            <span className="px-1.5 text-content-muted select-none text-sm">–</span>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={e => { setDateTo(e.target.value); setPage(1); }}
-              className="h-full text-sm bg-transparent border-0 focus:outline-none w-[128px] pr-2 text-content-primary"
-            />
-          </div>
+          <DateRangePicker
+            from={dateFrom}
+            to={dateTo}
+            onChange={(f, t) => { setDateFrom(f); setDateTo(t); setPage(1); }}
+          />
           {(search || statusFilter || typeFilter || dateFrom || dateTo) && (
             <>
               <div className="w-px h-6 bg-strong shrink-0" />

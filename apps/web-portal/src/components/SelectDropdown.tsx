@@ -32,11 +32,16 @@ export function SelectDropdown({
     if (disabled) return;
     if (!open && triggerRef.current) {
       const r = triggerRef.current.getBoundingClientRect();
+      const minW = Math.max(r.width, 160);
+      const spaceRight = window.innerWidth - r.left;
+      const left = spaceRight >= minW ? r.left : Math.max(8, r.right - minW);
+      const spaceBelow = window.innerHeight - r.bottom;
+      const top = spaceBelow >= 280 ? r.bottom + 4 : r.top - Math.min(280, spaceBelow + r.height) - 4;
       setPanelStyle({
         position: 'fixed',
-        top: r.bottom + 4,
-        left: r.left,
-        minWidth: Math.max(r.width, 160),
+        top,
+        left,
+        minWidth: minW,
         zIndex: 9999,
       });
     }
