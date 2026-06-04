@@ -167,7 +167,7 @@ export default function Sidebar() {
     if (!user) { setChatbotItems([]); return; }
     const load = () => {
       chatbotApi.list().then(list => {
-        setChatbotItems(list.map(b => ({ label: b.name, href: `/chatbot/${b.id}`, icon: MessageSquare })));
+        setChatbotItems(list.filter(b => b.active).map(b => ({ label: b.name, href: `/chatbot/${b.id}`, icon: MessageSquare })));
       }).catch(() => setChatbotItems([]));
     };
     load();

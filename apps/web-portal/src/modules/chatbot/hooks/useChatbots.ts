@@ -98,6 +98,7 @@ export function useChatbots() {
     try {
       const next = await chatbotApi.update(bot.id, { active: !bot.active });
       setBots(prev => prev.map(b => b.id === bot.id ? next : b));
+      notifyChatbotsChanged();
     } catch (e: unknown) {
       showToast((e as Error).message, 'error');
     }
