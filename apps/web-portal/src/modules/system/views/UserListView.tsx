@@ -580,7 +580,11 @@ export function UserListView() {
         />
       )}
       {permissionsUser && (
-        <UserPermissionsModal user={permissionsUser} onClose={() => setPermissionsUser(null)} />
+        <UserPermissionsModal
+          user={permissionsUser}
+          onClose={() => setPermissionsUser(null)}
+          onRolesChanged={() => loadUsers()}
+        />
       )}
     </div>
   );

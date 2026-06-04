@@ -12,12 +12,12 @@ export default function PermissionGuard({ children }: { children: React.ReactNod
   const user = useAuthStore((s) => s.user);
 
   if (!user) return <>{children}</>;
-  if (user.roles.includes(SUPER_ADMIN_CODE)) return <>{children}</>;
+  if (user.roles?.includes(SUPER_ADMIN_CODE)) return <>{children}</>;
 
   const moduleCode = resolveModuleCode(pathname);
   if (!moduleCode) return <>{children}</>;
 
-  const hasAny = user.permissions.some((p) => p.startsWith(moduleCode + '.'));
+  const hasAny = user.permissions?.some((p) => p.startsWith(moduleCode + '.'));
   if (!hasAny) return <ForbiddenView />;
 
   return <>{children}</>;
