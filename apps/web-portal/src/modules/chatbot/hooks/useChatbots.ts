@@ -6,6 +6,21 @@ import { collectionsApi } from '@/lib/collections-api';
 import type { ChatbotItem, UpdateChatbotPayload } from '@/lib/chatbot-api';
 import type { Collection } from '@/lib/collections-api';
 import { useUIStore } from '@/stores/ui';
+import { useAuthStore } from '@/stores/auth';
+import type { UserProfile } from '@/lib/auth-api';
+
+const SUPER_ADMIN = 'SUPER_ADMIN';
+
+/** CHATBOT_{uuid-uppercase-no-hyphens}.READ */
+function chatbotPermKey(botId: string) {
+  return `CHATBOT_${botId.replace(/-/g, '').toUpperCase()}.READ`;
+}
+
+function filterByPermission(bots: ChatbotItem[], user: UserProfile | null): ChatbotItem[] {
+  if (!user) return [];
+  if (user.roles.includes(SUPER_ADMIN)) return bots;
+  return bots.filter(bot => user.permissions.includes(chatbotPermKey(bot.id)));
+}
 
 /** Báo cho Sidebar (hoặc consumer khác) biết để refetch list chatbot. */
 function notifyChatbotsChanged() {
@@ -20,6 +35,8 @@ function notifyChatbotsChanged() {
  */
 export function useChatbots() {
   const { showToast, showConfirm } = useUIStore();
+  const user = useAuthStore(s => s.user);
+
   const [bots, setBots] = useState<ChatbotItem[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
 
@@ -38,7 +55,8 @@ export function useChatbots() {
         chatbotApi.list(),
         collectionsApi.list().catch(() => [] as Collection[]),
       ]);
-      setBots(list);
+      const visibleBots = filterByPermission(list, user);
+      setBots(visibleBots);
       setCollections(cols);
       // Giữ selection cũ nếu bot còn tồn tại; KHÔNG auto-select bot đầu tiên
       // — màn chờ ban đầu để trống cho tới khi user chủ động click 1 bot.
@@ -48,7 +66,7 @@ export function useChatbots() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => { reload(); }, [reload]);
 
