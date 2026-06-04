@@ -131,7 +131,7 @@ ${tablesPrompt}`;
       extraData: li.extraData ?? undefined,
     }));
 
-    const filledFields = fields.filter(f => f.value.trim() !== '');
+    const filledFields = fields.filter(f => String(f.value ?? '').trim() !== '');
     const avgConfidence = filledFields.length > 0
       ? filledFields.reduce((s, f) => s + f.confidence, 0) / filledFields.length
       : 0;
