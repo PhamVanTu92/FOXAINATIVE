@@ -116,7 +116,7 @@ ${tablesPrompt}`;
 
     const fields: OcrExtractedField[] = (parsed.fields ?? []).map(f => ({
       fieldKey: f.fieldKey,
-      value: f.value ?? '',
+      value: String(f.value ?? ''),
       confidence: typeof f.confidence === 'number' ? Math.min(1, Math.max(0, f.confidence)) : 0.9,
     }));
 
