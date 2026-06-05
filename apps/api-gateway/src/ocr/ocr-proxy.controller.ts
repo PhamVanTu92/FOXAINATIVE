@@ -41,16 +41,10 @@ export class OcrProxyController {
     this.proxy.proxy(req, res, upstreamPath(req));
   }
 
-  // Swagger UI + OpenAPI spec — public for dev convenience.
+  // Swagger UI + all its static assets — public for dev convenience.
   @Public()
-  @All('docs')
+  @All('docs*')
   swaggerUi(@Req() req: Request, @Res() res: Response): void {
-    this.proxy.proxy(req, res, upstreamPath(req));
-  }
-
-  @Public()
-  @Get('docs-json')
-  swaggerJson(@Req() req: Request, @Res() res: Response): void {
     this.proxy.proxy(req, res, upstreamPath(req));
   }
 
