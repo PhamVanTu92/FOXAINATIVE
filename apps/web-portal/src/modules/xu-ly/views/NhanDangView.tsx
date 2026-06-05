@@ -57,6 +57,93 @@ function getFileIcon(fileName: string): { Icon: React.ComponentType<{ className?
   return                                     { Icon: FileText,  color: 'text-danger-400',  label: 'PDF'  };
 }
 
+function ExcelPreview({ url }: { url: string }) {
+  const [sheets, setSheets] = useState<{ name: string; rows: (string | number | null)[][] }[]>([]);
+  const [activeSheet, setActiveSheet] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setLoading(true); setSheets([]); setError(false); setActiveSheet(0);
+    fetch(url)
+      .then(r => r.arrayBuffer())
+      .then(buf => import('xlsx').then(XLSX => {
+        const wb = XLSX.read(buf, { type: 'array' });
+        return wb.SheetNames.map(name => ({
+          name,
+          rows: wb.Sheets[name] ? XLSX.utils.sheet_to_json<(string | number | null)[]>(wb.Sheets[name]!, { header: 1, defval: null }) : [],
+        }));
+      }))
+      .then(setSheets)
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, [url]);
+
+  if (loading) return <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 text-neutral-500 animate-spin" /></div>;
+  if (error || !sheets.length) return <div className="flex items-center justify-center h-full text-neutral-500 text-sm">Không thể đọc nội dung file</div>;
+
+  const current = sheets[activeSheet];
+  const headers = (current?.rows[0] ?? []) as (string | null)[];
+  const dataRows = current?.rows.slice(1) ?? [];
+
+  return (
+    <div className="h-full flex flex-col overflow-hidden bg-neutral-900">
+      {sheets.length > 1 && (
+        <div className="flex gap-0.5 px-2 py-1.5 bg-neutral-800 border-b border-neutral-700 overflow-x-auto shrink-0">
+          {sheets.map((s, i) => (
+            <button key={i} onClick={() => setActiveSheet(i)}
+              className={`px-3 py-1 rounded text-xs whitespace-nowrap transition-colors ${i === activeSheet ? 'bg-neutral-600 text-white' : 'text-neutral-400 hover:text-white hover:bg-neutral-700'}`}>
+              {s.name}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="flex-1 overflow-auto">
+        <table className="text-xs border-collapse min-w-full">
+          <thead className="sticky top-0 z-10">
+            <tr>{headers.map((h, i) => (
+              <th key={i} className="px-3 py-2 text-left font-medium text-neutral-300 bg-neutral-800 border border-neutral-700 whitespace-nowrap">
+                {h ?? ''}
+              </th>
+            ))}</tr>
+          </thead>
+          <tbody>
+            {dataRows.map((row, ri) => (
+              <tr key={ri} className="hover:bg-neutral-800/50">
+                {headers.map((_, ci) => (
+                  <td key={ci} className="px-3 py-1.5 text-neutral-300 border border-neutral-800 whitespace-nowrap">
+                    {row[ci] != null ? String(row[ci]) : ''}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function WordPreview({ url }: { url: string }) {
+  const [html, setHtml] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setLoading(true); setHtml(null); setError(false);
+    fetch(url)
+      .then(r => r.arrayBuffer())
+      .then(buf => import('mammoth').then(m => m.convertToHtml({ arrayBuffer: buf })))
+      .then(({ value }) => setHtml(value))
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, [url]);
+
+  if (loading) return <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 text-neutral-500 animate-spin" /></div>;
+  if (error || !html) return <div className="flex items-center justify-center h-full text-neutral-500 text-sm">Không thể đọc nội dung file</div>;
+  return <div className="h-full overflow-auto p-6 bg-white text-sm text-neutral-800 leading-relaxed" dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
 function FilePreviewPane({ file, url }: { file: File | null; url: string | null }) {
   if (!file || !url) {
     return (
@@ -68,22 +155,26 @@ function FilePreviewPane({ file, url }: { file: File | null; url: string | null 
   }
   const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
   const isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'tiff', 'tif'].includes(ext);
-  const isPdf = ext === 'pdf';
+  const isPdf   = ext === 'pdf';
+  const isExcel = ['xlsx', 'xls', 'csv'].includes(ext);
+  const isWord  = ext === 'docx';
 
   return (
     <div className="h-full flex flex-col">
-      {/* File name bar */}
       <div className="shrink-0 px-4 py-2.5 border-b border-default bg-subtle flex items-center gap-2">
         <FileText className="w-4 h-4 text-content-muted shrink-0" />
         <span className="text-xs text-content-secondary truncate font-medium">{file.name}</span>
         <span className="text-xs text-content-muted shrink-0 ml-auto">{(file.size / 1024).toFixed(0)} KB</span>
       </div>
-      {/* Preview area */}
       <div className="flex-1 overflow-auto bg-dark-900/5 flex items-start justify-center p-3">
         {isImage ? (
           <img src={url} alt={file.name} className="max-w-full h-auto object-contain rounded shadow-md" />
         ) : isPdf ? (
           <iframe src={url} className="w-full h-full min-h-[800px] border-0 rounded" title={file.name} />
+        ) : isExcel ? (
+          <div className="w-full h-full"><ExcelPreview url={url} /></div>
+        ) : isWord ? (
+          <div className="w-full h-full"><WordPreview url={url} /></div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-center py-20">
             <FileText className="w-16 h-16 text-content-muted" />
