@@ -13,4 +13,5 @@ public interface IKnowledgeDocumentRepository
         Guid documentId, CancellationToken ct = default);
     Task AddAsync(KnowledgeDocument document, CancellationToken ct = default);
     void Update(KnowledgeDocument document);
+    void AddVersion(KnowledgeDocumentVersion version);
 }

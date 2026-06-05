@@ -173,7 +173,7 @@ class BatchUploadService(BaseService):
                 file_stem = Path(file.filename).stem
                 file_extension = Path(file.filename).suffix
                 object_name = f'{uuid_lib.uuid4()}_{file.filename}'
-                bucket_name = os.getenv('MINIO__BUCKET_NAME')
+                bucket_name = self.settings.minio.bucket_name
 
                 self.minio_service.ensure_bucket_exists(bucket_name)
                 future = self.minio_service.upload_bytes(

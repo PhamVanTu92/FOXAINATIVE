@@ -58,6 +58,25 @@ services:
       timeout: 5s
       retries: 5
 
+  # ─── Index DB ───────────────────────────────────────────────────────────────
+  index-db:
+    image: postgres:17.0-alpine
+    container_name: foxai-index-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${INDEX_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${INDEX_DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${INDEX_DB_NAME:-index_py_db}
+    volumes:
+      - index_db_data:/var/lib/postgresql/data
+    networks:
+      - foxai-internal
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${INDEX_DB_USER:-postgres} -d ${INDEX_DB_NAME:-index_py_db}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # ─── Knowledge DB ───────────────────────────────────────────────────────────
   knowledge-db:
     image: postgres:16-alpine
@@ -124,7 +143,7 @@ services:
       HTTP_PORT: '3005'
       KNOWLEDGE_SERVICE_AUTOMIGRATE: 'true'
       KNOWLEDGE_SERVICE_SEED: 'true'
-      INDEX_SERVICE_URL: http://index-service:8000      
+      INDEX_SERVICE_URL: ${INDEX_SERVICE_URL}
       FILE_BASE_URL_INTERNAL: http://api-gateway:3001
     networks:
       - foxai-internal
@@ -245,6 +264,117 @@ services:
       chatbot-db:
         condition: service_healthy
 
+  # ─── MinIO (S3-compatible object storage) ───────────────────────────────────
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: foxai-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio_password}
+    command: server /data --console-address ":9001"
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - minio_data:/data
+    networks:
+      - foxai-internal
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ─── Qdrant (vector DB) ─────────────────────────────────────────────────────
+  qdrant:
+    image: qdrant/qdrant:v1.16.3
+    container_name: foxai-qdrant
+    restart: unless-stopped
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - foxai-internal
+
+  # ─── Index Migration Runner ─────────────────────────────────────────────────
+  index-py-migration:
+    build:
+      context: apps/index-service
+      dockerfile: Dockerfile.migration
+    container_name: foxai-index-py-migration
+    restart: 'no'
+    environment:
+      POSTGRES__HOST: index-db
+      POSTGRES__PORT: 5432
+      POSTGRES__USERNAME: ${INDEX_DB_USER:-postgres}
+      POSTGRES__PASSWORD: ${INDEX_DB_PASSWORD:-postgres}
+      POSTGRES__DB: ${INDEX_DB_NAME:-index_py_db}
+    networks:
+      - foxai-internal
+    depends_on:
+      index-db:
+        condition: service_healthy
+
+  # ─── Index Service (Python/FastAPI) ─────────────────────────────────────────
+  index-service:
+    build:
+      context: apps/index-service
+      dockerfile: Dockerfile
+    image: foxai-index-service:latest
+    container_name: foxai-index-service
+    restart: unless-stopped
+    environment:
+      # JWT
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ISSUER: foxai-system-service
+      JWT_AUDIENCE: foxai-platform
+      ROOT_PATH: /api/index
+      AUTH_SERVICE_URL: http://api-gateway:3001
+      # PostgreSQL
+      POSTGRES__HOST: index-db
+      POSTGRES__PORT: 5432
+      POSTGRES__USERNAME: ${INDEX_DB_USER:-postgres}
+      POSTGRES__PASSWORD: ${INDEX_DB_PASSWORD:-postgres}
+      POSTGRES__DB: ${INDEX_DB_NAME:-index_py_db}
+      # FoxAI LLM (required)
+      FOXAILLM__API_KEY: ${FOXAILLM_API_KEY}
+      FOXAILLM__BASE_URL: ${FOXAILLM_BASE_URL}
+      # MinIO (required)
+      MINIO__HOST: minio:9000
+      MINIO__USERNAME: ${MINIO_ROOT_USER:-minio}
+      MINIO__PASSWORD: ${MINIO_ROOT_PASSWORD:-minio_password}
+      MINIO__PUBLIC_URL_BASE: ${MINIO_PUBLIC_URL_BASE}
+      # Qdrant (required)
+      QDRANT__HOST: ${QDRANT_HOST}
+      QDRANT__COLLECTION_NAME: ${QDRANT_COLLECTION_NAME:-foxai}
+      QDRANT__API_KEY: ${QDRANT_API_KEY:-}
+      # Redis
+      REDIS__HOST: ${REDIS_HOST:-host.docker.internal}
+      REDIS__PORT: ${REDIS_PORT:-6379}
+      REDIS__PASSWORD: ${REDIS_PASSWORD:-}
+      # LLM providers (set real keys for providers you use; empty = disabled)
+      GEMINI__API_KEY: ${GEMINI_API_KEY:-}
+      OPENAI__API_KEY: ${OPENAI_API_KEY:-}
+      CLAUDE__API_KEY: ${CLAUDE_API_KEY:-}
+      # Trigger section construction so pydantic sees these sections as present
+      CONVERTER__IMAGES_SCALE: '1.0'
+      CHUNKER__MAX_TOKENS: '500'
+      SECURITY__ALGORITHM: HS256
+      KEYCLOAK__BASE_URL: ''
+    networks:
+      - foxai-internal
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    depends_on:
+      index-db:
+        condition: service_healthy
+      index-py-migration:
+        condition: service_completed_successfully
+      minio:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+
   # ─── API Gateway (NestJS) ────────────────────────────────────────────────────
   api-gateway:
     build:
@@ -311,7 +441,10 @@ volumes:
   ocr_db_data:
   chatbot_db_data:
   knowledge_db_data:
+  index_db_data:
   ocr_uploads:
+  minio_data:
+  qdrant_data:
 
 networks:
   foxai-internal:

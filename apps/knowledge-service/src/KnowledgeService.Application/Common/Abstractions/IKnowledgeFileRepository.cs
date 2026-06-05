@@ -12,4 +12,6 @@ public interface IKnowledgeFileRepository
     Task AddAsync(KnowledgeFile file, CancellationToken ct = default);
     void Update(KnowledgeFile file);
     void Delete(KnowledgeFile file);
+    void RemovePermissions(IEnumerable<KnowledgeFilePermission> permissions);
+    Task AddPermissionsAsync(IEnumerable<KnowledgeFilePermission> permissions, CancellationToken ct);
 }

@@ -57,4 +57,7 @@ public class KnowledgeDocumentRepository : IKnowledgeDocumentRepository
 
     public void Update(KnowledgeDocument document)
         => _db.KnowledgeDocuments.Update(document);
+
+    public void AddVersion(KnowledgeDocumentVersion version)
+        => _db.KnowledgeDocumentVersions.Add(version);
 }

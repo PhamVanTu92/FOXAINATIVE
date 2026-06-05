@@ -13,4 +13,6 @@ public interface IKnowledgeBaseRepository
     Task AddAsync(KnowledgeBase kb, CancellationToken ct = default);
     void Update(KnowledgeBase kb);
     void Delete(KnowledgeBase kb);
+    void RemovePermissions(IEnumerable<KnowledgeBasePermission> permissions);
+    Task AddPermissionsAsync(IEnumerable<KnowledgeBasePermission> permissions, CancellationToken ct);
 }
