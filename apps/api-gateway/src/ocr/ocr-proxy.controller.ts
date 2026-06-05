@@ -27,6 +27,20 @@ export class OcrProxyController {
     this.proxy.proxy(req, res, upstreamPath(req));
   }
 
+  // Public read-only endpoint — document UUID acts as capability token.
+  @Public()
+  @Get('documents/:id')
+  getDocument(@Req() req: Request, @Res() res: Response): void {
+    this.proxy.proxy(req, res, upstreamPath(req));
+  }
+
+  // Public schema structure endpoint — allows external systems to read form fields/tables.
+  @Public()
+  @Get('schemas/code/:code')
+  getSchemaByCode(@Req() req: Request, @Res() res: Response): void {
+    this.proxy.proxy(req, res, upstreamPath(req));
+  }
+
   // All other OCR endpoints — JWT guard applies (set globally in AppModule).
   @All('*')
   proxyAll(@Req() req: Request, @Res() res: Response): void {

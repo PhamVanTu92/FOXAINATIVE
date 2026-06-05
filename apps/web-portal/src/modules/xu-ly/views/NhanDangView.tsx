@@ -6,6 +6,7 @@ import {
   Upload, X, AlertCircle, AlertTriangle, Check, Save, ScanLine,
   FileText, Plus, Minus, ChevronRight, Download,
   Loader2, Table2, Grid3X3, Sparkles, Image as ImageIcon, Bot, Clock,
+  Link2, Copy, CheckCheck,
 } from 'lucide-react';
 import type { DataType, LineItem } from '@/lib/ocr-api';
 import { useOcrRecognition, type QueueItem, type QueueStatus } from '../hooks/useOcrRecognition';
@@ -114,6 +115,18 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
 
   const canUpdate = useRoutePermission('UPDATE');
   const canExport = useRoutePermission('EXPORT');
+
+  const [apiModalOpen, setApiModalOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'}/api/ocr/schemas/code/${schemaCode}`;
+
+  const handleCopyApiUrl = () => {
+    navigator.clipboard.writeText(apiUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   // Split panel resize
   const [leftPct, setLeftPct] = useState(48);
@@ -426,6 +439,9 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
             )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            <button onClick={() => setApiModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-violet-700 bg-violet-50 border border-violet-200 rounded-lg hover:bg-violet-100 hover:border-violet-300 transition-colors">
+              <Link2 className="w-3.5 h-3.5" /> Public API
+            </button>
             {canExport && doc && (
               <button onClick={handleExport} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-content-secondary border border-default rounded-lg hover:bg-subtle transition-colors">
                 <Download className="w-3.5 h-3.5" /> Xuất JSON
@@ -634,6 +650,42 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
           </div>
         )}
       </div>
+
+      {apiModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-dark-200">
+              <div className="flex items-center gap-2">
+                <Link2 className="w-4 h-4 text-violet-600" />
+                <h2 className="font-semibold text-dark-800">Public API</h2>
+              </div>
+              <button onClick={() => setApiModalOpen(false)} className="text-dark-400 hover:text-dark-600">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <p className="text-xs font-medium text-dark-500 mb-1.5">Endpoint</p>
+                <div className="flex items-center gap-2 bg-dark-50 border border-dark-200 rounded-lg px-3 py-2.5">
+                  <span className="text-xs font-mono text-dark-400 shrink-0">GET</span>
+                  <span className="text-xs font-mono text-dark-700 flex-1 truncate">{apiUrl}</span>
+                  <button
+                    onClick={handleCopyApiUrl}
+                    title="Sao chép URL"
+                    className="shrink-0 p-1 rounded text-dark-400 hover:text-violet-600 hover:bg-violet-50 transition-colors"
+                  >
+                    {copied ? <CheckCheck className="w-4 h-4 text-success-600" /> : <Copy className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 bg-violet-50 border border-violet-200 rounded-lg px-3 py-2.5">
+                <AlertCircle className="w-4 h-4 text-violet-600 shrink-0 mt-0.5" />
+                <p className="text-xs text-violet-700">API trả về cấu trúc biểu mẫu dưới dạng JSON, bao gồm danh sách trường dữ liệu, kiểu dữ liệu và cấu hình bảng.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
