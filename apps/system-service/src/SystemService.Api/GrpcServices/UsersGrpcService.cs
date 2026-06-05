@@ -12,6 +12,7 @@ using SystemService.Application.Features.Users.GetUserById;
 using SystemService.Application.Features.Users.ListUsers;
 using SystemService.Application.Features.Users.Permissions.GetUserPermissions;
 using SystemService.Application.Features.Users.Permissions.SetUserPermissions;
+using SystemService.Application.Features.Stats;
 using SystemService.Application.Features.Users.UnassignRole;
 using SystemService.Application.Features.Users.UpdateUser;
 using SystemService.Domain.Exceptions;
@@ -135,6 +136,25 @@ public sealed class UsersGrpcService(ISender sender) : UsersService.UsersService
             new SetUserPermissionsCommand(ParseGuid(request.UserId, "user_id"), pairs),
             context.CancellationToken);
         return result.ToProto();
+    }
+
+    public override async Task<SystemStatsResponse> GetSystemStats(
+        GetSystemStatsRequest request, ServerCallContext context)
+    {
+        var stats = await sender.Send(new GetSystemStatsQuery(), context.CancellationToken);
+        var response = new SystemStatsResponse
+        {
+            TotalUsers  = stats.TotalUsers,
+            ActiveUsers = stats.ActiveUsers,
+            TotalRoles  = stats.TotalRoles,
+        };
+        response.UsersByDepartment.AddRange(
+            stats.UsersByDepartment.Select(d => new DepartmentUserCount
+            {
+                DepartmentName = d.DepartmentName,
+                UserCount      = d.UserCount
+            }));
+        return response;
     }
 
     private static Guid ParseGuid(string value, string field)

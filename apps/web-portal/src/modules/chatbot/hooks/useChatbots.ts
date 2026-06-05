@@ -5,6 +5,22 @@ import { chatbotApi } from '@/lib/chatbot-api';
 import { collectionsApi } from '@/lib/collections-api';
 import type { ChatbotItem, UpdateChatbotPayload } from '@/lib/chatbot-api';
 import type { Collection } from '@/lib/collections-api';
+import { useUIStore } from '@/stores/ui';
+import { useAuthStore } from '@/stores/auth';
+import type { UserProfile } from '@/lib/auth-api';
+
+const SUPER_ADMIN = 'SUPER_ADMIN';
+
+/** CHATBOT_{uuid-uppercase-no-hyphens}.READ */
+function chatbotPermKey(botId: string) {
+  return `CHATBOT_${botId.replace(/-/g, '').toUpperCase()}.READ`;
+}
+
+function filterByPermission(bots: ChatbotItem[], user: UserProfile | null): ChatbotItem[] {
+  if (!user) return [];
+  if (user.roles.includes(SUPER_ADMIN)) return bots;
+  return bots.filter(bot => user.permissions.includes(chatbotPermKey(bot.id)));
+}
 
 /** Báo cho Sidebar (hoặc consumer khác) biết để refetch list chatbot. */
 function notifyChatbotsChanged() {
@@ -18,6 +34,9 @@ function notifyChatbotsChanged() {
  * View chỉ gọi các hàm/giá trị trả ra từ hook này, không trực tiếp gọi chatbotApi.
  */
 export function useChatbots() {
+  const { showToast, showConfirm } = useUIStore();
+  const user = useAuthStore(s => s.user);
+
   const [bots, setBots] = useState<ChatbotItem[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
 
@@ -36,7 +55,8 @@ export function useChatbots() {
         chatbotApi.list(),
         collectionsApi.list().catch(() => [] as Collection[]),
       ]);
-      setBots(list);
+      const visibleBots = filterByPermission(list, user);
+      setBots(visibleBots);
       setCollections(cols);
       // Giữ selection cũ nếu bot còn tồn tại; KHÔNG auto-select bot đầu tiên
       // — màn chờ ban đầu để trống cho tới khi user chủ động click 1 bot.
@@ -46,7 +66,7 @@ export function useChatbots() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -96,8 +116,9 @@ export function useChatbots() {
     try {
       const next = await chatbotApi.update(bot.id, { active: !bot.active });
       setBots(prev => prev.map(b => b.id === bot.id ? next : b));
+      notifyChatbotsChanged();
     } catch (e: unknown) {
-      alert((e as Error).message);
+      showToast((e as Error).message, 'error');
     }
   };
 
@@ -106,23 +127,29 @@ export function useChatbots() {
       const next = await chatbotApi.update(id, patch);
       setBots(prev => prev.map(b => b.id === id ? next : b));
     } catch (e: unknown) {
-      alert((e as Error).message);
+      showToast((e as Error).message, 'error');
     }
   };
 
   const handleDelete = async (bot: ChatbotItem) => {
-    if (!confirm(`Xóa chatbot "${bot.name}"? Hành động này không thể hoàn tác.`)) return;
-    try {
-      await chatbotApi.remove(bot.id);
-      setBots(prev => {
-        const next = prev.filter(b => b.id !== bot.id);
-        if (selectedId === bot.id) setSelectedId(next[0]?.id ?? null);
-        return next;
-      });
-      notifyChatbotsChanged();
-    } catch (e: unknown) {
-      alert((e as Error).message);
-    }
+    showConfirm({
+      title: `Xóa chatbot "${bot.name}"`,
+      body: `Xóa chatbot "${bot.name}"? Hành động này không thể hoàn tác.`,
+      onOk: async () => {
+        try {
+          await chatbotApi.remove(bot.id);
+          setBots(prev => {
+            const next = prev.filter(b => b.id !== bot.id);
+            if (selectedId === bot.id) setSelectedId(next[0]?.id ?? null);
+            return next;
+          });
+          notifyChatbotsChanged();
+        } catch (e: unknown) {
+          showToast((e as Error).message, 'error');
+        }
+      },
+    });
+    return;
   };
 
   return {

@@ -1,0 +1,452 @@
+# ============================================================
+# FOXAI NATIVE – UAT Stack
+# Domain  : uatnative.foxai.com.vn
+# Ports   : api-gateway :3101 | web-portal :8083 | minio :9100/:9101
+# Network : foxai-uat-internal  (hoàn toàn cách ly khỏi prod)
+# Images  : tag :uat  (tách biệt cache khỏi :latest prod)
+# Run     : docker compose -f docker-compose.uat.yml --env-file .env.uat up -d --build
+# Stop    : docker compose -f docker-compose.uat.yml --env-file .env.uat down
+# ============================================================
+
+services:
+
+  # ─── System DB ──────────────────────────────────────────────────────────────
+  system-db:
+    image: postgres:16-alpine
+    container_name: foxai-uat-system-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${SYSTEM_DB_USER}
+      POSTGRES_PASSWORD: ${SYSTEM_DB_PASSWORD}
+      POSTGRES_DB: ${SYSTEM_DB_NAME}
+    volumes:
+      - system_db_data_uat:/var/lib/postgresql/data
+    networks:
+      - foxai-uat-internal
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${SYSTEM_DB_USER} -d ${SYSTEM_DB_NAME}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── OCR DB (pgvector) ──────────────────────────────────────────────────────
+  ocr-db:
+    image: pgvector/pgvector:pg16
+    container_name: foxai-uat-ocr-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${OCR_DB_USER}
+      POSTGRES_PASSWORD: ${OCR_DB_PASSWORD}
+      POSTGRES_DB: ${OCR_DB_NAME}
+    volumes:
+      - ocr_db_data_uat:/var/lib/postgresql/data
+      - ./scripts/init-ocr-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    networks:
+      - foxai-uat-internal
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${OCR_DB_USER} -d ${OCR_DB_NAME}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Chatbot DB (pgvector) ──────────────────────────────────────────────────
+  chatbot-db:
+    image: pgvector/pgvector:pg16
+    container_name: foxai-uat-chatbot-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${CHATBOT_DB_USER}
+      POSTGRES_PASSWORD: ${CHATBOT_DB_PASSWORD}
+      POSTGRES_DB: ${CHATBOT_DB_NAME}
+    volumes:
+      - chatbot_db_data_uat:/var/lib/postgresql/data
+      - ./scripts/init-chatbot-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    networks:
+      - foxai-uat-internal
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${CHATBOT_DB_USER} -d ${CHATBOT_DB_NAME}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Index DB ───────────────────────────────────────────────────────────────
+  index-db:
+    image: postgres:17.0-alpine
+    container_name: foxai-uat-index-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${INDEX_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${INDEX_DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${INDEX_DB_NAME:-uat_index_py_db}
+    volumes:
+      - index_db_data_uat:/var/lib/postgresql/data
+    networks:
+      - foxai-uat-internal
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${INDEX_DB_USER:-postgres} -d ${INDEX_DB_NAME:-uat_index_py_db}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Knowledge DB ───────────────────────────────────────────────────────────
+  knowledge-db:
+    image: postgres:16-alpine
+    container_name: foxai-uat-knowledge-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${KNOWLEDGE_DB_USER}
+      POSTGRES_PASSWORD: ${KNOWLEDGE_DB_PASSWORD}
+      POSTGRES_DB: ${KNOWLEDGE_DB_NAME}
+    volumes:
+      - knowledge_db_data_uat:/var/lib/postgresql/data
+    networks:
+      - foxai-uat-internal
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${KNOWLEDGE_DB_USER} -d ${KNOWLEDGE_DB_NAME}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── System Service (.NET 9 + gRPC) ─────────────────────────────────────────
+  system-service:
+    build:
+      context: .
+      dockerfile: apps/system-service/Dockerfile
+    image: foxai-system-service:uat
+    container_name: foxai-uat-system-service
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      SYSTEM_DATABASE_URL: postgresql://${SYSTEM_DB_USER}:${SYSTEM_DB_PASSWORD}@system-db:5432/${SYSTEM_DB_NAME}
+      Jwt__Secret: ${JWT_SECRET}
+      Jwt__Issuer: foxai-system-service
+      Jwt__Audience: foxai-platform
+      Jwt__ExpiresIn: ${JWT_EXPIRES_IN:-7d}
+      GRPC_PORT: '50051'
+      HTTP_PORT: '3002'
+      SYSTEM_SERVICE_AUTOMIGRATE: 'true'
+      SYSTEM_SERVICE_SEED: 'true'
+      SYSTEM_SERVICE_SEED_DEMO: 'true'
+    networks:
+      - foxai-uat-internal
+    depends_on:
+      system-db:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://127.0.0.1:3002/health']
+      interval: 20s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  # ─── Knowledge Service (.NET 9 + gRPC) ──────────────────────────────────────
+  knowledge-service:
+    build:
+      context: .
+      dockerfile: apps/knowledge-service/Dockerfile
+    image: foxai-knowledge-service:uat
+    container_name: foxai-uat-knowledge-service
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      KNOWLEDGE_DATABASE_URL: postgresql://${KNOWLEDGE_DB_USER}:${KNOWLEDGE_DB_PASSWORD}@knowledge-db:5432/${KNOWLEDGE_DB_NAME}
+      GRPC_PORT: '50052'
+      HTTP_PORT: '3005'
+      KNOWLEDGE_SERVICE_AUTOMIGRATE: 'true'
+      KNOWLEDGE_SERVICE_SEED: 'true'
+      INDEX_SERVICE_URL: ${INDEX_SERVICE_URL}
+      FILE_BASE_URL_INTERNAL: http://api-gateway:3001
+    networks:
+      - foxai-uat-internal
+    depends_on:
+      knowledge-db:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://127.0.0.1:3005/health']
+      interval: 20s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  # ─── OCR API (HTTP + job producer) ──────────────────────────────────────────
+  ocr-api:
+    build:
+      context: .
+      dockerfile: apps/ocr-service/Dockerfile
+    image: foxai-ocr-service:uat
+    container_name: foxai-uat-ocr-api
+    restart: unless-stopped
+    environment:
+      APP_MODE: api
+      NODE_ENV: production
+      OCR_SERVICE_PORT: 3003
+      OCR_DATABASE_URL: postgresql://${OCR_DB_USER}:${OCR_DB_PASSWORD}@ocr-db:5432/${OCR_DB_NAME}
+      REDIS_HOST: ${REDIS_HOST:-host.docker.internal}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      BULLMQ_PREFIX: ${BULLMQ_PREFIX:-uat}
+      OCR_PROVIDER: ${OCR_PROVIDER:-gemini}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      WORKER_CONCURRENCY: 3
+      UPLOAD_DIR: /app/apps/ocr-service/uploads
+    volumes:
+      - ocr_uploads_uat:/app/apps/ocr-service/uploads
+    networks:
+      - foxai-uat-internal
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    depends_on:
+      ocr-db:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://127.0.0.1:3003/health']
+      interval: 20s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  # ─── OCR Workers (job consumers) ────────────────────────────────────────────
+  ocr-worker:
+    build:
+      context: .
+      dockerfile: apps/ocr-service/Dockerfile
+    image: foxai-ocr-service:uat
+    restart: unless-stopped
+    environment:
+      APP_MODE: worker
+      NODE_ENV: production
+      OCR_DATABASE_URL: postgresql://${OCR_DB_USER}:${OCR_DB_PASSWORD}@ocr-db:5432/${OCR_DB_NAME}
+      REDIS_HOST: ${REDIS_HOST:-host.docker.internal}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      BULLMQ_PREFIX: ${BULLMQ_PREFIX:-uat}
+      OCR_PROVIDER: ${OCR_PROVIDER:-gemini}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      WORKER_CONCURRENCY: 5
+      UPLOAD_DIR: /app/apps/ocr-service/uploads
+    volumes:
+      - ocr_uploads_uat:/app/apps/ocr-service/uploads
+    networks:
+      - foxai-uat-internal
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    depends_on:
+      ocr-db:
+        condition: service_healthy
+    deploy:
+      replicas: 1
+
+  # ─── Chatbot Service (Python/FastAPI) ────────────────────────────────────────
+  chatbot-service:
+    build:
+      context: apps/chatbot-service
+      dockerfile: Dockerfile
+    image: foxai-chatbot-service:uat
+    container_name: foxai-uat-chatbot-service
+    restart: unless-stopped
+    environment:
+      POSTGRES__USERNAME: ${CHATBOT_DB_USER}
+      POSTGRES__PASSWORD: ${CHATBOT_DB_PASSWORD}
+      POSTGRES__HOST: chatbot-db
+      POSTGRES__DB: ${CHATBOT_DB_NAME}
+      POSTGRES__PORT: 5432
+      REDIS__HOST: ${REDIS_HOST:-host.docker.internal}
+      REDIS__PORT: ${REDIS_PORT:-6379}
+      REDIS__PASSWORD: ${REDIS_PASSWORD:-}
+      OPENAI__API_KEY: ${OPENAI_API_KEY}
+      QDRANT__HOST: qdrant
+      QDRANT__COLLECTION_NAME: ${QDRANT_COLLECTION_NAME:-foxai_uat}
+      QDRANT__API_KEY: ${QDRANT_API_KEY:-}
+      AUTH_SERVICE_URL: http://api-gateway:3001
+      INDEX_SERVICE_URL: http://index-service:8000
+      QUERY_SERVICE_URL: http://chatbot-service:8000
+      SECURITY__SECRET_KEY: ${JWT_SECRET}
+    networks:
+      - foxai-uat-internal
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    depends_on:
+      chatbot-db:
+        condition: service_healthy
+
+  # ─── MinIO (S3-compatible object storage) ───────────────────────────────────
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: foxai-uat-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio_uat}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio_uat_password}
+    command: server /data --console-address ":9001"
+    ports:
+      - '9100:9000'
+      - '9101:9001'
+    volumes:
+      - minio_data_uat:/data
+    networks:
+      - foxai-uat-internal
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ─── Qdrant (vector DB) ─────────────────────────────────────────────────────
+  qdrant:
+    image: qdrant/qdrant:v1.16.3
+    container_name: foxai-uat-qdrant
+    restart: unless-stopped
+    volumes:
+      - qdrant_data_uat:/qdrant/storage
+    networks:
+      - foxai-uat-internal
+
+  # ─── Index Migration Runner ─────────────────────────────────────────────────
+  index-py-migration:
+    build:
+      context: apps/index-service
+      dockerfile: Dockerfile.migration
+    container_name: foxai-uat-index-py-migration
+    restart: 'no'
+    environment:
+      POSTGRES__HOST: index-db
+      POSTGRES__PORT: 5432
+      POSTGRES__USERNAME: ${INDEX_DB_USER:-postgres}
+      POSTGRES__PASSWORD: ${INDEX_DB_PASSWORD:-postgres}
+      POSTGRES__DB: ${INDEX_DB_NAME:-uat_index_py_db}
+    networks:
+      - foxai-uat-internal
+    depends_on:
+      index-db:
+        condition: service_healthy
+
+  # ─── Index Service (Python/FastAPI) ─────────────────────────────────────────
+  index-service:
+    build:
+      context: apps/index-service
+      dockerfile: Dockerfile
+    image: foxai-index-service:uat
+    container_name: foxai-uat-index-service
+    restart: unless-stopped
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ISSUER: foxai-system-service
+      JWT_AUDIENCE: foxai-platform
+      ROOT_PATH: /api/index
+      AUTH_SERVICE_URL: http://api-gateway:3001
+      POSTGRES__HOST: index-db
+      POSTGRES__PORT: 5432
+      POSTGRES__USERNAME: ${INDEX_DB_USER:-postgres}
+      POSTGRES__PASSWORD: ${INDEX_DB_PASSWORD:-postgres}
+      POSTGRES__DB: ${INDEX_DB_NAME:-uat_index_py_db}
+      FOXAILLM__API_KEY: ${FOXAILLM_API_KEY}
+      FOXAILLM__BASE_URL: ${FOXAILLM_BASE_URL}
+      MINIO__HOST: minio:9000
+      MINIO__USERNAME: ${MINIO_ROOT_USER:-minio_uat}
+      MINIO__PASSWORD: ${MINIO_ROOT_PASSWORD:-minio_uat_password}
+      MINIO__PUBLIC_URL_BASE: ${MINIO_PUBLIC_URL_BASE}
+      QDRANT__HOST: qdrant
+      QDRANT__COLLECTION_NAME: ${QDRANT_COLLECTION_NAME:-foxai_uat}
+      QDRANT__API_KEY: ${QDRANT_API_KEY:-}
+      REDIS__HOST: ${REDIS_HOST:-host.docker.internal}
+      REDIS__PORT: ${REDIS_PORT:-6379}
+      REDIS__PASSWORD: ${REDIS_PASSWORD:-}
+      GEMINI__API_KEY: ${GEMINI_API_KEY:-}
+      OPENAI__API_KEY: ${OPENAI_API_KEY:-}
+      CLAUDE__API_KEY: ${CLAUDE_API_KEY:-}
+      CONVERTER__IMAGES_SCALE: '1.0'
+      CHUNKER__MAX_TOKENS: '500'
+      SECURITY__ALGORITHM: HS256
+      KEYCLOAK__BASE_URL: ''
+    networks:
+      - foxai-uat-internal
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    depends_on:
+      index-db:
+        condition: service_healthy
+      index-py-migration:
+        condition: service_completed_successfully
+      minio:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+
+  # ─── API Gateway (NestJS) ────────────────────────────────────────────────────
+  api-gateway:
+    build:
+      context: .
+      dockerfile: apps/api-gateway/Dockerfile
+    image: foxai-api-gateway:uat
+    container_name: foxai-uat-api-gateway
+    restart: unless-stopped
+    ports:
+      - '3101:3001'
+    environment:
+      NODE_ENV: production
+      API_GATEWAY_PORT: 3001
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      SYSTEM_SERVICE_GRPC_URL: system-service:50051
+      KNOWLEDGE_SERVICE_GRPC_URL: knowledge-service:50052
+      OCR_SERVICE_URL: http://ocr-api:3003
+      CHATBOT_SERVICE_URL: chatbot-service:8000
+      CORS_ORIGIN: ${CORS_ORIGIN:-}
+      PUBLIC_URL: ${PUBLIC_URL:-https://uatnative.foxai.com.vn}
+      REDIS_HOST: ${REDIS_HOST:-host.docker.internal}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    networks:
+      - foxai-uat-internal
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    depends_on:
+      system-service:
+        condition: service_healthy
+      knowledge-service:
+        condition: service_healthy
+      ocr-api:
+        condition: service_healthy
+    volumes:
+      - api_gateway_uploads_uat:/app/apps/api-gateway/uploads
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://127.0.0.1:3001/health']
+      interval: 20s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  # ─── Web Portal (Next.js) ────────────────────────────────────────────────────
+  web-portal:
+    build:
+      context: .
+      dockerfile: apps/web-portal/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    image: foxai-web-portal:uat
+    container_name: foxai-uat-web-portal
+    restart: unless-stopped
+    ports:
+      - '8083:3000'
+    environment:
+      NODE_ENV: production
+    networks:
+      - foxai-uat-internal
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+
+volumes:
+  system_db_data_uat:
+  ocr_db_data_uat:
+  chatbot_db_data_uat:
+  knowledge_db_data_uat:
+  index_db_data_uat:
+  ocr_uploads_uat:
+  api_gateway_uploads_uat:
+  minio_data_uat:
+  qdrant_data_uat:
+
+networks:
+  foxai-uat-internal:
+    driver: bridge

@@ -1,15 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, ChevronRight, FileText, Upload, Edit2, Trash2,
   Search, Loader2, AlertCircle, Check, X, Shield, Download,
+  ZoomIn, Table2, Image as ImageIcon,
 } from 'lucide-react';
 import { useKnowledgeDetail } from '../hooks/useKnowledgeDetail';
 import { knowledgeFilesApi } from '@/lib/knowledge-api';
 import type { KnowledgeBase, KnowledgeFile, DepartmentRef, CreateKbPayload } from '@/lib/knowledge-api';
 import { useRoutePermission } from '@/hooks/usePermission';
+import { SelectDropdown } from '@/components/SelectDropdown';
 
 // ─── File type config ─────────────────────────────────────────────────────────
 
@@ -21,6 +23,179 @@ const FILE_TYPE_CFG: Record<string, { color: string; bg: string }> = {
   PowerPoint: { color: 'text-orange-700',   bg: 'bg-orange-50' },
   Text:       { color: 'text-teal-700',     bg: 'bg-teal-50' },
 };
+
+// ─── File preview helpers ─────────────────────────────────────────────────────
+
+function WordPreview({ url }: { url: string }) {
+  const [html, setHtml] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(false);
+  useEffect(() => {
+    setLoading(true); setHtml(null); setErr(false);
+    fetch(url)
+      .then(r => r.arrayBuffer())
+      .then(buf => import('mammoth').then(m => m.convertToHtml({ arrayBuffer: buf })))
+      .then(({ value }) => setHtml(value))
+      .catch(() => setErr(true))
+      .finally(() => setLoading(false));
+  }, [url]);
+  if (loading) return <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 text-neutral-500 animate-spin" /></div>;
+  if (err || !html) return <div className="flex items-center justify-center h-full text-neutral-500 text-sm">Không thể đọc nội dung file</div>;
+  return <div className="h-full overflow-auto p-6 bg-white text-sm text-neutral-800 leading-relaxed" dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+function ExcelPreview({ url }: { url: string }) {
+  const [sheets, setSheets] = useState<{ name: string; rows: (string | number | null)[][] }[]>([]);
+  const [activeSheet, setActiveSheet] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(false);
+  useEffect(() => {
+    setLoading(true); setSheets([]); setErr(false); setActiveSheet(0);
+    fetch(url)
+      .then(r => r.arrayBuffer())
+      .then(buf => import('xlsx').then(XLSX => {
+        const wb = XLSX.read(buf, { type: 'array' });
+        return wb.SheetNames.map(name => ({
+          name,
+          rows: wb.Sheets[name] ? XLSX.utils.sheet_to_json<(string | number | null)[]>(wb.Sheets[name]!, { header: 1, defval: null }) : [],
+        }));
+      }))
+      .then(setSheets)
+      .catch(() => setErr(true))
+      .finally(() => setLoading(false));
+  }, [url]);
+  if (loading) return <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 text-neutral-500 animate-spin" /></div>;
+  if (err || !sheets.length) return <div className="flex items-center justify-center h-full text-neutral-500 text-sm">Không thể đọc nội dung file</div>;
+  const current = sheets[activeSheet];
+  const headers = (current?.rows[0] ?? []) as (string | null)[];
+  const dataRows = current?.rows.slice(1) ?? [];
+  return (
+    <div className="h-full flex flex-col overflow-hidden bg-neutral-900">
+      {sheets.length > 1 && (
+        <div className="flex gap-0.5 px-2 py-1.5 bg-neutral-800 border-b border-neutral-700 overflow-x-auto shrink-0">
+          {sheets.map((s, i) => (
+            <button key={i} onClick={() => setActiveSheet(i)}
+              className={`px-3 py-1 rounded text-xs whitespace-nowrap transition-colors ${i === activeSheet ? 'bg-neutral-600 text-white' : 'text-neutral-400 hover:text-white hover:bg-neutral-700'}`}>
+              {s.name}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="flex-1 overflow-auto">
+        <table className="text-xs text-neutral-200 border-collapse">
+          <thead className="sticky top-0 bg-neutral-800 z-10">
+            <tr>{headers.map((h, i) => <th key={i} className="px-3 py-2 text-left font-medium text-neutral-300 border border-neutral-700 whitespace-nowrap">{h ?? ''}</th>)}</tr>
+          </thead>
+          <tbody>
+            {dataRows.map((row, ri) => (
+              <tr key={ri} className={ri % 2 === 1 ? 'bg-neutral-800/40' : ''}>
+                {headers.map((_, ci) => <td key={ci} className="px-3 py-1.5 border border-neutral-700/50 whitespace-nowrap max-w-[200px] truncate">{String(row[ci] ?? '')}</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function FilePreviewModal({ file, kbId, onClose }: {
+  file: KnowledgeFile;
+  kbId: string;
+  onClose: () => void;
+}) {
+  const ext = file.fileName.split('.').pop()?.toLowerCase() ?? '';
+  const type = file.fileType;
+  const isPdf   = type === 'PDF'   || ext === 'pdf';
+  const isImage = type === 'Image' || ['png','jpg','jpeg','gif','webp','tiff'].includes(ext);
+  const isWord  = type === 'Word'  || ['doc','docx'].includes(ext);
+  const isExcel = type === 'Excel' || ['xls','xlsx','csv'].includes(ext);
+
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [loadErr, setLoadErr] = useState(false);
+
+  useEffect(() => {
+    let objectUrl: string;
+    knowledgeFilesApi.fetchBlob(kbId, file.id)
+      .then(blob => {
+        objectUrl = URL.createObjectURL(blob);
+        setBlobUrl(objectUrl);
+      })
+      .catch(() => setLoadErr(true));
+    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [kbId, file.id]);
+
+  const handleDownload = () => {
+    if (!blobUrl) return;
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = file.fileName;
+    a.click();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-neutral-900">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-2.5 bg-neutral-800 border-b border-neutral-700 shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          {isImage ? <ImageIcon className="w-4 h-4 text-violet-400 shrink-0" /> :
+           isExcel ? <Table2 className="w-4 h-4 text-success-400 shrink-0" /> :
+           <FileText className="w-4 h-4 text-danger-400 shrink-0" />}
+          <span className="text-sm text-neutral-200 truncate">{file.fileName}</span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0 ml-4">
+          {blobUrl && (
+            <a href={blobUrl} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-xs text-neutral-300 hover:text-white bg-neutral-700 hover:bg-neutral-600 px-2.5 py-1 rounded-md transition-colors">
+              <ZoomIn className="w-3.5 h-3.5" /> Mở rộng
+            </a>
+          )}
+          <button onClick={handleDownload} disabled={!blobUrl}
+            className="flex items-center gap-1.5 text-xs text-neutral-300 hover:text-white bg-neutral-700 hover:bg-neutral-600 px-2.5 py-1 rounded-md transition-colors disabled:opacity-40">
+            <Download className="w-3.5 h-3.5" /> Tải xuống
+          </button>
+          <button onClick={onClose}
+            className="p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-700 rounded-md transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-hidden">
+        {loadErr ? (
+          <div className="flex items-center justify-center h-full text-neutral-500 text-sm">
+            Không thể tải file
+          </div>
+        ) : !blobUrl ? (
+          <div className="flex items-center justify-center h-full">
+            <Loader2 className="w-8 h-8 text-neutral-500 animate-spin" />
+          </div>
+        ) : isPdf ? (
+          <iframe src={blobUrl} className="w-full h-full border-0" title={file.fileName} />
+        ) : isImage ? (
+          <div className="h-full overflow-auto flex items-start justify-center p-6 bg-neutral-800">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={blobUrl} alt={file.fileName} className="max-w-full object-contain rounded shadow-xl" />
+          </div>
+        ) : isWord ? (
+          <WordPreview url={blobUrl} />
+        ) : isExcel ? (
+          <ExcelPreview url={blobUrl} />
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full gap-3 text-neutral-500">
+            <FileText className="w-14 h-14 text-neutral-600" />
+            <p className="text-sm">Không thể xem trước định dạng này</p>
+            <button onClick={handleDownload}
+              className="flex items-center gap-1.5 text-xs text-primary-400 hover:text-primary-300 underline">
+              <Download className="w-3.5 h-3.5" /> Tải file xuống
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function FileTypeBadge({ type }: { type: string }) {
   const cfg = FILE_TYPE_CFG[type] ?? { color: 'text-content-secondary', bg: 'bg-subtle' };
@@ -71,10 +246,12 @@ function UploadModal({
           </div>
           <div>
             <label className="block text-sm font-medium text-content-secondary mb-1">Loại tệp</label>
-            <select value={fileType} onChange={e => setFileType(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-secondary">
-              {FILE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
+            <SelectDropdown
+              value={fileType}
+              onChange={setFileType}
+              options={FILE_TYPES.map(t => ({ value: t, label: t }))}
+              className="w-full"
+            />
           </div>
           {error && (
             <div className="flex items-center gap-2 bg-danger-50/10 border border-danger-500/30 text-danger-700 rounded-lg px-3 py-2 text-sm">
@@ -207,11 +384,14 @@ function DeleteFileModal({
           <h2 className="font-semibold text-content-primary">Xóa tệp</h2>
           <button onClick={onClose} className="text-content-muted hover:text-content-secondary"><X size={18} /></button>
         </div>
-        <div className="px-6 py-5">
+        <div className="px-6 py-5 space-y-2">
           <p className="text-sm text-content-secondary">
-            Bạn có chắc muốn xóa tệp{' '}
+            Bạn có chắc muốn xóa vĩnh viễn tệp{' '}
             <strong className="text-content-primary">{file.fileName}</strong>?
-            Hành động này không thể hoàn tác.
+            Hành động này <strong className="text-danger-600">không thể hoàn tác</strong>.
+          </p>
+          <p className="text-xs text-content-muted">
+            Tệp sẽ bị xóa hoàn toàn khỏi hệ thống và không thể khôi phục.
           </p>
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-strong bg-surface">
@@ -222,7 +402,7 @@ function DeleteFileModal({
           <button onClick={onConfirm} disabled={deleting}
             className="flex items-center gap-1.5 px-4 py-2 text-sm bg-danger-600 text-white rounded-lg hover:bg-danger-700 disabled:opacity-60 transition-colors">
             {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-            Xóa tệp
+            {deleting ? 'Đang xóa...' : 'Xóa vĩnh viễn'}
           </button>
         </div>
       </div>
@@ -312,16 +492,13 @@ function EditKbModal({
               <label className="block text-sm font-medium text-content-secondary mb-1">
                 Phòng ban quản lý <span className="text-danger-600">*</span>
               </label>
-              <select
+              <SelectDropdown
                 value={managingId}
-                onChange={e => setManagingId(e.target.value)}
-                required
-                className="w-full px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-secondary">
-                <option value="">-- Chọn phòng ban --</option>
-                {orgDepts.map(d => (
-                  <option key={d.departmentId} value={d.departmentId}>{d.departmentName}</option>
-                ))}
-              </select>
+                onChange={setManagingId}
+                placeholder="-- Chọn phòng ban --"
+                options={orgDepts.map(d => ({ value: d.departmentId, label: d.departmentName }))}
+                className="w-full"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-content-secondary mb-1">
@@ -386,6 +563,8 @@ export function KnowledgeDetailView({ kbId }: { kbId: string }) {
     showEditKb, setShowEditKb,
     savingKb, updateKb,
   } = useKnowledgeDetail(kbId);
+
+  const [previewFile, setPreviewFile] = useState<KnowledgeFile | null>(null);
 
   const canCreate = useRoutePermission('CREATE');
   const canUpdate = useRoutePermission('UPDATE');
@@ -457,7 +636,7 @@ export function KnowledgeDetailView({ kbId }: { kbId: string }) {
             </div>
           )}
           {successMsg && (
-            <div className="flex items-center gap-2 bg-success-50/10 border border-success-500/30 text-success-700 rounded-lg px-4 py-3 text-sm">
+            <div className="flex items-center gap-2 bg-primary-50 border border-success-500/30 text-success-700 rounded-lg px-4 py-3 text-sm">
               <Check size={15} className="shrink-0" /> {successMsg}
             </div>
           )}
@@ -507,14 +686,14 @@ export function KnowledgeDetailView({ kbId }: { kbId: string }) {
           <div className="bg-surface rounded-xl border border-default shadow-sm overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-subtle border-b border-default">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-muted uppercase tracking-wide w-10">STT</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-muted uppercase tracking-wide">Tên tệp</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-muted uppercase tracking-wide w-24">Loại</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-muted uppercase tracking-wide w-24">Kích thước</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-muted uppercase tracking-wide w-28">Ngày tải lên</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-muted uppercase tracking-wide">Phân quyền phòng ban</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-content-muted uppercase tracking-wide w-24">Thao tác</th>
+                <tr className="bg-primary-100 border-b border-primary-200">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide w-10">STT</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Tên tệp</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide w-24">Loại</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide w-24">Kích thước</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide w-28">Ngày tải lên</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Phân quyền phòng ban</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-primary-600 uppercase tracking-wide w-24">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -532,10 +711,15 @@ export function KnowledgeDetailView({ kbId }: { kbId: string }) {
                     <tr key={file.id} className="border-b border-default last:border-0 hover:bg-subtle transition-colors">
                       <td className="px-4 py-3 text-content-muted text-xs">{idx + 1}</td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <FileText size={14} className="text-content-muted shrink-0" />
-                          <span className="text-content-secondary font-medium truncate max-w-[300px]">{file.fileName}</span>
-                        </div>
+                        <button
+                          onClick={() => setPreviewFile(file)}
+                          className="flex items-center gap-2 text-left w-full group"
+                        >
+                          <FileText size={14} className="text-content-muted shrink-0 group-hover:text-primary-500 transition-colors" />
+                          <span className="text-content-secondary font-medium truncate max-w-[300px] group-hover:text-primary-600 group-hover:underline transition-colors">
+                            {file.fileName}
+                          </span>
+                        </button>
                       </td>
                       <td className="px-4 py-3">
                         <FileTypeBadge type={file.fileType} />
@@ -559,15 +743,21 @@ export function KnowledgeDetailView({ kbId }: { kbId: string }) {
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
                           {canExport && (
-                            <a
-                              href={knowledgeFilesApi.downloadUrl(kbId, file.id)}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="p-1.5 text-success-600 hover:bg-success-50/10 rounded-md transition-colors"
+                            <button
+                              onClick={() =>
+                                knowledgeFilesApi.fetchBlob(kbId, file.id).then(blob => {
+                                  const a = document.createElement('a');
+                                  a.href = URL.createObjectURL(blob);
+                                  a.download = file.fileName;
+                                  a.click();
+                                  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+                                })
+                              }
+                              className="p-1.5 text-success-600 hover:bg-primary-50 rounded-md transition-colors"
                               title="Tải xuống"
                             >
                               <Download size={14} />
-                            </a>
+                            </button>
                           )}
                           {canUpdate && (
                             <button
@@ -638,6 +828,15 @@ export function KnowledgeDetailView({ kbId }: { kbId: string }) {
           onClose={() => setShowEditKb(false)}
           onSave={updateKb}
           saving={savingKb}
+        />
+      )}
+
+      {/* File preview */}
+      {previewFile && (
+        <FilePreviewModal
+          file={previewFile}
+          kbId={kbId}
+          onClose={() => setPreviewFile(null)}
         />
       )}
     </div>

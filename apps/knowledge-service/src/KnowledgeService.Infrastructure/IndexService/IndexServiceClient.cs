@@ -30,7 +30,7 @@ public sealed partial class IndexServiceClient(
             AddAuth(request);
             request.Content = JsonContent.Create(new
             {
-                collection_name = sanitized,
+                collection_name = collectionName,
                 description = description ?? string.Empty
             });
 
@@ -53,18 +53,86 @@ public sealed partial class IndexServiceClient(
         }
     }
 
-    public async Task UploadAndProcessDocumentAsync(
+    public async Task<bool> UpdateCollectionAsync(Guid collectionId, string collectionName, string? description, CancellationToken ct = default)
+    {
+        logger.LogInformation(
+            "IndexService UpdateCollection → collectionId={CollectionId}, name='{Name}'",
+            collectionId, collectionName);
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Put, $"/v1/collections/collections/{collectionId}");
+            AddAuth(request);
+            request.Content = JsonContent.Create(new
+            {
+                collection_name = collectionName,
+                description = description ?? string.Empty
+            });
+
+            using var response = await http.SendAsync(request, ct);
+            var body = await response.Content.ReadAsStringAsync(ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogWarning("IndexService UpdateCollection FAILED ({Status}): {Body}", response.StatusCode, body);
+                return false;
+            }
+
+            logger.LogInformation("IndexService UpdateCollection OK ({Status}): {Body}", response.StatusCode, body);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "IndexService UpdateCollection EXCEPTION for collectionId={CollectionId}", collectionId);
+            return false;
+        }
+    }
+
+    public async Task<bool> DeleteDocumentAsync(Guid documentId, CancellationToken ct = default)
+    {
+        logger.LogInformation("IndexService DeleteDocument → documentId={DocumentId}", documentId);
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Delete, $"/v1/documents/{documentId}");
+            AddAuth(request);
+
+            using var response = await http.SendAsync(request, ct);
+            var body = await response.Content.ReadAsStringAsync(ct);
+
+            // 404 = đã bị xóa trước đó → coi như thành công
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                logger.LogInformation("IndexService DeleteDocument → documentId={DocumentId} not found (already deleted)", documentId);
+                return true;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogWarning("IndexService DeleteDocument FAILED ({Status}): {Body}", response.StatusCode, body);
+                return false;
+            }
+
+            logger.LogInformation("IndexService DeleteDocument OK ({Status}): {Body}", response.StatusCode, body);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "IndexService DeleteDocument EXCEPTION for documentId={DocumentId}", documentId);
+            return false;
+        }
+    }
+
+    public async Task<Guid?> UploadAndProcessDocumentAsync(
         Guid collectionId,
         string fileUrl,
         string fileName,
         string fileExtension,
         string version,
+        string? authToken = null,
         CancellationToken ct = default)
     {
         var resolvedUrl = ResolveInternalUrl(fileUrl);
         logger.LogInformation(
-            "IndexService UploadAndProcess → collectionId={CollectionId}, fileUrl='{FileUrl}' (resolved='{Resolved}'), fileName='{FileName}', ext={Ext}, version={Version}",
-            collectionId, fileUrl, resolvedUrl, fileName, fileExtension, version);
+            "IndexService UploadAndProcess → collectionId={CollectionId}, fileUrl='{FileUrl}' (resolved='{Resolved}'), fileName='{FileName}', ext={Ext}, version={Version}, hasToken={HasToken}",
+            collectionId, fileUrl, resolvedUrl, fileName, fileExtension, version, !string.IsNullOrEmpty(authToken));
         try
         {
             // Step 1: download file qua internal URL
@@ -74,7 +142,7 @@ public sealed partial class IndexServiceClient(
             {
                 var errBody = await fileResponse.Content.ReadAsStringAsync(ct);
                 logger.LogWarning("IndexService Download FAILED ({Status}): {Body}", fileResponse.StatusCode, errBody);
-                return;
+                return null;
             }
 
             await using var fileStream = await fileResponse.Content.ReadAsStreamAsync(ct);
@@ -83,7 +151,7 @@ public sealed partial class IndexServiceClient(
             // Step 2: batch-upload (multipart/form-data)
             using var uploadRequest = new HttpRequestMessage(HttpMethod.Post,
                 $"/v1/collections/{collectionId}/documents/batch-upload");
-            AddAuth(uploadRequest);
+            AddAuth(uploadRequest, authToken);
 
             using var form = new MultipartFormDataContent();
             var streamContent = new StreamContent(fileStream);
@@ -98,7 +166,7 @@ public sealed partial class IndexServiceClient(
             if (!uploadResponse.IsSuccessStatusCode)
             {
                 logger.LogWarning("IndexService BatchUpload FAILED ({Status}): {Body}", uploadResponse.StatusCode, uploadBody);
-                return;
+                return null;
             }
 
             var uploadResult = JsonSerializer.Deserialize<BatchUploadResponse>(uploadBody, JsonOptions);
@@ -112,18 +180,24 @@ public sealed partial class IndexServiceClient(
             if (documentIds.Count == 0)
             {
                 logger.LogWarning("IndexService BatchUpload returned no document_ids for collection {CollectionId}", collectionId);
-                return;
+                return null;
             }
+
+            Guid.TryParse(documentIds[0], out var firstDocumentId);
 
             // Step 3: batch-process
             using var processRequest = new HttpRequestMessage(HttpMethod.Post,
                 $"/v1/collections/{collectionId}/documents/batch-process");
-            AddAuth(processRequest);
+            AddAuth(processRequest, authToken);
+            var processingType = fileExtension.ToLower() is "xls" or "xlsx" ? "excel" : "document_structured_llm";
+            var now = DateTime.UtcNow;
             processRequest.Content = JsonContent.Create(new
             {
                 document_ids = documentIds,
-                processing_type = "document_structured_llm",
-                version
+                processing_type = processingType,
+                version,
+                effective_from = now,
+                effective_to = now.AddDays(10)
             });
 
             using var processResponse = await http.SendAsync(processRequest, ct);
@@ -134,16 +208,31 @@ public sealed partial class IndexServiceClient(
             {
                 logger.LogWarning("IndexService BatchProcess FAILED ({Status}): {Body}", processResponse.StatusCode, processBody);
             }
+
+            return firstDocumentId == Guid.Empty ? null : firstDocumentId;
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "IndexService UploadAndProcess EXCEPTION for collection {CollectionId}", collectionId);
+            return null;
         }
     }
 
     private string ResolveInternalUrl(string url)
     {
         var internalBase = config["FILE_BASE_URL_INTERNAL"];
+
+        // Relative path (stored after storagePath refactor): prefix with internal base or PUBLIC_URL
+        if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+            !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            var baseUrl = !string.IsNullOrEmpty(internalBase)
+                ? internalBase.TrimEnd('/')
+                : (config["PUBLIC_URL"] ?? "http://localhost:3001").TrimEnd('/');
+            return $"{baseUrl}/{url.TrimStart('/')}";
+        }
+
+        // Absolute URL: replace host with internal base if configured (backward compat with old data)
         if (string.IsNullOrEmpty(internalBase)) return url;
         var uri = new Uri(url);
         var internalUri = new Uri(internalBase);
@@ -156,9 +245,10 @@ public sealed partial class IndexServiceClient(
         return builder.Uri.ToString();
     }
 
-    private void AddAuth(HttpRequestMessage request)
+    private void AddAuth(HttpRequestMessage request, string? tokenOverride = null)
     {
-        var authHeader = httpContextAccessor.HttpContext?.Request.Headers.Authorization.ToString();
+        var authHeader = tokenOverride
+            ?? httpContextAccessor.HttpContext?.Request.Headers.Authorization.ToString();
         if (!string.IsNullOrEmpty(authHeader))
             request.Headers.TryAddWithoutValidation("Authorization", authHeader);
     }

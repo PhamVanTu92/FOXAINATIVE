@@ -5,7 +5,9 @@ import { KNOWLEDGE_PACKAGE } from '../grpc/knowledge-grpc.module';
 import { callGrpc } from '../common/grpc/grpc-error-mapper';
 import {
   AddKnowledgeFileRequest,
+  AllFileCountsMessage,
   GetKnowledgeFileRequest,
+  MoveKnowledgeFileRequest,
   CreateDocumentVersionRequest,
   CreateKnowledgeBaseRequest,
   DeleteKnowledgeBaseRequest,
@@ -20,6 +22,8 @@ import {
   KnowledgeDocumentVersionMessage,
   KnowledgeFileMessage,
   KnowledgeGrpcService,
+  ListAllKnowledgeFilesRequest,
+  ListAllKnowledgeFilesResponse,
   ListDocumentsRequest,
   ListDocumentsResponse,
   ListDocumentVersionsRequest,
@@ -74,6 +78,10 @@ export class KnowledgeService implements OnModuleInit {
 
   // ─── Knowledge Files ───────────────────────────────────────────────────────
 
+  listAllKnowledgeFiles(req: ListAllKnowledgeFilesRequest, md?: Metadata): Promise<ListAllKnowledgeFilesResponse> {
+    return callGrpc(this.grpc.listAllKnowledgeFiles(req, md));
+  }
+
   listKnowledgeFiles(req: ListKnowledgeFilesRequest, md?: Metadata): Promise<ListKnowledgeFilesResponse> {
     return callGrpc(this.grpc.listKnowledgeFiles(req, md));
   }
@@ -96,6 +104,10 @@ export class KnowledgeService implements OnModuleInit {
 
   updateFilePermissions(req: UpdateFilePermissionsRequest, md?: Metadata): Promise<KnowledgeFileMessage> {
     return callGrpc(this.grpc.updateFilePermissions(req, md));
+  }
+
+  moveKnowledgeFile(req: MoveKnowledgeFileRequest, md?: Metadata): Promise<KnowledgeFileMessage> {
+    return callGrpc(this.grpc.moveKnowledgeFile(req, md));
   }
 
   // ─── Knowledge Documents ───────────────────────────────────────────────────

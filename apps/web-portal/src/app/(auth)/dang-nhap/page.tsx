@@ -44,14 +44,12 @@ function LoginForm() {
       {/* Card */}
       <div className="bg-surface border border-default rounded-2xl p-8 shadow-lg">
         {/* Logo */}
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-primary-600 flex items-center justify-center text-white font-bold text-base">
-            F
-          </div>
-          <div>
-            <p className="text-content-primary font-bold text-base tracking-wide leading-tight">FOXAI – NATIVE</p>
-            <p className="text-content-muted text-[11px] tracking-widest uppercase">Your trust partner</p>
-          </div>
+        <div className="flex justify-center mb-8">
+          <img
+            src="/img/Logo_Original-1.png"
+            alt="FOXAI – Native"
+            className="h-16 w-auto object-contain"
+          />
         </div>
 
         <h1 className="text-content-primary text-2xl font-semibold mb-1">Đăng nhập</h1>

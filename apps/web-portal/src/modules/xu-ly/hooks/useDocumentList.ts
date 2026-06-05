@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ocrApi } from '@/lib/ocr-api';
 import type { DocListItem, DocStats } from '@/lib/ocr-api';
+import { knowledgeDocumentsApi, knowledgeBasesApi } from '@/lib/knowledge-api';
+import type { KnowledgeBase } from '@/lib/knowledge-api';
 import * as XLSX from 'xlsx';
 import { TYPE_CONFIG, STATUS_CONFIG_FULL, STANDARD_COLUMNS, STANDARD_FIELD_KEYS, fmtDate } from '../constants';
 
@@ -41,10 +43,12 @@ export function useDocumentList() {
   const [editStatus, setEditStatus] = useState('');
   const [editSaving, setEditSaving] = useState(false);
 
-  const [transferOpen, setTransferOpen]       = useState(false);
-  const [transferIds, setTransferIds]         = useState<string[]>([]);
-  const [transferring, setTransferring]       = useState(false);
-  const [loadingTransfer, setLoadingTransfer] = useState(false);
+  const [kbModalOpen, setKbModalOpen]       = useState(false);
+  const [kbPendingIds, setKbPendingIds]     = useState<string[]>([]);
+  const [kbList, setKbList]                 = useState<KnowledgeBase[]>([]);
+  const [kbListLoading, setKbListLoading]   = useState(false);
+  const [selectedKbId, setSelectedKbId]     = useState('');
+  const [kbConfirming, setKbConfirming]     = useState(false);
 
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialog | null>(null);
   const [toast, setToast]                 = useState<ToastState | null>(null);
@@ -71,8 +75,8 @@ export function useDocumentList() {
     try {
       const params: Record<string, string | string[]> = { page: String(page), pageSize: '25' };
       if (search)        params.search        = search;
-      // Mặc định ẩn PROCESSED (OCR xong nhưng chưa được user lưu); chỉ hiện khi user tự chọn filter
-      params.status = statusFilter || ['DRAFT', 'CONFIRMED', 'TRANSFERRED', 'ERROR'];
+      // PROCESSED = user đã lưu (Nháp/Chờ xác nhận); DRAFT = đang xử lý OCR
+      params.status = statusFilter || ['PROCESSED', 'CONFIRMED', 'TRANSFERRED', 'ERROR'];
       if (typeFilter)    params.type          = typeFilter;
       if (dateFrom)      params.dateFrom      = dateFrom;
       if (dateTo)        params.dateTo        = dateTo;
@@ -97,14 +101,18 @@ export function useDocumentList() {
     setSelectedIds(prev => prev.size === all.length ? new Set() : new Set(all));
   };
 
-  const handleBulkConfirm = async () => {
+  const openKbModal = useCallback(async (ids: string[]) => {
+    setKbPendingIds(ids);
+    setSelectedKbId('');
+    setKbModalOpen(true);
+    setKbListLoading(true);
     try {
-      await ocrApi.bulkConfirm([...selectedIds]);
-      setSelectedIds(new Set());
-      await Promise.all([loadStats(), loadDocs()]);
-      showToast('Đã xác nhận thành công.', 'success');
-    } catch (e: unknown) { showToast((e as Error).message); }
-  };
+      const res = await knowledgeBasesApi.list({ pageSize: 100 });
+      setKbList(res.items);
+    } catch { /* silent */ } finally { setKbListLoading(false); }
+  }, []);
+
+  const handleBulkConfirm = () => { openKbModal([...selectedIds]); };
 
   const handleBulkDelete = () => {
     showConfirm(
@@ -125,46 +133,44 @@ export function useDocumentList() {
     );
   };
 
-  const openTransferModal = (ids: string[]) => {
-    const confirmedIds = ids.filter(id => docs?.items.find(d => d.id === id)?.status === 'CONFIRMED');
-    setTransferIds(confirmedIds);
-    setTransferOpen(true);
-  };
-
-  const openTransferAllConfirmed = useCallback(async () => {
-    setLoadingTransfer(true);
+  const handleConfirmWithKb = useCallback(async () => {
+    if (!selectedKbId || !kbPendingIds.length) return;
+    setKbConfirming(true);
     try {
-      let allIds: string[] = [];
-      let currentPage = 1;
-      while (true) {
-        const result = await ocrApi.getDocuments({ status: 'CONFIRMED', pageSize: '100', page: String(currentPage) });
-        allIds = [...allIds, ...result.items.map(d => d.id)];
-        if (currentPage >= result.totalPages || result.items.length === 0) break;
-        currentPage++;
+      if (kbPendingIds.length === 1) {
+        await ocrApi.confirmDocument(kbPendingIds[0]!);
+      } else {
+        await ocrApi.bulkConfirm(kbPendingIds);
       }
-      setTransferIds(allIds);
-      setTransferOpen(true);
-    } catch (e: unknown) {
-      showToast((e as Error).message);
-    } finally {
-      setLoadingTransfer(false);
-    }
-  }, [showToast]);
 
-  const handleTransfer = async () => {
-    setTransferring(true);
-    try {
-      await ocrApi.bulkTransfer(transferIds);
+      // Tạo knowledge document cho từng chứng từ (best-effort)
+      const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+      const authHdr: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const docsToProcess = (docs?.items ?? []).filter(d => kbPendingIds.includes(d.id));
+      await Promise.allSettled(docsToProcess.map(async doc => {
+        try {
+          const fileRes = await fetch(ocrApi.getDocumentFileUrl(doc.id), { headers: authHdr });
+          if (!fileRes.ok) return;
+          const blob = await fileRes.blob();
+          const file = new File([blob], doc.fileName ?? 'document', { type: blob.type });
+          await knowledgeDocumentsApi.create({
+            knowledgeBaseId: selectedKbId,
+            title: doc.fileName ?? doc.schema.name,
+            file,
+          });
+        } catch { /* lỗi từng file không chặn luồng */ }
+      }));
+
+      setKbModalOpen(false);
       setSelectedIds(new Set());
-      setTransferOpen(false);
       await Promise.all([loadStats(), loadDocs()]);
-      showToast(`Đã chuyển ${transferIds.length} chứng từ vào kho tri thức.`, 'success');
+      showToast(`Đã xác nhận ${kbPendingIds.length} chứng từ và gửi vào luồng kiểm duyệt.`, 'success');
     } catch (e: unknown) {
       showToast((e as Error).message);
     } finally {
-      setTransferring(false);
+      setKbConfirming(false);
     }
-  };
+  }, [selectedKbId, kbPendingIds, docs, loadStats, loadDocs, showToast]);
 
   const deleteDoc = (id: string) => {
     showConfirm(
@@ -184,22 +190,49 @@ export function useDocumentList() {
   const openEditModal = (doc: DocListItem) => {
     setEditDoc(doc);
     setEditStatus(doc.status === 'CONFIRMED' ? 'CONFIRMED' : doc.status === 'TRANSFERRED' ? 'TRANSFERRED' : 'PROCESSED');
+    setSelectedKbId('');
+    // Load KB list ngay khi mở modal
+    setKbListLoading(true);
+    knowledgeBasesApi.list({ pageSize: 100 })
+      .then(res => setKbList(res.items))
+      .catch(() => {})
+      .finally(() => setKbListLoading(false));
   };
 
   const handleSaveEdit = async () => {
     if (!editDoc) return;
-    setEditSaving(true);
-    try {
-      if (editStatus === 'CONFIRMED' && editDoc.status === 'PROCESSED') {
+    if (editStatus === 'CONFIRMED' && editDoc.status !== 'CONFIRMED' && editDoc.status !== 'TRANSFERRED') {
+      if (!selectedKbId) return;
+      setEditSaving(true);
+      try {
         await ocrApi.confirmDocument(editDoc.id);
+        // Tạo knowledge document (best-effort)
+        const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+        const authHdr: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+        try {
+          const fileRes = await fetch(ocrApi.getDocumentFileUrl(editDoc.id), { headers: authHdr });
+          if (fileRes.ok) {
+            const blob = await fileRes.blob();
+            const file = new File([blob], editDoc.fileName ?? 'document', { type: blob.type });
+            await knowledgeDocumentsApi.create({
+              knowledgeBaseId: selectedKbId,
+              title: editDoc.fileName ?? editDoc.schema.name,
+              file,
+            });
+          }
+        } catch { /* non-fatal */ }
+        setEditDoc(null);
+        setSelectedKbId('');
+        await Promise.all([loadStats(), loadDocs()]);
+        showToast('Đã xác nhận và gửi vào luồng kiểm duyệt.', 'success');
+      } catch (e: unknown) {
+        showToast((e as Error).message);
+      } finally {
+        setEditSaving(false);
       }
-      setEditDoc(null);
-      await Promise.all([loadStats(), loadDocs()]);
-    } catch (e: unknown) {
-      showToast((e as Error).message);
-    } finally {
-      setEditSaving(false);
+      return;
     }
+    setEditDoc(null);
   };
 
   const handleExportExcel = async () => {
@@ -293,12 +326,13 @@ export function useDocumentList() {
     dateFrom, setDateFrom, dateTo, setDateTo, sellerTaxCode, setSellerTaxCode,
     exporting, page, setPage,
     editDoc, setEditDoc, editStatus, setEditStatus, editSaving,
-    transferOpen, setTransferOpen, transferIds, transferring, loadingTransfer,
+    kbModalOpen, setKbModalOpen, kbPendingIds, kbList, kbListLoading,
+    selectedKbId, setSelectedKbId, kbConfirming,
     confirmDialog, setConfirmDialog,
     toast, setToast, showToast,
     loadStats, loadDocs, toggleSelect, toggleAll,
     handleBulkConfirm, handleBulkDelete,
-    openTransferModal, openTransferAllConfirmed, handleTransfer,
+    handleConfirmWithKb,
     deleteDoc, openEditModal, handleSaveEdit, handleExportExcel,
   };
 }

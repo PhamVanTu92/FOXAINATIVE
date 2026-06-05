@@ -30,10 +30,14 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         services.AddHttpContextAccessor();
+        services.AddScoped<ICurrentTokenProvider, HttpContextTokenProvider>();
 
         var indexServiceUrl = config["INDEX_SERVICE_URL"] ?? "http://index-service:8000";
         services.AddHttpClient<IIndexServiceClient, IndexServiceClient>(client =>
             client.BaseAddress = new Uri(indexServiceUrl));
+
+        services.AddSingleton<IIndexingQueue, InMemoryIndexingQueue>();
+        services.AddHostedService<IndexingWorker>();
 
         return services;
     }

@@ -125,7 +125,7 @@ export function useKnowledgeDetail(kbId: string) {
       await knowledgeFilesApi.remove(kbId, deletingFile.id);
       setAllFiles(prev => prev.filter(f => f.id !== deletingFile.id));
       setDeletingFile(null);
-      showSuccess('Đã xóa tệp');
+      showSuccess('Đã xóa vĩnh viễn tệp khỏi hệ thống');
       await reloadKb();
     } catch (e: unknown) {
       setError((e as Error).message);

@@ -158,6 +158,28 @@ public sealed class UserRepository(SystemDbContext db) : IUserRepository
         return (items, total);
     }
 
+    public async Task<(int TotalUsers, int ActiveUsers, int TotalRoles, IReadOnlyList<(string DepartmentName, int UserCount)> UsersByDepartment)>
+        GetSystemStatsAsync(CancellationToken ct = default)
+    {
+        var totalUsers = await db.Users.CountAsync(ct);
+        var activeUsers = await db.Users.CountAsync(u => u.Status == UserStatus.Active, ct);
+        var totalRoles = await db.Roles.CountAsync(ct);
+
+        var usersByDeptRaw = await db.Users
+            .Where(u => u.OrganizationId != null)
+            .GroupBy(u => u.OrganizationId)
+            .Select(g => new { OrgId = g.Key, Count = g.Count() })
+            .Join(db.OrganizationNodes, g => g.OrgId, o => o.Id,
+                  (g, o) => new { o.Name, g.Count })
+            .OrderByDescending(x => x.Count)
+            .ToListAsync(ct);
+
+        IReadOnlyList<(string DepartmentName, int UserCount)> usersByDept =
+            usersByDeptRaw.Select(x => (x.Name, x.Count)).ToList();
+
+        return (totalUsers, activeUsers, totalRoles, usersByDept);
+    }
+
     private IQueryable<User> BuildWithGrantsQuery() =>
         db.Users
             .Include(u => u.UserRoles).ThenInclude(ur => ur.Role)

@@ -1,14 +1,17 @@
 'use client';
 
+import { useRef, useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Upload, X, AlertCircle, AlertTriangle, Check, Save, ScanLine,
   FileText, Plus, Minus, ChevronRight, Download,
   Loader2, Table2, Grid3X3, Sparkles, Image as ImageIcon, Bot, Clock,
+  Link2, Copy, CheckCheck,
 } from 'lucide-react';
 import type { DataType, LineItem } from '@/lib/ocr-api';
 import { useOcrRecognition, type QueueItem, type QueueStatus } from '../hooks/useOcrRecognition';
 import { useRoutePermission } from '@/hooks/usePermission';
+import { SelectDropdown } from '@/components/SelectDropdown';
 
 const DATA_TYPE_LABEL: Record<DataType, string> = {
   TEXT: 'Text', DATE: 'Date', NUMBER: 'Number',
@@ -18,13 +21,6 @@ const DATA_TYPE_LABEL: Record<DataType, string> = {
 function fmt(n: number | null | undefined) {
   if (n == null) return '—';
   return new Intl.NumberFormat('vi-VN').format(n);
-}
-
-function ConfBadge({ v }: { v: number | null | undefined }) {
-  if (v == null) return <span className="text-content-muted text-xs">—</span>;
-  const pct = Math.round(v * 100);
-  const cls = v > 0.85 ? 'text-success-600 bg-success-50/10' : v > 0.6 ? 'text-warning-600 bg-warning-50/10' : 'text-danger-600 bg-danger-50/10';
-  return <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold ${cls}`}>{pct}%</span>;
 }
 
 function QueueStatusBadge({ status }: { status: QueueStatus }) {
@@ -38,7 +34,7 @@ function QueueStatusBadge({ status }: { status: QueueStatus }) {
 const STATUS_CONFIG = {
   DRAFT:       { label: 'Nháp',          cls: 'bg-subtle        text-content-secondary border-default' },
   PROCESSED:   { label: 'Đã xử lý',      cls: 'bg-primary-50/10 text-primary-600       border-primary-500/30' },
-  CONFIRMED:   { label: 'Đã xác nhận',   cls: 'bg-success-50/10 text-success-600       border-success-500/30' },
+  CONFIRMED:   { label: 'Đã xác nhận',   cls: 'bg-primary-50 text-success-600       border-success-500/30' },
   TRANSFERRED: { label: 'Đã chuyển kho', cls: 'bg-violet-500/10 text-violet-600        border-violet-500/30'  },
   ERROR:       { label: 'Lỗi OCR',       cls: 'bg-danger-50/10  text-danger-600        border-danger-500/30'  },
 } as const;
@@ -61,6 +57,136 @@ function getFileIcon(fileName: string): { Icon: React.ComponentType<{ className?
   return                                     { Icon: FileText,  color: 'text-danger-400',  label: 'PDF'  };
 }
 
+function ExcelPreview({ url }: { url: string }) {
+  const [sheets, setSheets] = useState<{ name: string; rows: (string | number | null)[][] }[]>([]);
+  const [activeSheet, setActiveSheet] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setLoading(true); setSheets([]); setError(false); setActiveSheet(0);
+    fetch(url)
+      .then(r => r.arrayBuffer())
+      .then(buf => import('xlsx').then(XLSX => {
+        const wb = XLSX.read(buf, { type: 'array' });
+        return wb.SheetNames.map(name => ({
+          name,
+          rows: wb.Sheets[name] ? XLSX.utils.sheet_to_json<(string | number | null)[]>(wb.Sheets[name]!, { header: 1, defval: null }) : [],
+        }));
+      }))
+      .then(setSheets)
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, [url]);
+
+  if (loading) return <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 text-neutral-500 animate-spin" /></div>;
+  if (error || !sheets.length) return <div className="flex items-center justify-center h-full text-neutral-500 text-sm">Không thể đọc nội dung file</div>;
+
+  const current = sheets[activeSheet];
+  const headers = (current?.rows[0] ?? []) as (string | null)[];
+  const dataRows = current?.rows.slice(1) ?? [];
+
+  return (
+    <div className="h-full flex flex-col overflow-hidden bg-neutral-900">
+      {sheets.length > 1 && (
+        <div className="flex gap-0.5 px-2 py-1.5 bg-neutral-800 border-b border-neutral-700 overflow-x-auto shrink-0">
+          {sheets.map((s, i) => (
+            <button key={i} onClick={() => setActiveSheet(i)}
+              className={`px-3 py-1 rounded text-xs whitespace-nowrap transition-colors ${i === activeSheet ? 'bg-neutral-600 text-white' : 'text-neutral-400 hover:text-white hover:bg-neutral-700'}`}>
+              {s.name}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="flex-1 overflow-auto">
+        <table className="text-xs border-collapse min-w-full">
+          <thead className="sticky top-0 z-10">
+            <tr>{headers.map((h, i) => (
+              <th key={i} className="px-3 py-2 text-left font-medium text-neutral-300 bg-neutral-800 border border-neutral-700 whitespace-nowrap">
+                {h ?? ''}
+              </th>
+            ))}</tr>
+          </thead>
+          <tbody>
+            {dataRows.map((row, ri) => (
+              <tr key={ri} className="hover:bg-neutral-800/50">
+                {headers.map((_, ci) => (
+                  <td key={ci} className="px-3 py-1.5 text-neutral-300 border border-neutral-800 whitespace-nowrap">
+                    {row[ci] != null ? String(row[ci]) : ''}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function WordPreview({ url }: { url: string }) {
+  const [html, setHtml] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setLoading(true); setHtml(null); setError(false);
+    fetch(url)
+      .then(r => r.arrayBuffer())
+      .then(buf => import('mammoth').then(m => m.convertToHtml({ arrayBuffer: buf })))
+      .then(({ value }) => setHtml(value))
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, [url]);
+
+  if (loading) return <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 text-neutral-500 animate-spin" /></div>;
+  if (error || !html) return <div className="flex items-center justify-center h-full text-neutral-500 text-sm">Không thể đọc nội dung file</div>;
+  return <div className="h-full overflow-auto p-6 bg-white text-sm text-neutral-800 leading-relaxed" dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+function FilePreviewPane({ file, url }: { file: File | null; url: string | null }) {
+  if (!file || !url) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center gap-3 text-center px-6">
+        <FileText className="w-12 h-12 text-content-muted" />
+        <p className="text-sm text-content-secondary">Chọn tài liệu đã quét để xem trước</p>
+      </div>
+    );
+  }
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+  const isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'tiff', 'tif'].includes(ext);
+  const isPdf   = ext === 'pdf';
+  const isExcel = ['xlsx', 'xls', 'csv'].includes(ext);
+  const isWord  = ext === 'docx';
+
+  return (
+    <div className="h-full flex flex-col">
+      <div className="shrink-0 px-4 py-2.5 border-b border-default bg-subtle flex items-center gap-2">
+        <FileText className="w-4 h-4 text-content-muted shrink-0" />
+        <span className="text-xs text-content-secondary truncate font-medium">{file.name}</span>
+        <span className="text-xs text-content-muted shrink-0 ml-auto">{(file.size / 1024).toFixed(0)} KB</span>
+      </div>
+      <div className="flex-1 overflow-auto bg-dark-900/5 flex items-start justify-center p-3">
+        {isImage ? (
+          <img src={url} alt={file.name} className="max-w-full h-auto object-contain rounded shadow-md" />
+        ) : isPdf ? (
+          <iframe src={url} className="w-full h-full min-h-[800px] border-0 rounded" title={file.name} />
+        ) : isExcel ? (
+          <div className="w-full h-full"><ExcelPreview url={url} /></div>
+        ) : isWord ? (
+          <div className="w-full h-full"><WordPreview url={url} /></div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full gap-3 text-center py-20">
+            <FileText className="w-16 h-16 text-content-muted" />
+            <p className="text-sm text-content-secondary font-medium">{file.name}</p>
+            <p className="text-xs text-content-muted">Không hỗ trợ xem trước loại tệp này</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function NhanDangView({ schemaCode }: { schemaCode: string }) {
   const router = useRouter();
   const ocr = useOcrRecognition(schemaCode);
@@ -70,7 +196,7 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
     ocrProvider, setOcrProvider, dragging, queue, activeId, setActiveId,
     saving, confirming, focusedCellKey, setFocusedCellKey,
     fileInputRef,
-    doc, fieldValues, lineItems, dirty,
+    activeItem, doc, fieldValues, lineItems, dirty,
     isProcessing, anyProcessing,
     arithmeticWarnings, hasArithmeticWarnings,
     acceptFiles, removeItem, onDragOver, onDragLeave, onDrop,
@@ -80,6 +206,52 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
 
   const canUpdate = useRoutePermission('UPDATE');
   const canExport = useRoutePermission('EXPORT');
+
+  const [apiModalOpen, setApiModalOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'}/api/ocr/schemas/code/${schemaCode}`;
+
+  const handleCopyApiUrl = () => {
+    navigator.clipboard.writeText(apiUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  // Split panel resize
+  const [leftPct, setLeftPct] = useState(48);
+  const splitRef = useRef<HTMLDivElement>(null);
+  const isDivDragging = useRef(false);
+
+  const onDividerMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isDivDragging.current = true;
+    const onMove = (ev: MouseEvent) => {
+      if (!isDivDragging.current || !splitRef.current) return;
+      const rect = splitRef.current.getBoundingClientRect();
+      const pct = ((ev.clientX - rect.left) / rect.width) * 100;
+      setLeftPct(Math.min(75, Math.max(25, pct)));
+    };
+    const onUp = () => {
+      isDivDragging.current = false;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, []);
+
+  // File preview URL from active queue item
+  const activeFile = activeItem?.files[0] ?? null;
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!activeFile) { setPreviewUrl(null); return; }
+    const url = URL.createObjectURL(activeFile);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [activeFile?.name, activeFile?.size]); // eslint-disable-line
 
   if (schemaLoading) return (
     <div className="flex items-center justify-center h-full">
@@ -98,9 +270,243 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
 
   const docStatus    = doc ? STATUS_CONFIG[doc.status as keyof typeof STATUS_CONFIG] : null;
   const isConfirmed  = doc?.status === 'CONFIRMED';
-  const confPct      = doc?.ocrConfidence != null ? Math.round(doc.ocrConfidence * 100) : null;
-  const confColor    = confPct == null ? '' : confPct > 85 ? 'bg-success-500' : confPct > 60 ? 'bg-warning-400' : 'bg-danger-400';
-  const confTextColor = confPct == null ? '' : confPct > 85 ? 'text-success-600' : confPct > 60 ? 'text-warning-600' : 'text-danger-600';
+
+  // Shared JSX: Fields + Tables sections (used in both split-panel right side and no-doc fallback)
+  const fieldsAndTablesJsx = (
+    <>
+      {/* Fields */}
+      <div className="shrink-0">
+        <div className="bg-surface rounded-xl border border-default shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-3.5 bg-surface border-b border-default/10">
+            <div className="flex items-center gap-2.5">
+              <Grid3X3 className="w-4 h-4 text-primary-500" />
+              <h2 className="text-sm font-semibold text-primary-700">Trường dữ liệu</h2>
+              <span className="text-xs text-primary-600 bg-primary-500/10 border border-primary-500/30 px-2 py-0.5 rounded-full font-medium">{schema.fields.length} trường</span>
+            </div>
+          </div>
+          {schema.fields.length === 0 ? (
+            <div className="px-5 py-10 text-center text-sm text-content-muted">Schema này chưa có trường OCR nào.</div>
+          ) : (
+            <div className="grid grid-cols-2 divide-x divide-y divide-strong">
+              {schema.fields.map(f => {
+                const docValue = doc?.values.find(v => v.fieldId === f.id);
+                const hasValue = !!(docValue?.stringValue);
+                return (
+                  <div key={f.id} className="bg-surface px-5 py-4 hover:bg-subtle transition-colors duration-base">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-content-primary leading-tight">{f.label}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <code className="text-xs text-content-muted font-mono">{f.fieldKey}</code>
+                          <span className="text-content-muted opacity-50">·</span>
+                          <span className="text-xs text-content-muted">{DATA_TYPE_LABEL[f.dataType]}</span>
+                        </div>
+                      </div>
+                      {isProcessing && (
+                        <div className="shrink-0 ml-2 mt-0.5">
+                          <div className="h-5 w-10 bg-subtle animate-pulse rounded" />
+                        </div>
+                      )}
+                    </div>
+                    {isProcessing ? (
+                      <div className="h-9 bg-subtle rounded-lg animate-pulse w-full" />
+                    ) : doc && !isConfirmed ? (
+                      f.dataType === 'BOOLEAN' ? (
+                        <button
+                          type="button"
+                          onClick={() => setFieldValue(f.id, fieldValues[f.id] === 'true' ? 'false' : 'true')}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg border border-default hover:bg-subtle transition-colors"
+                        >
+                          <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${fieldValues[f.id] === 'true' ? 'bg-success-500' : 'bg-strong'}`}>
+                            <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${fieldValues[f.id] === 'true' ? 'translate-x-4' : 'translate-x-1'}`} />
+                          </div>
+                          <span className={`text-sm font-medium ${fieldValues[f.id] === 'true' ? 'text-success-600' : 'text-content-muted'}`}>
+                            {fieldValues[f.id] === 'true' ? 'Có' : 'Không'}
+                          </span>
+                        </button>
+                      ) : (
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={fieldValues[f.id] ?? ''}
+                            onChange={e => setFieldValue(f.id, e.target.value)}
+                            placeholder={`Nhập ${f.label.toLowerCase()}...`}
+                            className={`w-full px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 transition-all duration-base ${
+                              arithmeticWarnings.fields.has(f.id)
+                                ? 'border-warning-400 bg-warning-50/10 text-content-primary focus:ring-warning-300'
+                                : hasValue
+                                  ? 'border-success-300 bg-primary-50 text-content-primary focus:ring-primary-400'
+                                  : 'border-default bg-subtle text-content-secondary placeholder:text-content-muted focus:ring-primary-400'
+                            }`}
+                          />
+                          {docValue?.isManuallyEdited && (
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-warning-500 font-medium animate-fade-in">Đã sửa</span>
+                          )}
+                        </div>
+                      )
+                    ) : isConfirmed ? (
+                      f.dataType === 'BOOLEAN'
+                        ? <div className="px-1 py-2 min-h-[36px] flex items-center">
+                            {fieldValues[f.id] === 'true'
+                              ? <Check className="w-5 h-5 text-success-500" />
+                              : <X className="w-5 h-5 text-content-muted" />}
+                          </div>
+                        : <p className="text-sm text-content-primary font-medium px-1 py-2 min-h-[36px]">{fieldValues[f.id] || '—'}</p>
+                    ) : (
+                      <div className="h-9 rounded-lg border border-dashed border-default bg-subtle" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Tables */}
+      <div className="shrink-0 space-y-4">
+        {schema.tables.length === 0 ? (
+          <div className="bg-surface rounded-xl border border-default shadow-sm flex flex-col items-center justify-center py-16 text-center">
+            <Table2 className="w-8 h-8 text-content-muted mb-3" />
+            <p className="text-sm text-content-secondary">Schema này chưa có bảng dữ liệu</p>
+          </div>
+        ) : schema.tables.map(table => {
+          const useSchemaColumns = table.columns.length > 0;
+          const tableLineItems = lineItems.filter(li => !li.tableKey || li.tableKey === table.tableKey);
+          const colCount = useSchemaColumns ? table.columns.length : 0;
+          return (
+            <div key={table.id} className="bg-surface rounded-xl border border-default shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-default bg-warning-50/10">
+                <div className="flex items-center gap-2.5">
+                  <Table2 className="w-4 h-4 text-warning-500" />
+                  <h2 className="text-sm font-semibold text-warning-800">{table.name}</h2>
+                  {tableLineItems.length > 0 && (
+                    <span className="text-xs text-warning-600 bg-warning-500/10 border border-warning-500/30 px-2 py-0.5 rounded-full font-medium">
+                      {tableLineItems.length} dòng
+                    </span>
+                  )}
+                </div>
+                {doc && !isConfirmed && useSchemaColumns && (
+                  <button
+                    onClick={() => addLineItem(table.tableKey)}
+                    className="flex items-center gap-1.5 text-xs text-warning-700 bg-surface border border-warning-200 hover:bg-warning-50/10 px-3 py-1.5 rounded-lg transition-all duration-base font-medium"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Thêm dòng
+                  </button>
+                )}
+              </div>
+              {!useSchemaColumns ? (
+                <div className="px-5 py-4 text-sm text-content-secondary flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-warning-400 shrink-0" />
+                  Bảng này chưa có cột nào được cấu hình trong schema.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-primary-100 border-b border-primary-200 text-primary-600 uppercase tracking-wide font-semibold text-xs">
+                        <th className="px-3 py-2.5 text-center w-10">STT</th>
+                        {table.columns.map(col => (
+                          <th key={col.id} className={`px-3 py-2.5 ${NUMERIC_FIELD_KEYS.has(col.columnKey) || col.dataType === 'NUMBER' || col.dataType === 'CURRENCY' ? 'text-right' : col.dataType === 'BOOLEAN' ? 'text-center' : 'text-left'}`}>{col.label}</th>
+                        ))}
+                        {doc && !isConfirmed && <th className="w-8" />}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {isProcessing ? (
+                        Array.from({ length: 3 }).map((_, i) => (
+                          <tr key={i} className="border-b border-default">
+                            <td className="px-4 py-3 text-center"><div className="h-4 bg-subtle rounded animate-pulse w-6 mx-auto" /></td>
+                            {Array.from({ length: colCount }).map((_, j) => (
+                              <td key={j} className="px-4 py-3"><div className="h-4 bg-subtle rounded animate-pulse" /></td>
+                            ))}
+                          </tr>
+                        ))
+                      ) : tableLineItems.length > 0 ? (
+                        tableLineItems.map((li: LineItem, liIdx: number) => (
+                          <tr key={li.stt} className={`border-b border-default last:border-0 hover:bg-primary-50/10 transition-colors duration-base ${liIdx % 2 === 1 ? 'bg-subtle' : ''}`}>
+                            <td className="px-4 py-3 text-center text-sm font-medium text-content-secondary">{li.stt}</td>
+                            {table.columns.map(col => {
+                              const isStandard = STANDARD_FIELD_KEYS.has(col.columnKey);
+                              const isNumeric = NUMERIC_FIELD_KEYS.has(col.columnKey) || col.dataType === 'NUMBER' || col.dataType === 'CURRENCY';
+                              const isBool = col.dataType === 'BOOLEAN';
+                              const raw = isStandard ? li[col.columnKey as keyof typeof li] : li.extraData?.[col.columnKey];
+                              const rawStr = raw != null ? String(raw) : '';
+                              const cellKey = `${li.stt}_${col.columnKey}`;
+                              const isFocused = focusedCellKey === cellKey;
+                              const displayVal = isNumeric && rawStr !== '' && !isFocused
+                                ? new Intl.NumberFormat('vi-VN').format(Number(rawStr)) : rawStr;
+                              const isAmountWarning = col.columnKey === 'amount' && arithmeticWarnings.lineItems.has(li.stt);
+                              const handleChange = (val: string) => {
+                                if (isStandard && isNumeric) updateLi(li.stt, col.columnKey as 'quantity' | 'unitPrice' | 'amount', val ? Number(val) : null);
+                                else if (isStandard) updateLi(li.stt, col.columnKey as 'name' | 'unit', val);
+                                else updateLiExtra(li.stt, col.columnKey, isNumeric ? (val ? val : '') : val);
+                              };
+                              if (isBool) {
+                                const isTrue = rawStr === 'true';
+                                return (
+                                  <td key={col.columnKey} className="px-4 py-3 text-center">
+                                    {isConfirmed ? (
+                                      isTrue
+                                        ? <Check className="w-4 h-4 text-success-500 inline" />
+                                        : <span className="text-content-muted text-sm">—</span>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => updateLiExtra(li.stt, col.columnKey, isTrue ? 'false' : 'true')}
+                                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${isTrue ? 'bg-success-500' : 'bg-strong'}`}
+                                      >
+                                        <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${isTrue ? 'translate-x-4' : 'translate-x-1'}`} />
+                                      </button>
+                                    )}
+                                  </td>
+                                );
+                              }
+                              return (
+                                <td key={col.columnKey} className={`px-4 py-3${isAmountWarning ? ' bg-warning-50/10' : ''}`}>
+                                  <input
+                                    type={isNumeric && isFocused ? 'number' : 'text'}
+                                    value={displayVal}
+                                    onChange={e => handleChange(e.target.value)}
+                                    onFocus={() => setFocusedCellKey(cellKey)}
+                                    onBlur={() => setFocusedCellKey(null)}
+                                    disabled={isConfirmed}
+                                    className={`w-full bg-transparent focus:outline-none focus:bg-surface focus:ring-1 focus:ring-primary-400 rounded px-1.5 py-1 disabled:text-content-secondary text-sm${isNumeric ? ' text-right font-mono' : ' text-content-primary'}${isAmountWarning ? ' text-warning-600 font-semibold' : ''}`}
+                                  />
+                                  {isAmountWarning && (
+                                    <span className="text-warning-400 text-xs" title={`Kỳ vọng: ${li.quantity != null && li.unitPrice != null ? fmt(Math.round(li.quantity * li.unitPrice)) : '?'}`}>⚠</span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                            {!isConfirmed && (
+                              <td className="px-2 py-3">
+                                <button onClick={() => removeLineItem(li.stt)} className="p-1 text-content-muted hover:text-danger-600 rounded transition-colors duration-base">
+                                  <Minus className="w-4 h-4" />
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={colCount + 2} className="px-4 py-12 text-center text-content-muted text-sm">
+                            {doc?.status === 'ERROR'
+                              ? `Lỗi OCR: ${doc.ocrError ?? 'Không xác định'}`
+                              : 'Kết quả bảng sẽ hiển thị sau khi nhận dạng'}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-subtle">
@@ -124,6 +530,9 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
             )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            <button onClick={() => setApiModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-violet-700 bg-violet-50 border border-violet-200 rounded-lg hover:bg-violet-100 hover:border-violet-300 transition-colors">
+              <Link2 className="w-3.5 h-3.5" /> Public API
+            </button>
             {canExport && doc && (
               <button onClick={handleExport} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-content-secondary border border-default rounded-lg hover:bg-subtle transition-colors">
                 <Download className="w-3.5 h-3.5" /> Xuất JSON
@@ -142,7 +551,7 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
               </button>
             )}
             {isConfirmed && (
-              <span className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-success-700 bg-success-50/10 border border-success-500/30 rounded-lg">
+              <span className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-success-700 bg-primary-50 border border-success-500/30 rounded-lg">
                 <Check className="w-4 h-4" /> Đã xác nhận
               </span>
             )}
@@ -150,28 +559,12 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
         </div>
       </div>
 
-      {/* Arithmetic warning banner */}
-      {hasArithmeticWarnings && !isProcessing && doc && (
-        <div className="mx-4 mt-3 shrink-0 flex items-start gap-2.5 bg-warning-50/10 border border-warning-500/30 text-warning-700 rounded-lg px-4 py-3 text-sm shadow-sm">
-          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-warning-500" />
-          <div className="flex-1 min-w-0">
-            <span className="font-semibold">Cảnh báo số học — </span>
-            {arithmeticWarnings.lineItems.size > 0 && (
-              <span>{arithmeticWarnings.lineItems.size} dòng có Thành tiền ≠ SL × Đơn giá. </span>
-            )}
-            {arithmeticWarnings.fields.size > 0 && (
-              <span>Tổng tiền hàng + Thuế VAT ≠ Tổng thanh toán. </span>
-            )}
-            <span className="text-warning-600 text-xs">Kiểm tra các ô được tô vàng trước khi xác nhận.</span>
-          </div>
-        </div>
-      )}
-
       {/* Main content */}
-      <div className="flex-1 overflow-y-auto flex flex-col gap-4 p-4">
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
 
-        {/* Upload card */}
-        <div className="shrink-0 bg-surface rounded-xl border border-default shadow-sm overflow-hidden">
+        {/* Upload + Queue — always visible, scrollable if queue is long */}
+        <div className={`shrink-0 overflow-y-auto border-b border-default bg-surface shadow-sm ${doc ? 'max-h-[160px]' : 'max-h-[360px]'}`}>
+          {/* Upload drop zone */}
           <div
             onDragOver={onDragOver}
             onDragLeave={onDragLeave}
@@ -191,23 +584,20 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
                 e.target.value = '';
               }}
             />
-            <div className="flex flex-col items-center justify-center py-7 gap-1.5">
-              <Upload className={`w-8 h-8 mb-1 ${dragging ? 'text-primary-500' : 'text-primary-300'}`} />
+            <div className="flex flex-col items-center justify-center gap-2 py-8 px-6">
+              <Upload className={`w-9 h-9 mb-1 ${dragging ? 'text-primary-500' : 'text-primary-300'}`} />
               <p className="text-sm font-semibold text-content-secondary">
-                {dragging ? 'Thả tệp vào đây...' : 'Kéo thả hoặc click để chọn nhiều tệp'}
+                {dragging ? 'Thả tệp vào đây...' : 'Kéo thả hoặc click để chọn tệp'}
               </p>
               <div className="flex items-center gap-2 text-xs text-content-muted flex-wrap justify-center">
                 <span className="flex items-center gap-1"><FileText className="w-3.5 h-3.5 text-danger-400" /> PDF</span>
-                <span className="text-content-muted opacity-50">·</span>
+                <span className="opacity-40">·</span>
                 <span className="flex items-center gap-1"><ImageIcon className="w-3.5 h-3.5 text-violet-400" /> PNG · JPG · TIFF</span>
-                <span className="text-content-muted opacity-50">·</span>
+                <span className="opacity-40">·</span>
                 <span className="flex items-center gap-1"><Table2 className="w-3.5 h-3.5 text-success-500" /> Excel · CSV</span>
-                <span className="text-content-muted opacity-50">·</span>
+                <span className="opacity-40">·</span>
                 <span className="flex items-center gap-1"><FileText className="w-3.5 h-3.5 text-primary-500" /> Word</span>
               </div>
-              <p className="text-xs text-primary-500 mt-1 flex items-center gap-1.5 font-medium">
-                <Sparkles className="w-3.5 h-3.5" /> Có thể chọn nhiều tệp cùng lúc
-              </p>
             </div>
           </div>
 
@@ -215,15 +605,16 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
           <div className="border-t border-default px-5 py-2.5 flex items-center gap-3 bg-subtle">
             <Bot className="w-3.5 h-3.5 text-content-muted shrink-0" />
             <span className="text-xs text-content-secondary font-medium shrink-0">Model AI</span>
-            <select
+            <SelectDropdown
               value={ocrProvider}
-              onChange={e => setOcrProvider(e.target.value)}
+              onChange={setOcrProvider}
               disabled={anyProcessing}
-              className="text-xs border border-default rounded-md px-2.5 py-1.5 bg-surface text-content-secondary focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-              <option value="gemini">Gemini 2.5 Flash</option>
-              <option value="claude">Claude Sonnet 4.5</option>
-            </select>
+              size="sm"
+              options={[
+                { value: 'gemini', label: 'Gemini 2.5 Flash' },
+                { value: 'claude', label: 'Claude Sonnet 4.5' },
+              ]}
+            />
             {queue.length > 0 && (
               <span className="ml-auto text-xs text-content-muted">
                 {queue.filter(q => q.status === 'done').length}/{queue.length} chứng từ hoàn tất
@@ -257,7 +648,6 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
                         </p>
                       </div>
                       <QueueStatusBadge status={item.status} />
-                      {item.status === 'done' && <ConfBadge v={item.doc?.ocrConfidence} />}
                       {item.status === 'error' && (
                         <span className="text-xs text-danger-500 max-w-[160px] truncate" title={item.errorMsg}>{item.errorMsg}</span>
                       )}
@@ -291,16 +681,6 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
           {/* Stats bar */}
           {doc && !isProcessing && (
             <div className="border-t border-default px-6 py-3 flex items-center gap-8 bg-subtle flex-wrap">
-              {confPct != null && (
-                <div className="flex items-center gap-2.5">
-                  <span className="text-xs font-medium text-content-secondary">Độ tin cậy</span>
-                  <span className={`text-sm font-bold ${confTextColor}`}>{confPct}%</span>
-                  <div className="bg-default rounded-full h-2 w-24">
-                    <div className={`h-2 rounded-full transition-all ${confColor}`} style={{ width: `${confPct}%` }} />
-                  </div>
-                </div>
-              )}
-              <div className="h-4 w-px bg-default" />
               <div className="flex items-center gap-1.5 text-sm">
                 <span className="text-content-secondary">Trường:</span>
                 <span className="font-semibold text-content-primary">{doc.values.filter(v => v.stringValue).length}/{schema.fields.length}</span>
@@ -315,203 +695,88 @@ export function NhanDangView({ schemaCode }: { schemaCode: string }) {
           )}
         </div>
 
-        {/* Fields */}
-        <div className="shrink-0">
-          <div className="bg-surface rounded-xl border border-default shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-default bg-primary-50/10">
-              <div className="flex items-center gap-2.5">
-                <Grid3X3 className="w-4 h-4 text-primary-500" />
-                <h2 className="text-sm font-semibold text-primary-700">Trường dữ liệu</h2>
-                <span className="text-xs text-primary-600 bg-primary-500/10 border border-primary-500/30 px-2 py-0.5 rounded-full font-medium">{schema.fields.length} trường</span>
-              </div>
-              {doc?.ocrConfidence != null && (
-                <div className="flex items-center gap-1.5 text-xs text-primary-700">
-                  <span>Độ chính xác:</span>
-                  <span className={`font-bold ${confTextColor}`}>{confPct}%</span>
-                </div>
+        {/* Arithmetic warning banner */}
+        {hasArithmeticWarnings && !isProcessing && doc && (
+          <div className="shrink-0 mx-4 mt-2 flex items-start gap-2.5 bg-warning-50/10 border border-warning-500/30 text-warning-700 rounded-lg px-4 py-3 text-sm shadow-sm">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-warning-500" />
+            <div className="flex-1 min-w-0">
+              <span className="font-semibold">Cảnh báo số học — </span>
+              {arithmeticWarnings.lineItems.size > 0 && (
+                <span>{arithmeticWarnings.lineItems.size} dòng có Thành tiền ≠ SL × Đơn giá. </span>
               )}
+              {arithmeticWarnings.fields.size > 0 && (
+                <span>Tổng tiền hàng + Thuế VAT ≠ Tổng thanh toán. </span>
+              )}
+              <span className="text-warning-600 text-xs">Kiểm tra các ô được tô vàng trước khi xác nhận.</span>
             </div>
-            {schema.fields.length === 0 ? (
-              <div className="px-5 py-10 text-center text-sm text-content-muted">Schema này chưa có trường OCR nào.</div>
-            ) : (
-              <div className="grid grid-cols-2 divide-x divide-y divide-strong">
-                {schema.fields.map(f => {
-                  const docValue = doc?.values.find(v => v.fieldId === f.id);
-                  const hasValue = !!(docValue?.stringValue);
-                  return (
-                    <div key={f.id} className="bg-surface px-5 py-4 hover:bg-subtle transition-colors duration-base">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-content-primary leading-tight">{f.label}</p>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <code className="text-xs text-content-muted font-mono">{f.fieldKey}</code>
-                            <span className="text-content-muted opacity-50">·</span>
-                            <span className="text-xs text-content-muted">{DATA_TYPE_LABEL[f.dataType]}</span>
-                          </div>
-                        </div>
-                        <div className="shrink-0 ml-2 mt-0.5">
-                          {isProcessing
-                            ? <div className="h-5 w-10 bg-subtle animate-pulse rounded" />
-                            : <ConfBadge v={docValue?.confidence} />
-                          }
-                        </div>
-                      </div>
-                      {isProcessing ? (
-                        <div className="h-9 bg-subtle rounded-lg animate-pulse w-full" />
-                      ) : doc && !isConfirmed ? (
-                        <div className="relative">
-                          <input
-                            type="text"
-                            value={fieldValues[f.id] ?? ''}
-                            onChange={e => setFieldValue(f.id, e.target.value)}
-                            placeholder={`Nhập ${f.label.toLowerCase()}...`}
-                            className={`w-full px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 transition-all duration-base ${
-                              arithmeticWarnings.fields.has(f.id)
-                                ? 'border-warning-400 bg-warning-50/10 text-content-primary focus:ring-warning-300'
-                                : hasValue
-                                  ? 'border-success-300 bg-success-50/10 text-content-primary focus:ring-primary-400'
-                                  : 'border-default bg-subtle text-content-secondary placeholder:text-content-muted focus:ring-primary-400'
-                            }`}
-                          />
-                          {docValue?.isManuallyEdited && (
-                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-warning-500 font-medium animate-fade-in">Đã sửa</span>
-                          )}
-                        </div>
-                      ) : isConfirmed ? (
-                        <p className="text-sm text-content-primary font-medium px-1 py-2 min-h-[36px]">{fieldValues[f.id] || '—'}</p>
-                      ) : (
-                        <div className="h-9 rounded-lg border border-dashed border-default bg-subtle" />
-                      )}
-                    </div>
-                  );
-                })}
+          </div>
+        )}
+
+        {/* Split panel — shown when doc exists, otherwise fields + tables in scrollable area */}
+        {doc ? (
+          <div ref={splitRef} className="flex-1 min-h-0 flex overflow-hidden">
+            {/* Left: file preview */}
+            <div style={{ width: `${leftPct}%` }} className="min-w-0 overflow-hidden border-r border-default bg-surface">
+              <FilePreviewPane file={activeFile} url={previewUrl} />
+            </div>
+            {/* Divider */}
+            <div
+              onMouseDown={onDividerMouseDown}
+              className="w-1.5 shrink-0 bg-default hover:bg-primary-300 cursor-col-resize transition-colors group flex items-center justify-center"
+              title="Kéo để thay đổi kích thước"
+            >
+              <div className="w-0.5 h-8 bg-border-strong rounded-full opacity-40 group-hover:opacity-100 transition-opacity" />
+            </div>
+            {/* Right: OCR data */}
+            <div style={{ width: `${100 - leftPct - 0.375}%` }} className="min-w-0 overflow-y-auto bg-subtle">
+              <div className="p-4 space-y-4">
+                {fieldsAndTablesJsx}
               </div>
-            )}
+            </div>
+          </div>
+        ) : (
+          /* No doc yet: fields + tables below queue */
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {fieldsAndTablesJsx}
+          </div>
+        )}
+      </div>
+
+      {apiModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-dark-200">
+              <div className="flex items-center gap-2">
+                <Link2 className="w-4 h-4 text-violet-600" />
+                <h2 className="font-semibold text-dark-800">Public API</h2>
+              </div>
+              <button onClick={() => setApiModalOpen(false)} className="text-dark-400 hover:text-dark-600">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <p className="text-xs font-medium text-dark-500 mb-1.5">Endpoint</p>
+                <div className="flex items-center gap-2 bg-dark-50 border border-dark-200 rounded-lg px-3 py-2.5">
+                  <span className="text-xs font-mono text-dark-400 shrink-0">GET</span>
+                  <span className="text-xs font-mono text-dark-700 flex-1 truncate">{apiUrl}</span>
+                  <button
+                    onClick={handleCopyApiUrl}
+                    title="Sao chép URL"
+                    className="shrink-0 p-1 rounded text-dark-400 hover:text-violet-600 hover:bg-violet-50 transition-colors"
+                  >
+                    {copied ? <CheckCheck className="w-4 h-4 text-success-600" /> : <Copy className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 bg-violet-50 border border-violet-200 rounded-lg px-3 py-2.5">
+                <AlertCircle className="w-4 h-4 text-violet-600 shrink-0 mt-0.5" />
+                <p className="text-xs text-violet-700">API trả về cấu trúc biểu mẫu dưới dạng JSON, bao gồm danh sách trường dữ liệu, kiểu dữ liệu và cấu hình bảng.</p>
+              </div>
+            </div>
           </div>
         </div>
-
-        {/* Tables */}
-        <div className="shrink-0 space-y-4">
-          {schema.tables.length === 0 ? (
-            <div className="bg-surface rounded-xl border border-default shadow-sm flex flex-col items-center justify-center py-16 text-center">
-              <Table2 className="w-8 h-8 text-content-muted mb-3" />
-              <p className="text-sm text-content-secondary">Schema này chưa có bảng dữ liệu</p>
-            </div>
-          ) : schema.tables.map(table => {
-            const useSchemaColumns = table.columns.length > 0;
-            const tableLineItems = lineItems.filter(li => !li.tableKey || li.tableKey === table.tableKey);
-            const colCount = useSchemaColumns ? table.columns.length : 0;
-            return (
-              <div key={table.id} className="bg-surface rounded-xl border border-default shadow-sm overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-3.5 border-b border-default bg-warning-50/10">
-                  <div className="flex items-center gap-2.5">
-                    <Table2 className="w-4 h-4 text-warning-500" />
-                    <h2 className="text-sm font-semibold text-warning-800">{table.name}</h2>
-                    {tableLineItems.length > 0 && (
-                      <span className="text-xs text-warning-600 bg-warning-500/10 border border-warning-500/30 px-2 py-0.5 rounded-full font-medium">
-                        {tableLineItems.length} dòng
-                      </span>
-                    )}
-                  </div>
-                  {doc && !isConfirmed && useSchemaColumns && (
-                    <button
-                      onClick={() => addLineItem(table.tableKey)}
-                      className="flex items-center gap-1.5 text-xs text-warning-700 bg-surface border border-warning-200 hover:bg-warning-50/10 px-3 py-1.5 rounded-lg transition-all duration-base font-medium"
-                    >
-                      <Plus className="w-3.5 h-3.5" /> Thêm dòng
-                    </button>
-                  )}
-                </div>
-                {!useSchemaColumns ? (
-                  <div className="px-5 py-4 text-sm text-content-secondary flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 text-warning-400 shrink-0" />
-                    Bảng này chưa có cột nào được cấu hình trong schema.
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-default bg-subtle text-content-secondary uppercase tracking-wide font-semibold text-xs">
-                          <th className="px-3 py-2.5 text-center w-10">STT</th>
-                          {table.columns.map(col => (
-                            <th key={col.id} className={`px-3 py-2.5 ${NUMERIC_FIELD_KEYS.has(col.columnKey) || col.dataType === 'NUMBER' || col.dataType === 'CURRENCY' ? 'text-right' : 'text-left'}`}>{col.label}</th>
-                          ))}
-                          {doc && !isConfirmed && <th className="w-8" />}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {isProcessing ? (
-                          Array.from({ length: 3 }).map((_, i) => (
-                            <tr key={i} className="border-b border-default">
-                              <td className="px-4 py-3 text-center"><div className="h-4 bg-subtle rounded animate-pulse w-6 mx-auto" /></td>
-                              {Array.from({ length: colCount }).map((_, j) => (
-                                <td key={j} className="px-4 py-3"><div className="h-4 bg-subtle rounded animate-pulse" /></td>
-                              ))}
-                            </tr>
-                          ))
-                        ) : tableLineItems.length > 0 ? (
-                          tableLineItems.map((li: LineItem, liIdx: number) => (
-                            <tr key={li.stt} className={`border-b border-default last:border-0 hover:bg-primary-50/10 transition-colors duration-base ${liIdx % 2 === 1 ? 'bg-subtle' : ''}`}>
-                              <td className="px-4 py-3 text-center text-sm font-medium text-content-secondary">{li.stt}</td>
-                              {table.columns.map(col => {
-                                const isStandard = STANDARD_FIELD_KEYS.has(col.columnKey);
-                                const isNumeric = NUMERIC_FIELD_KEYS.has(col.columnKey) || col.dataType === 'NUMBER' || col.dataType === 'CURRENCY';
-                                const raw = isStandard ? li[col.columnKey as keyof typeof li] : li.extraData?.[col.columnKey];
-                                const rawStr = raw != null ? String(raw) : '';
-                                const cellKey = `${li.stt}_${col.columnKey}`;
-                                const isFocused = focusedCellKey === cellKey;
-                                const displayVal = isNumeric && rawStr !== '' && !isFocused
-                                  ? new Intl.NumberFormat('vi-VN').format(Number(rawStr)) : rawStr;
-                                const isAmountWarning = col.columnKey === 'amount' && arithmeticWarnings.lineItems.has(li.stt);
-                                const handleChange = (val: string) => {
-                                  if (isStandard && isNumeric) updateLi(li.stt, col.columnKey as 'quantity' | 'unitPrice' | 'amount', val ? Number(val) : null);
-                                  else if (isStandard) updateLi(li.stt, col.columnKey as 'name' | 'unit', val);
-                                  else updateLiExtra(li.stt, col.columnKey, isNumeric ? (val ? val : '') : val);
-                                };
-                                return (
-                                  <td key={col.columnKey} className={`px-4 py-3${isAmountWarning ? ' bg-warning-50/10' : ''}`}>
-                                    <input
-                                      type={isNumeric && isFocused ? 'number' : 'text'}
-                                      value={displayVal}
-                                      onChange={e => handleChange(e.target.value)}
-                                      onFocus={() => setFocusedCellKey(cellKey)}
-                                      onBlur={() => setFocusedCellKey(null)}
-                                      disabled={isConfirmed}
-                                      className={`w-full bg-transparent focus:outline-none focus:bg-surface focus:ring-1 focus:ring-primary-400 rounded px-1.5 py-1 disabled:text-content-secondary text-sm${isNumeric ? ' text-right font-mono' : ' text-content-primary'}${isAmountWarning ? ' text-warning-600 font-semibold' : ''}`}
-                                    />
-                                    {isAmountWarning && (
-                                      <span className="text-warning-400 text-xs" title={`Kỳ vọng: ${li.quantity != null && li.unitPrice != null ? fmt(Math.round(li.quantity * li.unitPrice)) : '?'}`}>⚠</span>
-                                    )}
-                                  </td>
-                                );
-                              })}
-                              {!isConfirmed && (
-                                <td className="px-2 py-3">
-                                  <button onClick={() => removeLineItem(li.stt)} className="p-1 text-content-muted hover:text-danger-600 rounded transition-colors duration-base">
-                                    <Minus className="w-4 h-4" />
-                                  </button>
-                                </td>
-                              )}
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan={colCount + 2} className="px-4 py-12 text-center text-content-muted text-sm">
-                              {doc?.status === 'ERROR'
-                                ? `Lỗi OCR: ${doc.ocrError ?? 'Không xác định'}`
-                                : 'Kết quả bảng sẽ hiển thị sau khi nhận dạng'}
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      )}
     </div>
   );
 }

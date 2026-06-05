@@ -10,6 +10,7 @@ import { useOcrSchemaCreate } from '../hooks/useOcrSchemaCreate';
 import { TYPE_OPTIONS, DATA_TYPE_OPTIONS, POSITION_OPTIONS, PROMPT_TEMPLATES } from '../constants';
 import type { DocType } from '@/lib/ocr-api';
 import { useRoutePermission } from '@/hooks/usePermission';
+import { SelectDropdown } from '@/components/SelectDropdown';
 
 export function OcrSchemaCreateView() {
   const router = useRouter();
@@ -83,7 +84,7 @@ export function OcrSchemaCreateView() {
 
         {/* ── Card 1: Thông tin chứng từ ── */}
         <div className="bg-surface rounded-xl border border-default shadow-sm overflow-hidden">
-          <div className="flex items-center gap-2 px-5 py-3.5 border-b border-default bg-primary-50">
+          <div className="flex items-center gap-2 px-5 py-3.5 bg-surface border-b border-default">
             <FileText className="w-4 h-4 text-primary-500" />
             <h2 className="text-sm font-semibold text-content-primary">Thông tin chứng từ</h2>
           </div>
@@ -118,13 +119,12 @@ export function OcrSchemaCreateView() {
                 <label className="block text-xs font-medium text-content-secondary mb-1.5">
                   Loại chứng từ <span className="text-danger-500">*</span>
                 </label>
-                <select
+                <SelectDropdown
                   value={type}
-                  onChange={e => setType(e.target.value as DocType)}
-                  className="w-full px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary"
-                >
-                  {TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
+                  onChange={v => setType(v as DocType)}
+                  options={TYPE_OPTIONS}
+                  className="w-full"
+                />
               </div>
             </div>
           </div>
@@ -132,7 +132,7 @@ export function OcrSchemaCreateView() {
 
         {/* ── Card 2: Các trường OCR ── */}
         <div className="bg-surface rounded-xl border border-default shadow-sm overflow-hidden">
-          <div className="flex items-center gap-2 px-5 py-3.5 border-b border-default bg-primary-50">
+          <div className="flex items-center gap-2 px-5 py-3.5 bg-surface border-b border-default">
             <Grid3X3 className="w-4 h-4 text-primary-500" />
             <h2 className="text-sm font-semibold text-content-primary">
               Các trường OCR
@@ -144,7 +144,7 @@ export function OcrSchemaCreateView() {
 
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-default bg-success-50/10 text-xs font-semibold text-content-secondary uppercase tracking-wide">
+              <tr className="bg-primary-100 border-b border-primary-200 text-xs font-semibold text-primary-600 uppercase tracking-wide">
                 <th className="px-4 py-2.5 text-left w-12"></th>
                 <th className="px-4 py-2.5 text-left">Tên trường</th>
                 <th className="px-4 py-2.5 text-left w-48">Field Key</th>
@@ -192,13 +192,13 @@ export function OcrSchemaCreateView() {
                     />
                   </td>
                   <td className="px-4 py-3">
-                    <select
+                    <SelectDropdown
                       value={f.dataType}
-                      onChange={e => updateField(idx, 'dataType', e.target.value)}
-                      className="w-full px-2 py-1.5 text-xs border border-default rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500 bg-surface text-content-primary"
-                    >
-                      {DATA_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
+                      onChange={v => updateField(idx, 'dataType', v)}
+                      options={DATA_TYPE_OPTIONS}
+                      size="sm"
+                      className="w-full"
+                    />
                   </td>
                   <td className="px-4 py-3">
                     <select
@@ -299,7 +299,7 @@ export function OcrSchemaCreateView() {
                     <div className="mx-5 mb-3 rounded-lg border border-default overflow-hidden">
                       <table className="w-full text-xs">
                         <thead>
-                          <tr className="bg-success-50/10 border-b border-default text-content-secondary uppercase tracking-wide font-semibold">
+                          <tr className="bg-primary-50 border-b border-default text-primary-600 uppercase tracking-wide font-semibold">
                             <th className="px-3 py-2 w-8"></th>
                             <th className="px-3 py-2 text-left w-8">#</th>
                             <th className="px-3 py-2 text-left">Tên cột</th>
@@ -345,13 +345,13 @@ export function OcrSchemaCreateView() {
                                 />
                               </td>
                               <td className="px-3 py-2">
-                                <select
+                                <SelectDropdown
                                   value={c.dataType}
-                                  onChange={e => updateColumn(tIdx, cIdx, 'dataType', e.target.value)}
-                                  className="w-full px-2 py-1.5 border border-default rounded bg-surface focus:outline-none focus:ring-1 focus:ring-primary-500 text-content-primary"
-                                >
-                                  {DATA_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                </select>
+                                  onChange={v => updateColumn(tIdx, cIdx, 'dataType', v)}
+                                  options={DATA_TYPE_OPTIONS}
+                                  size="sm"
+                                  className="w-full"
+                                />
                               </td>
                               <td className="px-3 py-2 text-center">
                                 <button

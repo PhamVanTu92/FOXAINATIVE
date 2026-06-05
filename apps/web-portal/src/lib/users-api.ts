@@ -247,6 +247,33 @@ export const permissionsApi = {
   },
 };
 
+export const userRolesApi = {
+  assign(userId: string, roleCode: string): Promise<void> {
+    return fetch(`${BASE}/users/${userId}/roles`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ roleCode }),
+    }).then(async r => {
+      if (!r.ok && r.status !== 204) {
+        const body = await r.json().catch(() => ({}));
+        throw new Error((body as { message?: string }).message ?? `HTTP ${r.status}`);
+      }
+    });
+  },
+
+  remove(userId: string, roleCode: string): Promise<void> {
+    return fetch(`${BASE}/users/${userId}/roles/${roleCode}`, {
+      method: 'DELETE',
+      headers: { ...authHeader() },
+    }).then(async r => {
+      if (!r.ok && r.status !== 204) {
+        const body = await r.json().catch(() => ({}));
+        throw new Error((body as { message?: string }).message ?? `HTTP ${r.status}`);
+      }
+    });
+  },
+};
+
 export const moduleGroupsApi = {
   list(): Promise<{ items: ModuleGroup[] }> {
     return req('/module-groups?activeOnly=true');

@@ -8,11 +8,13 @@ import {
 import type { LineItem } from '@/lib/ocr-api';
 import { useInvoiceList } from '../hooks/useInvoiceList';
 import { useRoutePermission } from '@/hooks/usePermission';
+import { SelectDropdown } from '@/components/SelectDropdown';
+import { DateRangePicker } from '@/components/DateRangePicker';
 
 const STATUS_CONFIG = {
   DRAFT:     { label: 'Nháp',        cls: 'bg-subtle        text-content-secondary border-default' },
   PROCESSED: { label: 'Đã xử lý',    cls: 'bg-primary-50/10 text-primary-600       border-primary-500/30' },
-  CONFIRMED: { label: 'Đã xác nhận', cls: 'bg-success-50/10 text-success-600       border-success-500/30' },
+  CONFIRMED: { label: 'Đã xác nhận', cls: 'bg-primary-50 text-success-600       border-success-500/30' },
   ERROR:     { label: 'Lỗi',         cls: 'bg-danger-50/10  text-danger-600        border-danger-500/30'  },
 } as const;
 
@@ -47,7 +49,7 @@ const ACTION_LABEL: Record<string, string> = {
 function StatCard({ label, value, colorClass, borderCls = 'border-l-default' }: { label: string; value: number; colorClass: string; borderCls?: string }) {
   return (
     <div className={`bg-surface rounded-lg border-l-4 border border-default shadow-sm px-4 py-3 hover:shadow-md transition-shadow ${borderCls}`}>
-      <p className="text-xs font-medium text-content-muted uppercase tracking-wide">{label}</p>
+      <p className="text-xs font-medium text-primary-600 uppercase tracking-wide">{label}</p>
       <p className={`text-2xl font-bold mt-0.5 ${colorClass}`}>{value.toLocaleString('vi-VN')}</p>
     </div>
   );
@@ -136,26 +138,23 @@ export function HoaDonVatView() {
             </div>
             <div>
               <label className="block text-xs font-medium text-content-secondary mb-1">Trạng thái</label>
-              <select
+              <SelectDropdown
                 value={statusFilter}
-                onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
-                className="h-9 px-3 py-1.5 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary"
-              >
-                <option value="">Tất cả</option>
-                <option value="DRAFT">Nháp</option>
-                <option value="PROCESSED">Đã xử lý</option>
-                <option value="CONFIRMED">Đã xác nhận</option>
-                <option value="ERROR">Lỗi</option>
-              </select>
+                onChange={v => { setStatusFilter(v); setPage(1); }}
+                placeholder="Tất cả"
+                options={[
+                  { value: 'DRAFT', label: 'Nháp' },
+                  { value: 'PROCESSED', label: 'Đã xử lý' },
+                  { value: 'CONFIRMED', label: 'Đã xác nhận' },
+                  { value: 'ERROR', label: 'Lỗi' },
+                ]}
+              />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-content-secondary mb-1">Từ ngày</label>
-              <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(1); }} className="h-9 px-3 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-content-secondary mb-1">Đến ngày</label>
-              <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(1); }} className="h-9 px-3 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary" />
-            </div>
+            <DateRangePicker
+              from={dateFrom}
+              to={dateTo}
+              onChange={(f, t) => { setDateFrom(f); setDateTo(t); setPage(1); }}
+            />
             {(search || statusFilter || dateFrom || dateTo) && (
               <button
                 onClick={() => { setSearch(''); setStatusFilter(''); setDateFrom(''); setDateTo(''); setPage(1); }}
@@ -195,7 +194,7 @@ export function HoaDonVatView() {
           <div className="bg-surface rounded-lg border border-default shadow-sm overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-default bg-subtle text-xs font-semibold text-content-muted uppercase tracking-wide">
+                <tr className="bg-primary-100 border-b border-primary-200 text-xs font-semibold text-primary-600 uppercase tracking-wide">
                   <th className="w-10 px-4 py-3">
                     <input type="checkbox" checked={!!docs?.items.length && selectedIds.size === docs.items.length} onChange={toggleAll} className="rounded" />
                   </th>
@@ -347,7 +346,7 @@ export function HoaDonVatView() {
                     <div className="overflow-x-auto rounded-lg border border-default mb-3">
                       <table className="w-full text-xs">
                         <thead>
-                          <tr className="bg-subtle border-b border-default text-content-secondary uppercase tracking-wide font-semibold">
+                          <tr className="bg-primary-100 border-b border-primary-200 text-primary-600 uppercase tracking-wide font-semibold">
                             <th className="px-2 py-2 text-center w-8">#</th>
                             <th className="px-2 py-2 text-left min-w-[100px]">Tên hàng</th>
                             <th className="px-2 py-2 w-14">ĐVT</th>
@@ -495,22 +494,30 @@ export function HoaDonVatView() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-content-secondary mb-1.5">Schema chứng từ</label>
-                <select value={uploadSchemaId} onChange={e => setUploadSchemaId(e.target.value)} className="w-full px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary">
-                  <option value="">— Chọn schema —</option>
-                  {schemas.map(s => <option key={s.id} value={s.id}>{s.name} ({s.code})</option>)}
-                </select>
+                <SelectDropdown
+                  value={uploadSchemaId}
+                  onChange={setUploadSchemaId}
+                  placeholder="— Chọn schema —"
+                  options={schemas.map(s => ({ value: s.id, label: `${s.name} (${s.code})` }))}
+                  className="w-full"
+                />
                 {schemas.length === 0 && <p className="text-xs text-warning-600 mt-1">Chưa có schema INVOICE. Hãy tạo schema trong Cấu hình OCR.</p>}
               </div>
               <div>
                 <label className="block text-xs font-medium text-content-secondary mb-1.5">Ngôn ngữ</label>
-                <select value={uploadLanguage} onChange={e => setUploadLanguage(e.target.value as 'vi' | 'en' | 'vi+en')} className="w-full px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary">
-                  <option value="vi">Tiếng Việt</option>
-                  <option value="en">English</option>
-                  <option value="vi+en">Việt + English</option>
-                </select>
+                <SelectDropdown
+                  value={uploadLanguage}
+                  onChange={v => setUploadLanguage(v as 'vi' | 'en' | 'vi+en')}
+                  options={[
+                    { value: 'vi', label: 'Tiếng Việt' },
+                    { value: 'en', label: 'English' },
+                    { value: 'vi+en', label: 'Việt + English' },
+                  ]}
+                  className="w-full"
+                />
               </div>
               {uploadMsg && (
-                <div className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm border ${uploadMsg.startsWith('Lỗi') ? 'bg-danger-50/10 text-danger-700 border-danger-500/30' : 'bg-success-50/10 text-success-700 border-success-500/30'}`}>
+                <div className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm border ${uploadMsg.startsWith('Lỗi') ? 'bg-danger-50/10 text-danger-700 border-danger-500/30' : 'bg-primary-50 text-success-700 border-success-500/30'}`}>
                   {uploadMsg.startsWith('Lỗi') ? <AlertCircle className="w-4 h-4 shrink-0" /> : <Check className="w-4 h-4 shrink-0" />}
                   {uploadMsg}
                 </div>

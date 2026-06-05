@@ -9,6 +9,7 @@ import { useOcrSchemaEdit } from '../hooks/useOcrSchemaEdit';
 import { TYPE_OPTIONS, DATA_TYPE_OPTIONS, POSITION_OPTIONS, PROMPT_TEMPLATES, toKey } from '../constants';
 import type { DataType, FieldPosition, DocType } from '@/lib/ocr-api';
 import { useRoutePermission } from '@/hooks/usePermission';
+import { SelectDropdown } from '@/components/SelectDropdown';
 
 interface Props {
   id: string;
@@ -103,7 +104,7 @@ export function OcrSchemaEditView({ id }: Props) {
 
         {/* ── Card 1: Thông tin chứng từ ── */}
         <div className="bg-surface rounded-xl border border-default shadow-sm overflow-hidden">
-          <div className="flex items-center gap-2 px-5 py-3.5 border-b border-default bg-primary-50">
+          <div className="flex items-center gap-2 px-5 py-3.5 bg-surface border-b border-default">
             <FileText className="w-4 h-4 text-primary-500" />
             <h2 className="text-sm font-semibold text-content-primary">Thông tin chứng từ</h2>
           </div>
@@ -139,7 +140,7 @@ export function OcrSchemaEditView({ id }: Props) {
 
         {/* ── Card 2: Các trường OCR ── */}
         <div className="bg-surface rounded-xl border border-default shadow-sm overflow-hidden">
-          <div className="flex items-center gap-2 px-5 py-3.5 border-b border-default bg-primary-50">
+          <div className="flex items-center gap-2 px-5 py-3.5 bg-surface border-b border-default">
             <Grid3X3 className="w-4 h-4 text-primary-500" />
             <h2 className="text-sm font-semibold text-content-primary">
               Các trường OCR
@@ -155,7 +156,7 @@ export function OcrSchemaEditView({ id }: Props) {
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-default bg-success-50/10 text-xs font-semibold text-content-secondary uppercase tracking-wide">
+                <tr className="bg-primary-100 border-b border-primary-200 text-xs font-semibold text-primary-600 uppercase tracking-wide">
                   <th className="px-4 py-2.5 text-left w-12"></th>
                   <th className="px-4 py-2.5 text-left">Tên trường</th>
                   <th className="px-4 py-2.5 text-left w-48">Field Key</th>
@@ -200,22 +201,22 @@ export function OcrSchemaEditView({ id }: Props) {
                         <input disabled value={f.fieldKey} className="w-full px-2.5 py-1.5 text-xs border border-dashed border-default rounded-lg font-mono text-content-secondary bg-subtle cursor-not-allowed" />
                       </td>
                       <td className="px-4 py-3">
-                        <select
+                        <SelectDropdown
                           value={e.dataType}
-                          onChange={ev => setFieldEdits(prev => ({ ...prev, [f.id]: { ...prev[f.id]!, dataType: ev.target.value as DataType } }))}
-                          className="w-full px-2 py-1.5 text-xs border border-default rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500 bg-surface text-content-primary"
-                        >
-                          {DATA_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                        </select>
+                          onChange={v => setFieldEdits(prev => ({ ...prev, [f.id]: { ...prev[f.id]!, dataType: v as DataType } }))}
+                          options={DATA_TYPE_OPTIONS}
+                          size="sm"
+                          className="w-full"
+                        />
                       </td>
                       <td className="px-4 py-3">
-                        <select
+                        <SelectDropdown
                           value={e.position}
-                          onChange={ev => setFieldEdits(prev => ({ ...prev, [f.id]: { ...prev[f.id]!, position: ev.target.value as FieldPosition } }))}
-                          className="w-full px-2 py-1.5 text-xs border border-default rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500 bg-surface text-content-primary"
-                        >
-                          {POSITION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                        </select>
+                          onChange={v => setFieldEdits(prev => ({ ...prev, [f.id]: { ...prev[f.id]!, position: v as FieldPosition } }))}
+                          options={POSITION_OPTIONS}
+                          size="sm"
+                          className="w-full"
+                        />
                       </td>
                       <td className="px-4 py-3 text-center">
                         <button
@@ -349,7 +350,7 @@ export function OcrSchemaEditView({ id }: Props) {
                       <div className="mx-5 mb-3 rounded-lg border border-default overflow-hidden">
                         <table className="w-full text-xs">
                           <thead>
-                            <tr className="bg-success-50/10 border-b border-default text-content-secondary uppercase tracking-wide font-semibold">
+                            <tr className="bg-primary-50 border-b border-default text-primary-600 uppercase tracking-wide font-semibold">
                               <th className="px-3 py-2 w-8"></th>
                               <th className="px-3 py-2 text-left w-8">#</th>
                               <th className="px-3 py-2 text-left">Tên cột</th>
@@ -387,13 +388,13 @@ export function OcrSchemaEditView({ id }: Props) {
                                     <input disabled value={c.columnKey} className="w-full px-2 py-1.5 text-[11px] border border-dashed border-default rounded font-mono text-content-secondary bg-subtle cursor-not-allowed" />
                                   </td>
                                   <td className="px-3 py-2">
-                                    <select
+                                    <SelectDropdown
                                       value={ce.dataType}
-                                      onChange={ev => setColEdits(prev => ({ ...prev, [c.id]: { ...prev[c.id]!, dataType: ev.target.value as DataType } }))}
-                                      className="w-full px-2 py-1.5 border border-default rounded bg-surface focus:outline-none focus:ring-1 focus:ring-primary-500 text-content-primary"
-                                    >
-                                      {DATA_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                    </select>
+                                      onChange={v => setColEdits(prev => ({ ...prev, [c.id]: { ...prev[c.id]!, dataType: v as DataType } }))}
+                                      options={DATA_TYPE_OPTIONS}
+                                      size="sm"
+                                      className="w-full"
+                                    />
                                   </td>
                                   <td className="px-3 py-2 text-center">
                                     <button onClick={() => handleRemoveColumn(t.id, c.id, c.label)} disabled={t.columns.length === 1} className="p-1 text-content-muted hover:text-danger-400 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="Xóa cột">
@@ -451,7 +452,7 @@ export function OcrSchemaEditView({ id }: Props) {
                     <button onClick={() => { setAddingTable(false); setNewTable({ name: '', initColLabel: '', initColType: 'TEXT' }); }} className="p-1.5 text-content-muted hover:text-content-primary hover:bg-strong rounded-lg"><X className="w-3.5 h-3.5" /></button>
                   </div>
                   <div className="mx-5 mb-3 rounded-lg border border-default overflow-hidden">
-                    <div className="bg-success-50/10 border-b border-default px-3 py-2 text-xs font-semibold text-content-secondary uppercase tracking-wide">Cột đầu tiên</div>
+                    <div className="bg-primary-50 border-b border-default px-3 py-2 text-xs font-semibold text-primary-600 uppercase tracking-wide">Cột đầu tiên</div>
                     <div className="flex items-center gap-3 px-3 py-2 bg-primary-50/30">
                       <span className="text-content-muted text-xs w-6 shrink-0">1</span>
                       <input value={newTable.initColLabel} onChange={e => setNewTable(prev => ({ ...prev, initColLabel: e.target.value }))} placeholder="Tên cột *" className="flex-1 px-2 py-1.5 text-xs border border-default rounded focus:outline-none focus:ring-1 focus:ring-primary-500 bg-surface text-content-primary" />

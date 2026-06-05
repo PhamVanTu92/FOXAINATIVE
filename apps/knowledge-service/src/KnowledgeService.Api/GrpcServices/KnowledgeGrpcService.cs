@@ -24,6 +24,8 @@ using KnowledgeService.Application.Features.KnowledgeFiles.Delete;
 using KnowledgeService.Application.Features.KnowledgeFiles.Dtos;
 using KnowledgeService.Application.Features.KnowledgeFiles.Get;
 using KnowledgeService.Application.Features.KnowledgeFiles.List;
+using KnowledgeService.Application.Features.KnowledgeFiles.ListAll;
+using KnowledgeService.Application.Features.KnowledgeFiles.Move;
 using KnowledgeService.Application.Features.KnowledgeFiles.Update;
 using KnowledgeService.Application.Features.KnowledgeFiles.UpdatePermissions;
 using MediatR;
@@ -111,13 +113,21 @@ public class KnowledgeGrpcService : Protos.KnowledgeService.KnowledgeServiceBase
     public override async Task<StatsMessage> GetStats(GetStatsRequest request, ServerCallContext context)
     {
         var stats = await _mediator.Send(new GetStatsQuery());
-        return new StatsMessage
+        var msg = new StatsMessage
         {
             TotalKnowledgeBases = stats.TotalKnowledgeBases,
             TotalFiles = stats.TotalFiles,
             DepartmentsUsingCount = stats.DepartmentsUsingCount,
+            PdfFilesCount = stats.PdfFilesCount,
             LastUpdatedAt = stats.LastUpdatedAt?.ToString("O") ?? ""
         };
+        msg.FilesByKnowledgeBase.AddRange(
+            stats.FilesByKnowledgeBase.Select(x => new KnowledgeBaseFileCount
+            {
+                Name = x.KnowledgeBaseName,
+                Count = x.FileCount
+            }));
+        return msg;
     }
 
     // ─── Knowledge Files ─────────────────────────────────────────────────────
@@ -160,9 +170,10 @@ public class KnowledgeGrpcService : Protos.KnowledgeService.KnowledgeServiceBase
         }).ToList();
 
         Guid? uploadedBy = Guid.TryParse(request.UploadedBy, out var ub) ? ub : null;
+        Guid? kbId = string.IsNullOrEmpty(request.KnowledgeBaseId) ? null : Guid.Parse(request.KnowledgeBaseId);
 
         var result = await _mediator.Send(new AddKnowledgeFileCommand(
-            Guid.Parse(request.KnowledgeBaseId), request.FileName, request.FileType,
+            kbId, request.FileName, request.FileType,
             (decimal)request.FileSizeMb, depts, uploadedBy,
             string.IsNullOrEmpty(request.StoragePath) ? null : request.StoragePath));
 
@@ -172,8 +183,9 @@ public class KnowledgeGrpcService : Protos.KnowledgeService.KnowledgeServiceBase
     public override async Task<KnowledgeFileMessage> UpdateKnowledgeFile(
         UpdateKnowledgeFileRequest request, ServerCallContext context)
     {
+        Guid? updateKbId = Guid.TryParse(request.KnowledgeBaseId, out var ukbId) ? ukbId : null;
         var result = await _mediator.Send(new UpdateKnowledgeFileCommand(
-            Guid.Parse(request.Id), Guid.Parse(request.KnowledgeBaseId),
+            Guid.Parse(request.Id), updateKbId,
             request.FileName, request.FileType, (decimal)request.FileSizeMb));
 
         return ToProto(result);
@@ -202,14 +214,58 @@ public class KnowledgeGrpcService : Protos.KnowledgeService.KnowledgeServiceBase
         return ToProto(result);
     }
 
+    public override async Task<ListAllKnowledgeFilesResponse> ListAllKnowledgeFiles(
+        ListAllKnowledgeFilesRequest request, ServerCallContext context)
+    {
+        var result = await _mediator.Send(new ListAllKnowledgeFilesQuery(
+            string.IsNullOrEmpty(request.Search) ? null : request.Search,
+            string.IsNullOrEmpty(request.FileType) ? null : request.FileType,
+            request.Page > 0 ? request.Page : 1,
+            request.PageSize > 0 ? request.PageSize : 50));
+
+        var response = new ListAllKnowledgeFilesResponse
+        {
+            Total = result.Total,
+            Page = result.Page,
+            PageSize = result.PageSize,
+            Counts = new AllFileCountsMessage
+            {
+                Word = result.Counts.Word,
+                Excel = result.Counts.Excel,
+                Pdf = result.Counts.Pdf,
+                Image = result.Counts.Image,
+                PowerPoint = result.Counts.PowerPoint,
+                Text = result.Counts.Text,
+                Total = result.Counts.Total
+            }
+        };
+        response.Items.AddRange(result.Items.Select(ToProto));
+        return response;
+    }
+
+    public override async Task<KnowledgeFileMessage> MoveKnowledgeFile(
+        MoveKnowledgeFileRequest request, ServerCallContext context)
+    {
+        Guid? targetKbId = Guid.TryParse(request.TargetKnowledgeBaseId, out var kbId) ? kbId : null;
+
+        var result = await _mediator.Send(new MoveKnowledgeFileCommand(
+            Guid.Parse(request.Id),
+            string.IsNullOrEmpty(request.FileName) ? null : request.FileName,
+            targetKbId));
+
+        return ToProto(result);
+    }
+
     // ─── Knowledge Documents ─────────────────────────────────────────────────
 
     public override async Task<KnowledgeDocumentMessage> UploadDocument(
         UploadDocumentRequest request, ServerCallContext context)
     {
         Guid? uploadedBy = Guid.TryParse(request.UploadedBy, out var ub) ? ub : null;
+        if (!Guid.TryParse(request.KnowledgeBaseId, out var knowledgeBaseId) || knowledgeBaseId == Guid.Empty)
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "KnowledgeBaseId là bắt buộc khi upload tài liệu."));
         var result = await _mediator.Send(new UploadDocumentCommand(
-            Guid.Parse(request.KnowledgeBaseId),
+            knowledgeBaseId,
             request.Title,
             request.FileType,
             (decimal)request.FileSizeMb,
@@ -353,13 +409,15 @@ public class KnowledgeGrpcService : Protos.KnowledgeService.KnowledgeServiceBase
         var msg = new KnowledgeFileMessage
         {
             Id = dto.Id.ToString(),
-            KnowledgeBaseId = dto.KnowledgeBaseId.ToString(),
+            KnowledgeBaseId = dto.KnowledgeBaseId?.ToString() ?? "",
+            KnowledgeBaseName = dto.KnowledgeBaseName ?? "",
             FileName = dto.FileName,
             FileType = dto.FileType,
             FileSizeMb = (double)dto.FileSizeMb,
             StoragePath = dto.StoragePath ?? "",
             UploadedAt = dto.UploadedAt.ToString("O"),
-            UpdatedAt = dto.UpdatedAt.ToString("O")
+            UpdatedAt = dto.UpdatedAt.ToString("O"),
+            DocumentIndexId = dto.DocumentIndexId?.ToString() ?? ""
         };
         msg.Permissions.AddRange(dto.Permissions.Select(p => new DepartmentRef
         {
@@ -373,8 +431,8 @@ public class KnowledgeGrpcService : Protos.KnowledgeService.KnowledgeServiceBase
         => new KnowledgeDocumentMessage
         {
             Id = dto.Id.ToString(),
-            KnowledgeBaseId = dto.KnowledgeBaseId.ToString(),
-            KnowledgeBaseName = dto.KnowledgeBaseName,
+            KnowledgeBaseId = dto.KnowledgeBaseId?.ToString() ?? "",
+            KnowledgeBaseName = dto.KnowledgeBaseName ?? "",
             Title = dto.Title,
             FileType = dto.FileType,
             FileSizeMb = (double)dto.FileSizeMb,

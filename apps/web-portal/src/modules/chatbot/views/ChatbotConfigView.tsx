@@ -18,15 +18,15 @@ export function ChatbotConfigView() {
   const c = useChatbots();
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-surface">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 px-6 py-3 border-b border-dark-200 bg-white">
+      <div className="flex items-center gap-2 px-6 py-3 border-b border-default bg-surface">
         <MessageSquare size={14} className="text-primary-600" />
-        <span className="text-sm text-dark-400">Cấu hình hệ thống</span>
+        <span className="text-sm text-content-muted">Cấu hình hệ thống</span>
         <ChevronRight size={14} className="text-dark-300" />
-        <span className="text-sm text-dark-400">Cấu hình chatbot AI</span>
+        <span className="text-sm text-content-muted">Cấu hình chatbot AI</span>
         <ChevronRight size={14} className="text-dark-300" />
-        <span className="text-sm font-semibold text-dark-700">Thiết lập bot hội thoại</span>
+        <span className="text-sm font-semibold text-content-primary">Thiết lập bot hội thoại</span>
       </div>
 
       {/* Body */}
@@ -36,7 +36,6 @@ export function ChatbotConfigView() {
           selectedId={c.selectedId}
           creating={c.creating}
           editingId={c.editingBot?.id ?? null}
-          onSelect={c.selectBot}
           onStartCreate={c.startCreate}
           onStartEdit={c.startEdit}
           onDelete={c.handleDelete}
@@ -44,7 +43,7 @@ export function ChatbotConfigView() {
 
         {/* Right panel */}
         {c.loading ? (
-          <div className="flex-1 flex items-center justify-center text-sm text-dark-400">
+          <div className="flex-1 flex items-center justify-center text-sm text-content-muted">
             Đang tải dữ liệu...
           </div>
         ) : c.error ? (
@@ -68,6 +67,7 @@ export function ChatbotConfigView() {
             collections={c.collections}
             onSaved={c.handleEdited}
             onCancel={c.cancelEdit}
+            onDelete={() => c.handleDelete(c.editingBot!)}
           />
         ) : (
           // Click bot trong sidebar chỉ highlight, panel phải luôn để trống.

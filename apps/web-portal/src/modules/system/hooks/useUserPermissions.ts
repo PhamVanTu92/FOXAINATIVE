@@ -1,8 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { permissionsApi, moduleGroupsApi, permissionActionsApi } from '@/lib/users-api';
-import type { ModuleGroup, PermissionAction } from '@/lib/users-api';
+import {
+  permissionsApi, moduleGroupsApi, permissionActionsApi,
+  userRolesApi, rolesApi,
+} from '@/lib/users-api';
+import type { ModuleGroup, PermissionAction, RoleItem } from '@/lib/users-api';
 
 type PermKey = string;
 
@@ -10,33 +13,53 @@ function toKey(moduleId: string, actionId: string): PermKey {
   return `${moduleId}:${actionId}`;
 }
 
-export function useUserPermissions(userId: string, userRoles: string[]) {
+export function useUserPermissions(
+  userId: string,
+  userRoles: string[],
+  onRolesChanged?: () => void,
+) {
   const [moduleGroups, setModuleGroups] = useState<ModuleGroup[]>([]);
   const [actions, setActions] = useState<PermissionAction[]>([]);
   const [checked, setChecked] = useState<Set<PermKey>>(new Set());
+  const [roleGranted, setRoleGranted] = useState<Set<PermKey>>(new Set());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  const [roles, setRoles] = useState<string[]>(userRoles);
+  const [allRoles, setAllRoles] = useState<RoleItem[]>([]);
   const [activeRole, setActiveRole] = useState(userRoles[0] ?? '');
+  const [roleMutating, setRoleMutating] = useState(false);
+  const [roleError, setRoleError] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const [groupsRes, actionsRes, permsRes] = await Promise.all([
+      const [groupsRes, actionsRes, permsRes, rolesRes] = await Promise.all([
         moduleGroupsApi.list(),
         permissionActionsApi.list(),
         permissionsApi.getUser(userId),
+        rolesApi.list(),
       ]);
       const sortedGroups = [...groupsRes.items].sort((a, b) => a.sortOrder - b.sortOrder);
       sortedGroups.forEach(g => g.modules.sort((a, b) => a.sortOrder - b.sortOrder));
       setModuleGroups(sortedGroups);
       setActions([...actionsRes.items].sort((a, b) => a.sortOrder - b.sortOrder));
-      const set = new Set<PermKey>();
-      permsRes.effective.forEach((p: { moduleId: string; actionId: string }) =>
-        set.add(toKey(p.moduleId, p.actionId))
+
+      const roleSet = new Set<PermKey>();
+      permsRes.roleGrants.forEach((p: { moduleId: string; actionId: string }) =>
+        roleSet.add(toKey(p.moduleId, p.actionId))
       );
-      setChecked(set);
+      setRoleGranted(roleSet);
+
+      const effSet = new Set<PermKey>();
+      permsRes.effective.forEach((p: { moduleId: string; actionId: string }) =>
+        effSet.add(toKey(p.moduleId, p.actionId))
+      );
+      setChecked(effSet);
+
+      setAllRoles(rolesRes.items);
     } catch (e: unknown) {
       setError((e as Error).message);
     } finally {
@@ -45,6 +68,27 @@ export function useUserPermissions(userId: string, userRoles: string[]) {
   }, [userId]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Re-fetch only permissions (after role assign/remove) without resetting the full loading state
+  const reloadPermissions = useCallback(async () => {
+    try {
+      const permsRes = await permissionsApi.getUser(userId);
+
+      const roleSet = new Set<PermKey>();
+      permsRes.roleGrants.forEach((p: { moduleId: string; actionId: string }) =>
+        roleSet.add(toKey(p.moduleId, p.actionId))
+      );
+      setRoleGranted(roleSet);
+
+      const effSet = new Set<PermKey>();
+      permsRes.effective.forEach((p: { moduleId: string; actionId: string }) =>
+        effSet.add(toKey(p.moduleId, p.actionId))
+      );
+      setChecked(effSet);
+    } catch {
+      // silently ignore — role change already persisted
+    }
+  }, [userId]);
 
   function toggleCell(moduleId: string, actionId: string) {
     const key = toKey(moduleId, actionId);
@@ -84,6 +128,41 @@ export function useUserPermissions(userId: string, userRoles: string[]) {
 
   function deselectAll() { setChecked(new Set()); }
 
+  async function assignRole(roleCode: string): Promise<void> {
+    if (roles.includes(roleCode)) return;
+    setRoleMutating(true);
+    setRoleError('');
+    try {
+      await userRolesApi.assign(userId, roleCode);
+      const next = [...roles, roleCode];
+      setRoles(next);
+      if (!activeRole) setActiveRole(roleCode);
+      await reloadPermissions();
+      onRolesChanged?.();
+    } catch (e: unknown) {
+      setRoleError((e as Error).message);
+    } finally {
+      setRoleMutating(false);
+    }
+  }
+
+  async function removeRole(roleCode: string): Promise<void> {
+    setRoleMutating(true);
+    setRoleError('');
+    try {
+      await userRolesApi.remove(userId, roleCode);
+      const next = roles.filter(r => r !== roleCode);
+      setRoles(next);
+      if (activeRole === roleCode) setActiveRole(next[0] ?? '');
+      await reloadPermissions();
+      onRolesChanged?.();
+    } catch (e: unknown) {
+      setRoleError((e as Error).message);
+    } finally {
+      setRoleMutating(false);
+    }
+  }
+
   async function save(): Promise<boolean> {
     setSaving(true);
     setError('');
@@ -102,10 +181,14 @@ export function useUserPermissions(userId: string, userRoles: string[]) {
     }
   }
 
+  const availableRoles = allRoles.filter(r => !roles.includes(r.code));
+
   return {
-    moduleGroups, actions, checked,
+    moduleGroups, actions, checked, roleGranted,
     loading, saving, error,
-    activeRole, setActiveRole,
+    roles, activeRole, setActiveRole,
+    roleMutating, roleError, availableRoles,
+    assignRole, removeRole,
     toggleCell, toggleColumn, columnState,
     selectAll, deselectAll,
     save,

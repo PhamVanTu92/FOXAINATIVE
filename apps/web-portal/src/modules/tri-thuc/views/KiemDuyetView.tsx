@@ -5,19 +5,45 @@ import {
   Search, FileText, Loader2, AlertCircle, Check, ChevronRight,
   Clock, Eye, Archive, RotateCcw, Edit2, X, BookOpen,
   CheckCircle2, Circle, ArrowLeftRight, Download, Send,
+  User, CalendarDays, Layers, StickyNote,
 } from 'lucide-react';
 import { useKiemDuyet } from '../hooks/useKiemDuyet';
 import { knowledgeDocumentsApi } from '@/lib/knowledge-api';
 import type { KnowledgeDocument, DocStatus, DocumentVersion } from '@/lib/knowledge-api';
 import type { DocDetailTab } from '../hooks/useKiemDuyet';
 import { useRoutePermission } from '@/hooks/usePermission';
+import { SelectDropdown } from '@/components/SelectDropdown';
+
+// ─── InfoRow helper ───────────────────────────────────────────────────────────
+
+function InfoRow({
+  icon, label, value, bold,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: React.ReactNode;
+  bold?: boolean;
+}) {
+  return (
+    <div className="flex items-start gap-2">
+      <span className="text-content-muted mt-0.5 shrink-0">{icon}</span>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-content-muted mb-0.5">{label}</p>
+        {typeof value === 'string' || typeof value === 'number'
+          ? <p className={`text-sm text-content-primary truncate ${bold ? 'font-semibold' : ''}`}>{value}</p>
+          : value
+        }
+      </div>
+    </div>
+  );
+}
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
 const STATUS_CFG: Record<DocStatus, { label: string; color: string; dot: string; Icon: React.ElementType }> = {
   Draft:    { label: 'Draft',    color: 'bg-subtle text-content-secondary border border-default',         dot: 'bg-content-muted',    Icon: Edit2 },
   Review:   { label: 'Review',   color: 'bg-warning-50/10 text-warning-700 border border-warning-500/30', dot: 'bg-warning-500', Icon: Eye },
-  Approved: { label: 'Approved', color: 'bg-success-50/10 text-success-700 border border-success-500/30', dot: 'bg-success-500', Icon: CheckCircle2 },
+  Approved: { label: 'Approved', color: 'bg-primary-50 text-success-700 border border-success-500/30', dot: 'bg-success-500', Icon: CheckCircle2 },
   Archived: { label: 'Archived', color: 'bg-subtle text-content-muted border border-default',          dot: 'bg-content-muted',    Icon: Archive },
 };
 
@@ -38,29 +64,50 @@ const TIMELINE_STEPS: DocStatus[] = ['Draft', 'Review', 'Approved', 'Archived'];
 function ApprovalTimeline({ status }: { status: DocStatus }) {
   const currentIdx = TIMELINE_STEPS.indexOf(status);
   return (
-    <div className="flex items-center justify-center gap-0 py-6">
+    <div className="flex items-center px-8 py-6">
       {TIMELINE_STEPS.map((step, idx) => {
-        const isDone = idx < currentIdx;
-        const isActive = idx === currentIdx;
-        const cfg = STATUS_CFG[step];
+        const isDone    = idx < currentIdx;
+        const isActive  = idx === currentIdx;
+        const cfg       = STATUS_CFG[step];
         return (
           <React.Fragment key={step}>
-            <div className="flex flex-col items-center gap-2 w-28">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors ${
-                isActive
-                  ? 'bg-primary-600 border-primary-600 text-white'
-                  : isDone
-                  ? 'bg-subtle border-strong text-content-secondary'
-                  : 'bg-surface border-default text-content-muted'
-              }`}>
-                {isActive ? <cfg.Icon size={18} /> : isDone ? <Check size={16} /> : <Circle size={16} />}
+            {/* Step node */}
+            <div className="flex flex-col items-center gap-2 shrink-0">
+              {/* Circle + ring */}
+              <div className="relative">
+                {isActive && (
+                  <span className="absolute inset-0 rounded-full bg-primary-400/30 scale-150 animate-ping" />
+                )}
+                <div className={`relative w-11 h-11 rounded-full flex items-center justify-center
+                  border-2 transition-all shadow-sm
+                  ${isActive
+                    ? 'bg-primary-600 border-primary-600 text-white shadow-primary-200 shadow-md'
+                    : isDone
+                    ? 'bg-primary-100 border-primary-400 text-primary-700'
+                    : 'bg-white border-dark-200 text-dark-300'
+                  }`}>
+                  {isActive
+                    ? <cfg.Icon size={18} />
+                    : isDone
+                    ? <Check size={16} strokeWidth={2.5} />
+                    : <Circle size={14} />
+                  }
+                </div>
               </div>
-              <span className={`text-xs font-medium ${isActive ? 'text-primary-700' : isDone ? 'text-content-secondary' : 'text-content-muted'}`}>
+              <span className={`text-xs font-semibold whitespace-nowrap
+                ${isActive ? 'text-primary-700' : isDone ? 'text-dark-600' : 'text-dark-300'}`}>
                 {cfg.label}
               </span>
             </div>
+
+            {/* Connector line */}
             {idx < TIMELINE_STEPS.length - 1 && (
-              <div className={`flex-1 h-0.5 mb-5 ${idx < currentIdx ? 'bg-strong' : 'bg-default'}`} />
+              <div className="flex-1 mx-1 mb-5 h-[3px] rounded-full overflow-hidden bg-dark-100">
+                <div
+                  className="h-full rounded-full bg-primary-500 transition-all duration-500"
+                  style={{ width: isDone ? '100%' : isActive ? '50%' : '0%' }}
+                />
+              </div>
             )}
           </React.Fragment>
         );
@@ -150,6 +197,79 @@ function VersionsList({
 const IMAGE_TYPES: string[] = ['Image'];
 const TEXT_TYPES: string[] = ['Word', 'Excel', 'PowerPoint', 'Text'];
 
+function WordPreview({ url }: { url: string }) {
+  const [html, setHtml] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(false);
+  useEffect(() => {
+    setLoading(true); setHtml(null); setErr(false);
+    fetch(url)
+      .then(r => r.arrayBuffer())
+      .then(buf => import('mammoth').then(m => m.convertToHtml({ arrayBuffer: buf })))
+      .then(({ value }) => setHtml(value))
+      .catch(() => setErr(true))
+      .finally(() => setLoading(false));
+  }, [url]);
+  if (loading) return <div className="flex items-center justify-center py-10"><Loader2 className="w-6 h-6 text-content-muted animate-spin" /></div>;
+  if (err || !html) return <p className="text-sm text-content-muted italic text-center py-6">Không thể đọc nội dung file</p>;
+  return <div className="overflow-auto max-h-[480px] p-4 bg-white text-sm text-neutral-800 leading-relaxed rounded-lg border border-default" dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+function ExcelPreview({ url }: { url: string }) {
+  const [sheets, setSheets] = useState<{ name: string; rows: (string | number | null)[][] }[]>([]);
+  const [activeSheet, setActiveSheet] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(false);
+  useEffect(() => {
+    setLoading(true); setSheets([]); setErr(false); setActiveSheet(0);
+    fetch(url)
+      .then(r => r.arrayBuffer())
+      .then(buf => import('xlsx').then(XLSX => {
+        const wb = XLSX.read(buf, { type: 'array' });
+        return wb.SheetNames.map(name => ({
+          name,
+          rows: wb.Sheets[name] ? XLSX.utils.sheet_to_json<(string | number | null)[]>(wb.Sheets[name]!, { header: 1, defval: null }) : [],
+        }));
+      }))
+      .then(setSheets)
+      .catch(() => setErr(true))
+      .finally(() => setLoading(false));
+  }, [url]);
+  if (loading) return <div className="flex items-center justify-center py-10"><Loader2 className="w-6 h-6 text-content-muted animate-spin" /></div>;
+  if (err || !sheets.length) return <p className="text-sm text-content-muted italic text-center py-6">Không thể đọc nội dung file</p>;
+  const current = sheets[activeSheet];
+  const headers = (current?.rows[0] ?? []) as (string | null)[];
+  const dataRows = current?.rows.slice(1) ?? [];
+  return (
+    <div className="flex flex-col overflow-hidden rounded-lg border border-default bg-neutral-900 max-h-[480px]">
+      {sheets.length > 1 && (
+        <div className="flex gap-0.5 px-2 py-1.5 bg-neutral-800 border-b border-neutral-700 overflow-x-auto shrink-0">
+          {sheets.map((s, i) => (
+            <button key={i} onClick={() => setActiveSheet(i)}
+              className={`px-3 py-1 rounded text-xs whitespace-nowrap transition-colors ${i === activeSheet ? 'bg-neutral-600 text-white' : 'text-neutral-400 hover:text-white hover:bg-neutral-700'}`}>
+              {s.name}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="flex-1 overflow-auto">
+        <table className="text-xs text-neutral-200 border-collapse">
+          <thead className="sticky top-0 bg-neutral-800 z-10">
+            <tr>{headers.map((h, i) => <th key={i} className="px-3 py-2 text-left font-medium text-neutral-300 border border-neutral-700 whitespace-nowrap">{h ?? ''}</th>)}</tr>
+          </thead>
+          <tbody>
+            {dataRows.map((row, ri) => (
+              <tr key={ri} className={ri % 2 === 1 ? 'bg-neutral-800/40' : ''}>
+                {headers.map((_, ci) => <td key={ci} className="px-3 py-1.5 border border-neutral-700/50 whitespace-nowrap max-w-[200px] truncate">{String(row[ci] ?? '')}</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function useBlobUrl(apiUrl: string | null) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState(false);
@@ -228,6 +348,23 @@ function FilePreview({ doc }: { doc: KnowledgeDocument }) {
   }
 
   if (TEXT_TYPES.includes(doc.fileType)) {
+    const isWord  = doc.fileType === 'Word';
+    const isExcel = doc.fileType === 'Excel';
+
+    if (fetchError) return (
+      <div className="flex flex-col items-center gap-3 py-6">
+        <p className="text-sm text-content-muted italic">Không thể tải file.</p>
+      </div>
+    );
+    if (!blobUrl) return (
+      <div className="flex items-center justify-center gap-2 py-10 text-content-muted text-sm">
+        <Loader2 size={16} className="animate-spin" /> Đang tải file...
+      </div>
+    );
+
+    if (isWord)  return <WordPreview url={blobUrl} />;
+    if (isExcel) return <ExcelPreview url={blobUrl} />;
+
     return doc.contentSummary ? (
       <p className="text-sm text-content-secondary whitespace-pre-wrap leading-relaxed">
         {doc.contentSummary}
@@ -235,15 +372,6 @@ function FilePreview({ doc }: { doc: KnowledgeDocument }) {
     ) : (
       <div className="flex flex-col items-center gap-3 py-6">
         <p className="text-sm text-content-muted italic">Không thể hiển thị inline. Tải xuống để xem.</p>
-        <a
-          href={apiUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          download
-          className="flex items-center gap-1.5 px-4 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors"
-        >
-          <Download size={14} /> Tải xuống
-        </a>
       </div>
     );
   }
@@ -323,28 +451,22 @@ function VersionCompare({ versions }: { versions: DocumentVersion[] }) {
       <div className="flex items-center gap-3">
         <div className="flex-1">
           <label className="block text-xs font-medium text-content-secondary mb-1">Phiên bản (trái)</label>
-          <select
+          <SelectDropdown
             value={leftId}
-            onChange={e => setLeftId(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary"
-          >
-            {versions.map(v => (
-              <option key={v.id} value={v.id}>{v.versionNumber} — {v.createdAt?.slice(0, 10)}</option>
-            ))}
-          </select>
+            onChange={setLeftId}
+            options={versions.map(v => ({ value: v.id, label: `${v.versionNumber} — ${v.createdAt?.slice(0, 10)}` }))}
+            className="w-full"
+          />
         </div>
         <ArrowLeftRight size={16} className="text-content-muted mt-5 shrink-0" />
         <div className="flex-1">
           <label className="block text-xs font-medium text-content-secondary mb-1">Phiên bản (phải)</label>
-          <select
+          <SelectDropdown
             value={rightId}
-            onChange={e => setRightId(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary"
-          >
-            {versions.map(v => (
-              <option key={v.id} value={v.id}>{v.versionNumber} — {v.createdAt?.slice(0, 10)}</option>
-            ))}
-          </select>
+            onChange={setRightId}
+            options={versions.map(v => ({ value: v.id, label: `${v.versionNumber} — ${v.createdAt?.slice(0, 10)}` }))}
+            className="w-full"
+          />
         </div>
       </div>
 
@@ -365,7 +487,7 @@ function VersionCompare({ versions }: { versions: DocumentVersion[] }) {
       {/* Diff view */}
       <div className="rounded-xl border border-default overflow-hidden">
         {/* Column headers */}
-        <div className="grid grid-cols-2 divide-x divide-strong bg-subtle border-b border-default">
+        <div className="grid grid-cols-2 divide-x divide-strong bg-surface border-b border-default">
           <div className="px-4 py-2.5 flex items-center gap-2">
             <StatusBadge status={leftVer?.status ?? 'Draft'} />
             <span className="text-xs font-mono font-semibold text-content-secondary">{leftVer?.versionNumber}</span>
@@ -399,7 +521,7 @@ function VersionCompare({ versions }: { versions: DocumentVersion[] }) {
                 </div>
                 <div className={`px-4 py-1 whitespace-pre-wrap leading-relaxed break-all ${
                   row.right?.type === 'added'
-                    ? 'bg-success-50/10 text-success-700'
+                    ? 'bg-primary-50 text-success-700'
                     : !row.right
                     ? 'bg-subtle'
                     : 'text-content-secondary'
@@ -498,7 +620,7 @@ function DetailPanel({
         </div>
       )}
       {successMsg && (
-        <div className="mx-6 mt-3 flex items-center gap-2 bg-success-50/10 border border-success-500/30 text-success-700 rounded-lg px-4 py-2 text-sm shrink-0">
+        <div className="mx-6 mt-3 flex items-center gap-2 bg-primary-50 border border-success-500/30 text-success-700 rounded-lg px-4 py-2 text-sm shrink-0">
           <Check size={14} className="shrink-0" /> {successMsg}
         </div>
       )}
@@ -548,29 +670,67 @@ function DetailPanel({
             </div>
 
             {/* Doc info */}
-            <div className="bg-surface rounded-xl border border-default px-5 py-4">
-              <p className="text-xs font-semibold text-content-secondary uppercase tracking-wide mb-3">Thông tin tài liệu</p>
-              <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-content-muted">Người tạo:</span>
-                  <span className="text-content-primary font-medium">{doc.authorName}</span>
+            <div className="bg-surface rounded-xl border border-default overflow-hidden">
+              {/* Header */}
+              <div className="flex items-center gap-2 px-5 py-3 bg-surface border-b border-default">
+                <FileText size={14} className="text-primary-600" />
+                <span className="text-xs font-semibold text-primary-600 uppercase tracking-wide">
+                  Thông tin tài liệu
+                </span>
+              </div>
+
+              <div className="px-5 py-4 space-y-3">
+                {/* Row 1 */}
+                <div className="grid grid-cols-2 gap-4">
+                  <InfoRow icon={<User size={13} />} label="Người tạo" value={doc.authorName} bold />
+                  <InfoRow icon={<CalendarDays size={13} />} label="Ngày nộp"
+                    value={doc.submittedAt?.slice(0, 10) ?? doc.updatedAt?.slice(0, 10)} />
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-content-muted">Ngày nộp:</span>
-                  <span className="text-content-primary">{doc.submittedAt?.slice(0, 10) ?? doc.updatedAt?.slice(0, 10)}</span>
+
+                {/* Row 2 */}
+                <div className="grid grid-cols-2 gap-4">
+                  <InfoRow icon={<FileText size={13} />} label="Loại tệp"
+                    value={
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-md
+                        ${doc.fileType === 'PDF'   ? 'bg-danger-50 text-danger-700'
+                        : doc.fileType === 'Word'  ? 'bg-primary-50 text-primary-700'
+                        : doc.fileType === 'Excel' ? 'bg-success-50 text-success-700'
+                        : 'bg-dark-100 text-dark-600'}`}>
+                        {doc.fileType}
+                      </span>
+                    }
+                  />
+                  <InfoRow icon={<Layers size={13} />} label="Số phiên bản"
+                    value={<span className="font-semibold text-dark-800">{doc.versionCount}</span>} />
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-content-muted">Loại tệp:</span>
-                  <span className="text-content-primary">{doc.fileType}</span>
+
+                {/* KB row */}
+                <div className="pt-1 border-t border-default">
+                  <InfoRow icon={<BookOpen size={13} />} label="Bộ tri thức"
+                    value={
+                      <span className="text-sm font-medium text-violet-700 bg-violet-50
+                        px-2 py-0.5 rounded-md border border-violet-200 truncate max-w-xs block">
+                        {doc.knowledgeBaseName}
+                      </span>
+                    }
+                  />
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-content-muted">Số phiên bản:</span>
-                  <span className="text-content-primary">{doc.versionCount}</span>
-                </div>
-                <div className="col-span-2 flex justify-between">
-                  <span className="text-content-muted">Bộ tri thức:</span>
-                  <span className="text-content-primary font-medium text-right max-w-[220px] truncate">{doc.knowledgeBaseName}</span>
-                </div>
+
+                {/* Note row */}
+                {doc.note && (
+                  <div className="pt-1 border-t border-default">
+                    <div className="flex items-start gap-2">
+                      <StickyNote size={13} className="text-warning-500 mt-0.5 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs text-content-muted mb-1">Ghi chú phiên bản</p>
+                        <p className="text-sm text-content-primary bg-warning-50/60 border border-warning-200/60
+                          rounded-lg px-3 py-2 leading-relaxed">
+                          {doc.note}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

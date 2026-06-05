@@ -56,4 +56,7 @@ public interface IUserRepository
         int page,
         int pageSize,
         CancellationToken ct = default);
+
+    Task<(int TotalUsers, int ActiveUsers, int TotalRoles, IReadOnlyList<(string DepartmentName, int UserCount)> UsersByDepartment)>
+        GetSystemStatsAsync(CancellationToken ct = default);
 }

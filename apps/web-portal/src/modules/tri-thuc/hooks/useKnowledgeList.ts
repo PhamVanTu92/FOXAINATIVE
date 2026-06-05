@@ -81,12 +81,30 @@ export function useKnowledgeList() {
     try {
       const created = await knowledgeBasesApi.create(payload);
       setAllItems(prev => [created, ...prev]);
+      setStats(prev => prev
+        ? { ...prev, totalKnowledgeBases: prev.totalKnowledgeBases + 1, lastUpdatedAt: new Date().toISOString() }
+        : prev
+      );
       setShowCreate(false);
       showSuccess('Đã tạo bộ tri thức thành công');
     } catch (e: unknown) {
       setError((e as Error).message);
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function deleteKb(id: string) {
+    try {
+      await knowledgeBasesApi.remove(id);
+      setAllItems(prev => prev.filter(kb => kb.id !== id));
+      setStats(prev => prev
+        ? { ...prev, totalKnowledgeBases: prev.totalKnowledgeBases - 1 }
+        : prev
+      );
+      showSuccess('Đã xóa bộ tri thức thành công');
+    } catch (e: unknown) {
+      setError((e as Error).message);
     }
   }
 
@@ -111,6 +129,7 @@ export function useKnowledgeList() {
     departments,
     showCreate, setShowCreate,
     creating, createKb,
+    deleteKb,
     orgDepts,
     exportExcel,
   };

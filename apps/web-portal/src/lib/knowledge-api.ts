@@ -63,6 +63,7 @@ export interface KbGlobalStats {
 export interface KnowledgeFile {
   id: string;
   knowledgeBaseId: string;
+  knowledgeBaseName?: string;
   fileName: string;
   fileType: string;
   fileSizeMb: number;
@@ -70,6 +71,24 @@ export interface KnowledgeFile {
   uploadedAt: string;
   updatedAt: string;
   permissions: DepartmentRef[];
+}
+
+export interface AllFileCounts {
+  word: number;
+  excel: number;
+  pdf: number;
+  image: number;
+  powerPoint: number;
+  text: number;
+  total: number;
+}
+
+export interface KbAllFilesResult {
+  items: KnowledgeFile[];
+  total: number;
+  page: number;
+  pageSize: number;
+  counts: AllFileCounts;
 }
 
 export type DocStatus = 'Draft' | 'Review' | 'Approved' | 'Archived';
@@ -149,6 +168,15 @@ export const knowledgeBasesApi = {
 
   remove: (id: string) =>
     req<void>(`/knowledge-bases/${id}`, { method: 'DELETE' }),
+
+  allFiles: (params?: { search?: string; fileType?: string; page?: number; pageSize?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.search) q.set('search', params.search);
+    if (params?.fileType) q.set('fileType', params.fileType);
+    if (params?.page) q.set('page', String(params.page));
+    q.set('pageSize', String(params?.pageSize ?? 50));
+    return req<KbAllFilesResult>(`/knowledge-bases/files?${q}`);
+  },
 };
 
 // ─── Knowledge Files ──────────────────────────────────────────────────────────
@@ -189,6 +217,19 @@ export const knowledgeFilesApi = {
     return json as KnowledgeFile;
   },
 
+  update: (fileId: string, body: { fileName?: string; targetKnowledgeBaseId?: string }) =>
+    req<KnowledgeFile>(`/knowledge-bases/files/${fileId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+
+  /** Gỡ tệp khỏi bộ tri thức (không xóa hẳn — đặt knowledgeBaseId = null) */
+  unlink: (fileId: string) =>
+    req<KnowledgeFile>(`/knowledge-bases/files/${fileId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ targetKnowledgeBaseId: null }),
+    }),
+
   remove: (kbId: string, fileId: string) =>
     req<void>(`/knowledge-bases/${kbId}/files/${fileId}`, { method: 'DELETE' }),
 
@@ -200,13 +241,77 @@ export const knowledgeFilesApi = {
 
   downloadUrl: (kbId: string, fileId: string) =>
     `${BASE}/knowledge-bases/${kbId}/files/${fileId}/file`,
+
+  fetchBlob: async (kbId: string, fileId: string): Promise<Blob> => {
+    const res = await fetch(`${BASE}/knowledge-bases/${kbId}/files/${fileId}/file`, {
+      headers: authHeader(),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.blob();
+  },
+};
+
+// ─── Knowledge Files Standalone (POST /api/knowledge-files) ──────────────────
+
+async function _postKnowledgeFile(form: FormData): Promise<KnowledgeFile> {
+  const res = await fetch(`${BASE}/knowledge-files`, {
+    method: 'POST',
+    headers: authHeader(),
+    body: form,
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(parseError(json, res.status));
+  return json as KnowledgeFile;
+}
+
+export const knowledgeFilesStandaloneApi = {
+  upload: async (payload: {
+    file: File;
+    knowledgeBaseId?: string;
+    fileName?: string;
+    fileType?: string;
+    permittedDepartments?: DepartmentRef[];
+  }): Promise<KnowledgeFile> => {
+    const form = new FormData();
+    form.append('file', payload.file);
+    if (payload.knowledgeBaseId) form.append('knowledgeBaseId', payload.knowledgeBaseId);
+    if (payload.fileName) form.append('fileName', payload.fileName);
+    if (payload.fileType) form.append('fileType', payload.fileType);
+    if (payload.permittedDepartments?.length) {
+      form.append('permittedDepartments', JSON.stringify(payload.permittedDepartments));
+    }
+    return _postKnowledgeFile(form);
+  },
+
+  /** Xóa vĩnh viễn tệp khỏi hệ thống (chỉ dùng từ Tổng tri thức) */
+  remove: (fileId: string) =>
+    req<void>(`/knowledge-files/${fileId}`, { method: 'DELETE' }),
+
+  /** Fetch file từ URL (có auth) rồi upload lên /api/knowledge-files */
+  uploadFromUrl: async (payload: {
+    fileUrl: string;
+    knowledgeBaseId?: string;
+    fileName?: string;
+    fileType?: string;
+  }): Promise<KnowledgeFile> => {
+    const fileRes = await fetch(payload.fileUrl, { headers: authHeader() });
+    if (!fileRes.ok) throw new Error(`Không thể tải file: HTTP ${fileRes.status}`);
+    const blob = await fileRes.blob();
+    const file = new File([blob], payload.fileName ?? 'document', { type: blob.type });
+    const form = new FormData();
+    form.append('file', file);
+    if (payload.knowledgeBaseId) form.append('knowledgeBaseId', payload.knowledgeBaseId);
+    if (payload.fileName) form.append('fileName', payload.fileName);
+    if (payload.fileType) form.append('fileType', payload.fileType);
+    return _postKnowledgeFile(form);
+  },
 };
 
 // ─── Knowledge Documents ──────────────────────────────────────────────────────
 
 export const knowledgeDocumentsApi = {
   create: async (payload: {
-    knowledgeBaseId: string;
+    knowledgeBaseId?: string;
     title: string;
     file?: File;
     fileType?: string;
@@ -214,7 +319,7 @@ export const knowledgeDocumentsApi = {
     note?: string;
   }): Promise<KnowledgeDocument> => {
     const form = new FormData();
-    form.append('knowledgeBaseId', payload.knowledgeBaseId);
+    if (payload.knowledgeBaseId) form.append('knowledgeBaseId', payload.knowledgeBaseId);
     form.append('title', payload.title);
     if (payload.file) form.append('file', payload.file);
     if (payload.fileType) form.append('fileType', payload.fileType);

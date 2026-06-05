@@ -9,6 +9,8 @@ import { useOcrSchemas } from '../hooks/useOcrSchemas';
 import { TYPE_CONFIG, TYPE_OPTIONS } from '../constants';
 import type { DocType } from '@/lib/ocr-api';
 import { useRoutePermission } from '@/hooks/usePermission';
+import { useUIStore } from '@/stores/ui';
+import { SelectDropdown } from '@/components/SelectDropdown';
 
 function StatusToggle({ active, onToggle }: { active: boolean; onToggle: () => void }) {
   return (
@@ -29,6 +31,7 @@ function StatusToggle({ active, onToggle }: { active: boolean; onToggle: () => v
 
 export function OcrSchemaListView() {
   const router = useRouter();
+  const { showToast } = useUIStore();
   const {
     schemas, stats, loading, error,
     search, setSearch, typeFilter, setTypeFilter,
@@ -100,20 +103,18 @@ export function OcrSchemaListView() {
               className="w-full pl-9 pr-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/40 bg-surface transition-all text-content-primary"
             />
           </div>
-          <select
+          <SelectDropdown
             value={typeFilter}
-            onChange={e => setTypeFilter(e.target.value as DocType | '')}
-            className="px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/40 bg-surface text-content-secondary transition-all"
-          >
-            <option value="">Tất cả loại</option>
-            {TYPE_OPTIONS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
-          </select>
+            onChange={v => setTypeFilter(v as DocType | '')}
+            placeholder="Tất cả loại"
+            options={TYPE_OPTIONS.map(({ value, label }) => ({ value, label }))}
+          />
 
           <div className="flex-1" />
 
           {canExport && (
             <button
-              onClick={() => alert('Tính năng xuất Excel đang phát triển.')}
+              onClick={() => showToast('Tính năng xuất Excel đang phát triển.', 'error')}
               className="flex items-center gap-2 px-4 py-2 text-sm text-content-secondary border border-default rounded-lg hover:bg-subtle transition-colors"
             >
               <Download className="w-4 h-4" />
@@ -143,16 +144,16 @@ export function OcrSchemaListView() {
         <div className="bg-surface rounded-xl border border-default shadow-sm overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-default bg-subtle">
-                <th className="px-4 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide w-12">STT</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide">Mã chứng từ</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide">Tên chứng từ</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide">Loại</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide w-32">Số trường OCR</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide w-28">Số bảng OCR</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide">Mô tả</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide w-32">Trạng thái</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-content-secondary uppercase tracking-wide w-24">Thao tác</th>
+              <tr className="bg-primary-100 border-b border-primary-200">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide w-12">STT</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Mã chứng từ</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Tên chứng từ</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Loại</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide w-32">Số trường OCR</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide w-28">Số bảng OCR</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Mô tả</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide w-32">Trạng thái</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-primary-600 uppercase tracking-wide w-24">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-strong">

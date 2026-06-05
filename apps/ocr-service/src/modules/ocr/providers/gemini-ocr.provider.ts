@@ -116,7 +116,7 @@ ${tablesPrompt}`;
 
     const fields: OcrExtractedField[] = (parsed.fields ?? []).map(f => ({
       fieldKey: f.fieldKey,
-      value: f.value ?? '',
+      value: String(f.value ?? ''),
       confidence: typeof f.confidence === 'number' ? Math.min(1, Math.max(0, f.confidence)) : 0.9,
     }));
 
@@ -131,7 +131,7 @@ ${tablesPrompt}`;
       extraData: li.extraData ?? undefined,
     }));
 
-    const filledFields = fields.filter(f => f.value.trim() !== '');
+    const filledFields = fields.filter(f => String(f.value ?? '').trim() !== '');
     const avgConfidence = filledFields.length > 0
       ? filledFields.reduce((s, f) => s + f.confidence, 0) / filledFields.length
       : 0;

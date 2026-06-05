@@ -17,8 +17,6 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
 import { AccessToken, CurrentUser } from '../common/auth/current-user.decorator';
 import { AuthenticatedRequestUser } from '../common/auth/jwt-auth.guard';
 import { RequirePermission } from '../common/auth/require-permission.decorator';
@@ -30,37 +28,7 @@ import {
   UpdateKnowledgeFileDto,
 } from './dto/knowledge.dto';
 import { KnowledgeService } from './knowledge.service';
-
-const FILE_TYPE_MAP: Record<string, string> = {
-  '.pdf': 'PDF',
-  '.doc': 'Word',
-  '.docx': 'Word',
-  '.xls': 'Excel',
-  '.xlsx': 'Excel',
-  '.ppt': 'PowerPoint',
-  '.pptx': 'PowerPoint',
-  '.txt': 'Text',
-  '.jpg': 'Image',
-  '.jpeg': 'Image',
-  '.png': 'Image',
-  '.gif': 'Image',
-  '.webp': 'Image',
-};
-
-function detectFileType(filename: string): string {
-  return FILE_TYPE_MAP[extname(filename).toLowerCase()] ?? 'PDF';
-}
-
-const multerOptions = {
-  storage: diskStorage({
-    destination: join(process.cwd(), 'uploads', 'knowledge-files'),
-    filename: (_req, file, cb) => {
-      const unique = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      cb(null, `${unique}${extname(file.originalname)}`);
-    },
-  }),
-  limits: { fileSize: 50 * 1024 * 1024 },
-};
+import { detectFileType, multerOptions, toPublicUrl } from './knowledge-file.helpers';
 
 @Controller('api/knowledge-bases/:kbId/files')
 export class KnowledgeFilesController {
@@ -68,13 +36,13 @@ export class KnowledgeFilesController {
 
   @Get()
   @RequirePermission('KNOWLEDGE_UPLOAD', 'READ')
-  list(
+  async list(
     @Param('kbId', new ParseUUIDPipe()) kbId: string,
     @Query() q: ListKnowledgeFilesQueryDto,
     @AccessToken() token: string,
     @CurrentUser() user: AuthenticatedRequestUser,
   ) {
-    return this.knowledge.listKnowledgeFiles(
+    const result = await this.knowledge.listKnowledgeFiles(
       {
         knowledgeBaseId: kbId,
         search: q.search,
@@ -84,12 +52,17 @@ export class KnowledgeFilesController {
       },
       buildForwardMetadata(token, user),
     );
+    const r = result as any;
+    return {
+      ...r,
+      items: (r.items ?? []).map((item: any) => ({ ...item, storagePath: toPublicUrl(item.storagePath) })),
+    };
   }
 
   @Post()
   @UseInterceptors(FileInterceptor('file', multerOptions))
   @RequirePermission('KNOWLEDGE_UPLOAD', 'CREATE')
-  add(
+  async add(
     @Param('kbId', new ParseUUIDPipe()) kbId: string,
     @UploadedFile() file: Express.Multer.File | undefined,
     @Body() dto: AddKnowledgeFileDto,
@@ -99,10 +72,9 @@ export class KnowledgeFilesController {
     const fileName = dto.fileName ?? file?.originalname ?? 'untitled';
     const fileType = dto.fileType ?? (file ? detectFileType(file.originalname) : 'PDF');
     const fileSizeMb = file ? +(file.size / (1024 * 1024)).toFixed(4) : 0;
-    const baseUrl = (process.env['PUBLIC_URL'] ?? 'http://localhost:3001').replace(/\/$/, '');
-    const storagePath = file ? `${baseUrl}/uploads/knowledge-files/${file.filename}` : undefined;
+    const storagePath = file ? `uploads/knowledge-files/${file.filename}` : undefined;
 
-    return this.knowledge.addKnowledgeFile(
+    const result = await this.knowledge.addKnowledgeFile(
       {
         knowledgeBaseId: kbId,
         fileName,
@@ -114,20 +86,22 @@ export class KnowledgeFilesController {
       },
       buildForwardMetadata(token, user),
     );
+    return { ...(result as any), storagePath: toPublicUrl((result as any).storagePath) };
   }
 
   @Get(':fileId')
   @RequirePermission('KNOWLEDGE_UPLOAD', 'READ')
-  getOne(
+  async getOne(
     @Param('kbId', new ParseUUIDPipe()) kbId: string,
     @Param('fileId', new ParseUUIDPipe()) fileId: string,
     @AccessToken() token: string,
     @CurrentUser() user: AuthenticatedRequestUser,
   ) {
-    return this.knowledge.getKnowledgeFile(
+    const result = await this.knowledge.getKnowledgeFile(
       { id: fileId, knowledgeBaseId: kbId },
       buildForwardMetadata(token, user),
     );
+    return { ...(result as any), storagePath: toPublicUrl((result as any).storagePath) };
   }
 
   @Get(':fileId/file')
@@ -144,15 +118,15 @@ export class KnowledgeFilesController {
       buildForwardMetadata(token, user),
     );
     const found = (fileInfo as any).items?.find((f: any) => f.id === fileId);
-    const storagePath: string = found?.storagePath ?? '';
-    if (!storagePath) throw new NotFoundException('File chưa có đường dẫn lưu trữ');
-    (res as any).redirect(storagePath);
+    const rawPath: string = found?.storagePath ?? '';
+    if (!rawPath) throw new NotFoundException('File chưa có đường dẫn lưu trữ');
+    (res as any).redirect(toPublicUrl(rawPath)!);
   }
 
   @Put(':fileId')
   @RequirePermission('KNOWLEDGE_UPLOAD', 'UPDATE')
   update(
-    @Param('kbId', new ParseUUIDPipe()) kbId: string,
+    @Param('kbId') kbId: string,
     @Param('fileId', new ParseUUIDPipe()) fileId: string,
     @Body() dto: UpdateKnowledgeFileDto,
     @AccessToken() token: string,
@@ -161,7 +135,7 @@ export class KnowledgeFilesController {
     return this.knowledge.updateKnowledgeFile(
       {
         id: fileId,
-        knowledgeBaseId: kbId,
+        knowledgeBaseId: kbId === 'null' ? '' : kbId,
         fileName: dto.fileName,
         fileType: dto.fileType,
         fileSizeMb: dto.fileSizeMb ?? 0,

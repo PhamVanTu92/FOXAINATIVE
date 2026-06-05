@@ -3,8 +3,8 @@ namespace KnowledgeService.Application.Features.KnowledgeDocuments.Dtos;
 public class KnowledgeDocumentDto
 {
     public Guid Id { get; set; }
-    public Guid KnowledgeBaseId { get; set; }
-    public string KnowledgeBaseName { get; set; } = default!;
+    public Guid? KnowledgeBaseId { get; set; }
+    public string? KnowledgeBaseName { get; set; }
     public string Title { get; set; } = default!;
     public string FileType { get; set; } = default!;
     public decimal FileSizeMb { get; set; }

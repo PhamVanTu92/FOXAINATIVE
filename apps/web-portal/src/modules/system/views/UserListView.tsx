@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import {
-  Search, Download, Plus, Pencil, Trash2,
+  Search, Download, Plus, Pencil,
   ChevronRight, X, Users, UserCheck, UserX,
   Shield, Key, AlertCircle, RefreshCw,
 } from 'lucide-react';
@@ -10,6 +10,7 @@ import { useUsers } from '../hooks/useUsers';
 import { UserPermissionsModal } from './UserPermissionsModal';
 import { usersApi } from '@/lib/users-api';
 import type { UserItem, RoleItem, OrgNode } from '@/lib/users-api';
+import { SelectDropdown } from '@/components/SelectDropdown';
 import { useRoutePermission } from '@/hooks/usePermission';
 
 // ─── Shared constants ─────────────────────────────────────────────────────────
@@ -64,6 +65,7 @@ function ErrorBanner({ message }: { message: string }) {
     </div>
   );
 }
+
 
 function StatusToggle({ status, onToggle }: { status: string; onToggle: () => void }) {
   const active = status === 'ACTIVE';
@@ -170,11 +172,13 @@ function UserModal({ editing, roles, orgs, onClose, onSaved }: {
               placeholder="VD: 0901234567" className={inputCls} />
           </Field>
           <Field label="Phòng ban">
-            <select value={organizationId} onChange={e => setOrganizationId(e.target.value)}
-              className={inputCls}>
-              <option value="">— Chưa chọn —</option>
-              {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-            </select>
+            <SelectDropdown
+              value={organizationId}
+              onChange={setOrganizationId}
+              placeholder="— Chưa chọn —"
+              options={orgs.map(o => ({ value: o.id, label: o.name }))}
+              className="w-full"
+            />
           </Field>
           {isNew && (
             <Field label="Vai trò">
@@ -245,7 +249,7 @@ function ChangePasswordModal({ user, onClose }: { user: UserItem; onClose: () =>
         </div>
         {done ? (
           <div className="p-6 text-center">
-            <div className="w-12 h-12 bg-success-50/10 rounded-full flex items-center justify-center mx-auto mb-3">
+            <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-3">
               <UserCheck className="w-6 h-6 text-success-600" />
             </div>
             <p className="text-content-secondary font-medium">Đổi mật khẩu thành công!</p>
@@ -416,18 +420,22 @@ export function UserListView() {
               className="w-full pl-9 pr-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-transparent transition-all bg-surface text-content-primary"
             />
           </div>
-          <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)}
-            className="px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/40 bg-surface text-content-secondary transition-all">
-            <option value="">Tất cả vai trò</option>
-            {roles.map(r => <option key={r.code} value={r.name}>{r.name}</option>)}
-          </select>
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-            className="px-3 py-2 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/40 bg-surface text-content-secondary transition-all">
-            <option value="">Tất cả trạng thái</option>
-            <option value="ACTIVE">Hoạt động</option>
-            <option value="INACTIVE">Vô hiệu</option>
-            <option value="LOCKED">Bị khóa</option>
-          </select>
+          <SelectDropdown
+            value={roleFilter}
+            onChange={setRoleFilter}
+            placeholder="Tất cả vai trò"
+            options={roles.map(r => ({ value: r.code, label: r.name }))}
+          />
+          <SelectDropdown
+            value={statusFilter}
+            onChange={setStatusFilter}
+            placeholder="Tất cả trạng thái"
+            options={[
+              { value: 'ACTIVE', label: 'Hoạt động' },
+              { value: 'INACTIVE', label: 'Vô hiệu' },
+              { value: 'LOCKED', label: 'Bị khóa' },
+            ]}
+          />
           <div className="flex-1" />
           <button onClick={handleRefresh}
             className="p-2 rounded-lg text-content-muted hover:text-primary-600 hover:bg-primary-50 transition-colors" title="Làm mới">
@@ -458,7 +466,7 @@ export function UserListView() {
         <div className="bg-surface rounded-xl border border-default shadow-sm overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-default bg-subtle text-content-secondary text-left font-semibold">
+              <tr className="bg-primary-100 border-b border-primary-200 text-primary-600 text-left font-semibold">
                 <th className="px-4 py-3 w-12 text-center">STT</th>
                 <th className="px-4 py-3">NGƯỜI DÙNG</th>
                 <th className="px-4 py-3">TÊN ĐĂNG NHẬP</th>
@@ -492,9 +500,12 @@ export function UserListView() {
                     <div className="flex flex-wrap gap-1">
                       {user.roles.length === 0
                         ? <span className="text-content-muted text-xs">—</span>
-                        : user.roles.map(r => (
-                          <span key={r} className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleColor(r)}`}>{r}</span>
-                        ))}
+                        : user.roles.map(r => {
+                          const label = roles.find(role => role.code === r)?.name ?? r;
+                          return (
+                            <span key={r} className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleColor(r)}`}>{label}</span>
+                          );
+                        })}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-content-secondary text-sm">
@@ -517,12 +528,6 @@ export function UserListView() {
                         <button onClick={() => setPermissionsUser(user)}
                           className="p-1.5 text-content-muted hover:text-warning-600 hover:bg-warning-50/10 rounded-lg transition-colors" title="Phân quyền">
                           <Key size={14} />
-                        </button>
-                      )}
-                      {canDelete && (
-                        <button onClick={() => setDeletingUser(user)}
-                          className="p-1.5 text-content-muted hover:text-danger-600 hover:bg-danger-50/10 rounded-lg transition-colors" title="Xóa">
-                          <Trash2 size={14} />
                         </button>
                       )}
                     </div>
@@ -575,12 +580,10 @@ export function UserListView() {
         />
       )}
       {permissionsUser && (
-        <UserPermissionsModal user={permissionsUser} onClose={() => setPermissionsUser(null)} />
-      )}
-      {deletingUser && (
-        <DeleteDialog user={deletingUser}
-          onClose={() => setDeletingUser(null)}
-          onDeleted={() => { loadUsers(); loadStats(); }}
+        <UserPermissionsModal
+          user={permissionsUser}
+          onClose={() => setPermissionsUser(null)}
+          onRolesChanged={() => loadUsers()}
         />
       )}
     </div>

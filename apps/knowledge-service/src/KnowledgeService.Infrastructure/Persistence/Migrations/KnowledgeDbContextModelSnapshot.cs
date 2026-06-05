@@ -156,12 +156,11 @@ namespace KnowledgeService.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("file_type");
 
-                    b.Property<Guid>("KnowledgeBaseId")
+                    b.Property<Guid?>("KnowledgeBaseId")
                         .HasColumnType("uuid")
                         .HasColumnName("knowledge_base_id");
 
                     b.Property<string>("KnowledgeBaseName")
-                        .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("knowledge_base_name");
@@ -279,6 +278,10 @@ namespace KnowledgeService.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<Guid?>("DocumentIndexId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("document_index_id");
+
                     b.Property<string>("FileName")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -294,7 +297,7 @@ namespace KnowledgeService.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("file_type");
 
-                    b.Property<Guid>("KnowledgeBaseId")
+                    b.Property<Guid?>("KnowledgeBaseId")
                         .HasColumnType("uuid")
                         .HasColumnName("knowledge_base_id");
 
@@ -321,6 +324,9 @@ namespace KnowledgeService.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_knowledge_files");
+
+                    b.HasIndex("DocumentIndexId")
+                        .HasDatabaseName("ix_knowledge_files_document_index_id");
 
                     b.HasIndex("FileType")
                         .HasDatabaseName("ix_knowledge_files_file_type");
@@ -395,8 +401,7 @@ namespace KnowledgeService.Infrastructure.Persistence.Migrations
                     b.HasOne("KnowledgeService.Domain.Entities.KnowledgeBase", null)
                         .WithMany()
                         .HasForeignKey("KnowledgeBaseId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
+                        .OnDelete(DeleteBehavior.Cascade)
                         .HasConstraintName("fk_knowledge_documents_knowledge_bases_knowledge_base_id");
                 });
 
@@ -418,7 +423,6 @@ namespace KnowledgeService.Infrastructure.Persistence.Migrations
                         .WithMany("Files")
                         .HasForeignKey("KnowledgeBaseId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
                         .HasConstraintName("fk_knowledge_files_knowledge_bases_knowledge_base_id");
 
                     b.Navigation("KnowledgeBase");

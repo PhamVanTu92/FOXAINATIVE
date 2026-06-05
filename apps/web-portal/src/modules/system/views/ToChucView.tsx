@@ -8,6 +8,7 @@ import {
 import { useToChuc } from '../hooks/useToChuc';
 import type { OrgNode, OrgUserItem } from '../hooks/useToChuc';
 import { useRoutePermission } from '@/hooks/usePermission';
+import { SelectDropdown } from '@/components/SelectDropdown';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
@@ -78,7 +79,7 @@ function TreeNode({
       {open && hasChildren && (
         <div className="ml-7 pl-4 border-l border-dashed border-default">
           {node.children!.map((c) => (
-            <TreeNode key={c.id} node={c} onEdit={onEdit} onDelete={onDelete} />
+            <TreeNode key={c.id} node={c} onEdit={onEdit} onDelete={onDelete} canUpdate={canUpdate} canDelete={canDelete} />
           ))}
         </div>
       )}
@@ -163,24 +164,27 @@ function OrgModal({
           {isNew && (
             <div>
               <label className="block text-sm font-medium text-content-primary mb-1">Phòng ban trực thuộc</label>
-              <select value={parentId} onChange={(e) => setParentId(e.target.value)}
-                className="w-full border border-default rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface">
-                <option value="">— Cấp cao nhất —</option>
-                {nodes.map((n) => (
-                  <option key={n.id} value={n.id}>{'  '.repeat(n.level)}{n.code} – {n.name}</option>
-                ))}
-              </select>
+              <SelectDropdown
+                value={parentId}
+                onChange={setParentId}
+                placeholder="— Cấp cao nhất —"
+                options={nodes.map(n => ({ value: n.id, label: `${'  '.repeat(n.level)}${n.code} – ${n.name}` }))}
+                className="w-full"
+              />
             </div>
           )}
           <div>
             <label className="block text-sm font-medium text-content-primary mb-1">Người phụ trách</label>
-            <select value={managerId}
-              onChange={(e) => { setManagerId(e.target.value); setClearManager(e.target.value === '__clear__'); }}
-              className="w-full border border-default rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface">
-              <option value="">— Chưa chọn —</option>
-              {!isNew && editing?.managerId && <option value="__clear__">✕ Xóa người phụ trách</option>}
-              {users.map((u) => <option key={u.id} value={u.id}>{u.fullName} ({u.email})</option>)}
-            </select>
+            <SelectDropdown
+              value={managerId}
+              onChange={v => { setManagerId(v); setClearManager(v === '__clear__'); }}
+              placeholder="— Chưa chọn —"
+              options={[
+                ...(!isNew && editing?.managerId ? [{ value: '__clear__', label: '✕ Xóa người phụ trách' }] : []),
+                ...users.map(u => ({ value: u.id, label: `${u.fullName} (${u.email})` })),
+              ]}
+              className="w-full"
+            />
           </div>
           {error && <p className="text-sm text-danger-600">{error}</p>}
           <div className="flex justify-end gap-3 pt-2">
@@ -339,14 +343,14 @@ export function ToChucView() {
           <div className="bg-surface rounded-xl border border-default shadow-sm overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-subtle border-b border-default">
+                <tr className="bg-primary-100 border-b border-primary-200">
                   <th className="w-10 px-4 py-3"><input type="checkbox" className="rounded" /></th>
-                  <th className="w-12 px-2 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide">STT</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide">Mã phòng ban</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide">Tên phòng ban</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide">Người phụ trách</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-content-secondary uppercase tracking-wide">Phòng ban trực thuộc</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-content-secondary uppercase tracking-wide">Thao tác</th>
+                  <th className="w-12 px-2 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">STT</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Mã phòng ban</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Tên phòng ban</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Người phụ trách</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide">Phòng ban trực thuộc</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-primary-600 uppercase tracking-wide">Thao tác</th>
                 </tr>
               </thead>
               <tbody>

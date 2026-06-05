@@ -2,15 +2,111 @@
 
 import {
   Search, ChevronLeft, ChevronRight, FileText, AlertCircle,
-  Pencil, Trash2, Download, X, Database, Check, Eye,
-  ClipboardList, Clock, Loader2, ZoomIn, Table2, Image as ImageIcon,
+  Pencil, Trash2, Download, X, Check, Eye,
+  ClipboardList, Clock, Loader2, ZoomIn, Table2, Image as ImageIcon, FileJson,
+  Link2, Copy, CheckCheck,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { ocrApi } from '@/lib/ocr-api';
 import type { DocListItem, DocDetail } from '@/lib/ocr-api';
 import { useDocumentList } from '../hooks/useDocumentList';
 import { useDocumentDetail } from '../hooks/useDocumentDetail';
 import { useRoutePermission } from '@/hooks/usePermission';
 import { STATUS_CONFIG_FULL, TYPE_CONFIG, STANDARD_FIELD_KEYS, fmtDate, fmtNum } from '../constants';
+import { SelectDropdown } from '@/components/SelectDropdown';
+import { DateRangePicker } from '@/components/DateRangePicker';
+
+function WordPreview({ url }: { url: string }) {
+  const [html, setHtml] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setLoading(true); setHtml(null); setError(false);
+    fetch(url)
+      .then(r => r.arrayBuffer())
+      .then(buf => import('mammoth').then(m => m.convertToHtml({ arrayBuffer: buf })))
+      .then(({ value }) => setHtml(value))
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, [url]);
+
+  if (loading) return <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 text-neutral-500 animate-spin" /></div>;
+  if (error || !html) return <div className="flex items-center justify-center h-full text-neutral-500 text-sm">Không thể đọc nội dung file</div>;
+  return (
+    <div className="h-full overflow-auto p-6 bg-white text-sm text-neutral-800 leading-relaxed"
+      dangerouslySetInnerHTML={{ __html: html }} />
+  );
+}
+
+function ExcelPreview({ url }: { url: string }) {
+  const [sheets, setSheets] = useState<{ name: string; rows: (string | number | null)[][] }[]>([]);
+  const [activeSheet, setActiveSheet] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setLoading(true); setSheets([]); setError(false); setActiveSheet(0);
+    fetch(url)
+      .then(r => r.arrayBuffer())
+      .then(buf => import('xlsx').then(XLSX => {
+        const wb = XLSX.read(buf, { type: 'array' });
+        return wb.SheetNames.map(name => ({
+          name,
+          rows: wb.Sheets[name] ? XLSX.utils.sheet_to_json<(string | number | null)[]>(wb.Sheets[name]!, { header: 1, defval: null }) : [],
+        }));
+      }))
+      .then(setSheets)
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, [url]);
+
+  if (loading) return <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 text-neutral-500 animate-spin" /></div>;
+  if (error || !sheets.length) return <div className="flex items-center justify-center h-full text-neutral-500 text-sm">Không thể đọc nội dung file</div>;
+
+  const current = sheets[activeSheet];
+  const headers = (current?.rows[0] ?? []) as (string | null)[];
+  const dataRows = current?.rows.slice(1) ?? [];
+
+  return (
+    <div className="h-full flex flex-col overflow-hidden bg-neutral-900">
+      {sheets.length > 1 && (
+        <div className="flex gap-0.5 px-2 py-1.5 bg-neutral-800 border-b border-neutral-700 overflow-x-auto shrink-0">
+          {sheets.map((s, i) => (
+            <button key={i} onClick={() => setActiveSheet(i)}
+              className={`px-3 py-1 rounded text-xs whitespace-nowrap transition-colors ${i === activeSheet ? 'bg-neutral-600 text-white' : 'text-neutral-400 hover:text-white hover:bg-neutral-700'}`}>
+              {s.name}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="flex-1 overflow-auto">
+        <table className="text-xs text-neutral-200 border-collapse">
+          <thead className="sticky top-0 bg-neutral-800 z-10">
+            <tr>
+              {headers.map((h, i) => (
+                <th key={i} className="px-3 py-2 text-left font-medium text-neutral-300 border border-neutral-700 whitespace-nowrap">
+                  {h ?? ''}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {dataRows.map((row, ri) => (
+              <tr key={ri} className={ri % 2 === 1 ? 'bg-neutral-800/40' : ''}>
+                {headers.map((_, ci) => (
+                  <td key={ci} className="px-3 py-1.5 border border-neutral-700/50 whitespace-nowrap max-w-[200px] truncate">
+                    {String(row[ci] ?? '')}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 function getFileIconDetail(mimeType: string | null | undefined, fileName: string) {
   const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
@@ -50,7 +146,7 @@ function StatCard({
       onClick={onClick}
       className={`bg-surface rounded-xl border-l-4 border border-default shadow-sm px-5 py-4 transition-shadow hover:shadow-md ${accentCls} ${onClick ? 'cursor-pointer' : ''}`}
     >
-      <p className="text-xs font-medium text-content-muted uppercase tracking-wide">{label}</p>
+      <p className="text-xs font-medium text-primary-600 uppercase tracking-wide">{label}</p>
       <p className={`text-3xl font-bold mt-1.5 tabular-nums ${colorClass}`}>{value.toLocaleString('vi-VN')}</p>
     </div>
   );
@@ -63,8 +159,32 @@ function DetailDrawer({
   list: ReturnType<typeof useDocumentList>;
 }) {
   const { detailOpen, setDetailOpen, detailDoc, detailLoading, activeFileIdx, setActiveFileIdx, panelWidth, isDragging, handleDividerMouseDown } = detail;
+  const [apiModalOpen, setApiModalOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   if (!detailOpen) return null;
+
+  const apiUrl = detailDoc
+    ? `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'}/api/ocr/documents/${detailDoc.id}`
+    : '';
+
+  const handleCopyApiUrl = () => {
+    navigator.clipboard.writeText(apiUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const handleExportJson = () => {
+    if (!detailDoc) return;
+    const blob = new Blob([JSON.stringify(detailDoc, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${detailDoc.fileName?.replace(/\.[^.]+$/, '') ?? detailDoc.id}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const allFiles = detailDoc ? [
     { url: ocrApi.getDocumentFileUrl(detailDoc.id), fileName: detailDoc.fileName, mimeType: detailDoc.mimeType, isPrimary: true },
@@ -78,6 +198,7 @@ function DetailDrawer({
   const activeFile = allFiles[activeFileIdx] ?? allFiles[0];
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex">
       <div className={`flex-1 bg-neutral-900 flex flex-col overflow-hidden${isDragging ? ' pointer-events-none' : ''}`}>
         {allFiles.length > 1 && (
@@ -127,21 +248,14 @@ function DetailDrawer({
             </div>
           ) : activeFile?.mimeType === 'application/pdf' ? (
             <iframe src={activeFile.url} className="w-full h-full border-0" title={activeFile.fileName ?? 'document'} />
+          ) : activeFile && (activeFile.mimeType?.includes('wordprocessingml') || activeFile.fileName?.endsWith('.docx')) ? (
+            <WordPreview url={activeFile.url} />
+          ) : activeFile && (activeFile.mimeType?.includes('spreadsheetml') || activeFile.mimeType?.includes('ms-excel') || activeFile.mimeType === 'text/csv') ? (
+            <ExcelPreview url={activeFile.url} />
           ) : activeFile ? (
             <div className="flex flex-col items-center justify-center h-full gap-3 text-neutral-500">
-              {(activeFile.mimeType?.includes('spreadsheetml') || activeFile.mimeType?.includes('ms-excel') || activeFile.mimeType === 'text/csv')
-                ? <Table2 className="w-12 h-12 text-success-400" />
-                : activeFile.mimeType?.includes('wordprocessingml')
-                ? <FileText className="w-12 h-12 text-primary-400" />
-                : <ImageIcon className="w-12 h-12 text-neutral-600" />
-              }
-              <p className="text-sm text-center px-6">
-                {(activeFile.mimeType?.includes('spreadsheetml') || activeFile.mimeType?.includes('ms-excel') || activeFile.mimeType === 'text/csv')
-                  ? 'File Excel/CSV — AI đã đọc nội dung bảng tính'
-                  : activeFile.mimeType?.includes('wordprocessingml')
-                  ? 'File Word — AI đã đọc nội dung văn bản'
-                  : 'Không thể xem trước định dạng này'}
-              </p>
+              <ImageIcon className="w-12 h-12 text-neutral-600" />
+              <p className="text-sm text-center px-6">Không thể xem trước định dạng này</p>
               <a href={activeFile.url} target="_blank" rel="noopener noreferrer"
                 className="text-xs text-primary-400 hover:text-primary-300 underline flex items-center gap-1">
                 <Download className="w-3.5 h-3.5" /> Tải file xuống
@@ -176,9 +290,29 @@ function DetailDrawer({
               </div>
             )}
           </div>
+          {detailDoc && (
+            <>
+              <button
+                onClick={() => setApiModalOpen(true)}
+                title="Public API"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-violet-700 bg-violet-50 border border-violet-200 hover:bg-violet-100 hover:border-violet-300 shrink-0 ml-1 transition-colors text-xs font-medium"
+              >
+                <Link2 className="w-4 h-4" />
+                Public API
+              </button>
+              <button
+                onClick={handleExportJson}
+                title="Xuất JSON"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-teal-700 bg-teal-50 border border-teal-200 hover:bg-teal-100 hover:border-teal-300 shrink-0 ml-1 transition-colors text-xs font-medium"
+              >
+                <FileJson className="w-4 h-4" />
+                Xuất JSON
+              </button>
+            </>
+          )}
           <button
             onClick={() => setDetailOpen(false)}
-            className="p-1.5 rounded-lg text-content-muted hover:text-content-secondary hover:bg-subtle shrink-0 ml-3"
+            className="p-1.5 rounded-lg text-content-muted hover:text-content-secondary hover:bg-subtle shrink-0 ml-1"
           >
             <X className="w-4 h-4" />
           </button>
@@ -194,26 +328,49 @@ function DetailDrawer({
         </div>
       </div>
     </div>
+
+    {apiModalOpen && detailDoc && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-dark-200">
+            <div className="flex items-center gap-2">
+              <Link2 className="w-4 h-4 text-violet-600" />
+              <h2 className="font-semibold text-dark-800">Public API</h2>
+            </div>
+            <button onClick={() => setApiModalOpen(false)} className="text-dark-400 hover:text-dark-600">
+              <X size={18} />
+            </button>
+          </div>
+          <div className="p-6 space-y-4">
+            <div>
+              <p className="text-xs font-medium text-dark-500 mb-1.5">Endpoint</p>
+              <div className="flex items-center gap-2 bg-dark-50 border border-dark-200 rounded-lg px-3 py-2.5">
+                <span className="text-xs font-mono text-dark-400 shrink-0">GET</span>
+                <span className="text-xs font-mono text-dark-700 flex-1 truncate">{apiUrl}</span>
+                <button
+                  onClick={handleCopyApiUrl}
+                  title="Sao chép URL"
+                  className="shrink-0 p-1 rounded text-dark-400 hover:text-violet-600 hover:bg-violet-50 transition-colors"
+                >
+                  {copied ? <CheckCheck className="w-4 h-4 text-success-600" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+            <div className="flex items-start gap-2 bg-violet-50 border border-violet-200 rounded-lg px-3 py-2.5">
+              <AlertCircle className="w-4 h-4 text-violet-600 shrink-0 mt-0.5" />
+              <p className="text-xs text-violet-700">API trả về toàn bộ dữ liệu chứng từ dưới dạng JSON, bao gồm trường dữ liệu và bảng dòng.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
 function DetailPanelBody({ doc }: { doc: DocDetail }) {
   return (
     <div className="p-6 space-y-5">
-      {doc.ocrConfidence != null && (
-        <div className="bg-surface border border-default rounded-xl shadow-sm px-4 py-3 flex items-center gap-3">
-          <span className="text-xs text-content-muted shrink-0">Độ tin cậy OCR</span>
-          <div className="flex-1 bg-strong rounded-full h-2">
-            <div
-              className={`h-2 rounded-full transition-all ${doc.ocrConfidence > 0.85 ? 'bg-success-500' : doc.ocrConfidence > 0.6 ? 'bg-amber-400' : 'bg-danger-400'}`}
-              style={{ width: `${Math.round(doc.ocrConfidence * 100)}%` }}
-            />
-          </div>
-          <span className={`text-sm font-bold shrink-0 ${doc.ocrConfidence > 0.85 ? 'text-success-600' : doc.ocrConfidence > 0.6 ? 'text-amber-600' : 'text-danger-600'}`}>
-            {Math.round(doc.ocrConfidence * 100)}%
-          </span>
-        </div>
-      )}
       {doc.status === 'ERROR' && doc.ocrError && (
         <div className="flex items-start gap-2 bg-danger-50/10 border border-danger-500/30 text-danger-700 rounded-lg px-4 py-3 text-sm">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -222,7 +379,7 @@ function DetailPanelBody({ doc }: { doc: DocDetail }) {
       )}
       {doc.values.length > 0 && (
         <div className="bg-surface border border-default rounded-xl shadow-sm overflow-hidden">
-          <div className="px-4 py-3 border-b border-default bg-primary-50/10 flex items-center gap-2">
+          <div className="px-4 py-3 bg-surface border-b border-default/10 flex items-center gap-2">
             <ClipboardList className="w-4 h-4 text-primary-500" />
             <h3 className="text-sm font-semibold text-primary-800">Trường dữ liệu</h3>
             <span className="text-xs text-primary-600 bg-primary-500/20 px-2 py-0.5 rounded-full">
@@ -233,12 +390,15 @@ function DetailPanelBody({ doc }: { doc: DocDetail }) {
             {doc.values.map(v => (
               <div key={v.fieldId} className="flex items-center px-4 py-2.5 gap-3">
                 <span className="text-xs text-content-muted w-36 shrink-0">{v.field.label}</span>
-                <span className={`text-sm flex-1 truncate ${v.stringValue ? 'text-content-primary' : 'text-content-muted italic'}${v.field.dataType === 'CURRENCY' && v.stringValue ? ' font-mono' : ''}`}>
-                  {v.field.dataType === 'CURRENCY' && v.stringValue ? fmtNum(v.stringValue) : (v.stringValue || '—')}
-                </span>
-                {v.confidence != null && v.stringValue && (
-                  <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${v.confidence > 0.85 ? 'text-success-600 bg-success-50/20' : v.confidence > 0.6 ? 'text-amber-600 bg-amber-50/20' : 'text-danger-600 bg-danger-50/20'}`}>
-                    {Math.round(v.confidence * 100)}%
+                {v.field.dataType === 'BOOLEAN' ? (
+                  v.stringValue === 'true'
+                    ? <Check className="w-4 h-4 text-success-500 shrink-0" />
+                    : v.stringValue === 'false'
+                    ? <X className="w-4 h-4 text-content-muted shrink-0" />
+                    : <span className="text-sm text-content-muted italic">—</span>
+                ) : (
+                  <span className={`text-sm flex-1 truncate ${v.stringValue ? 'text-content-primary' : 'text-content-muted italic'}${v.field.dataType === 'CURRENCY' && v.stringValue ? ' font-mono' : ''}`}>
+                    {v.field.dataType === 'CURRENCY' && v.stringValue ? fmtNum(v.stringValue) : (v.stringValue || '—')}
                   </span>
                 )}
               </div>
@@ -263,10 +423,10 @@ function DetailPanelBody({ doc }: { doc: DocDetail }) {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-subtle border-b border-default text-xs text-content-muted uppercase tracking-wide">
+                    <tr className="bg-primary-100 border-b border-primary-200 text-xs text-primary-600 uppercase tracking-wide">
                       <th className="px-3 py-2.5 text-center w-10">STT</th>
                       {table.columns.map(col => (
-                        <th key={col.id} className={`px-3 py-2.5 ${col.dataType === 'NUMBER' || col.dataType === 'CURRENCY' ? 'text-right' : 'text-left'}`}>{col.label}</th>
+                        <th key={col.id} className={`px-3 py-2.5 ${col.dataType === 'NUMBER' || col.dataType === 'CURRENCY' ? 'text-right' : col.dataType === 'BOOLEAN' ? 'text-center' : 'text-left'}`}>{col.label}</th>
                       ))}
                     </tr>
                   </thead>
@@ -276,12 +436,20 @@ function DetailPanelBody({ doc }: { doc: DocDetail }) {
                         <td className="px-3 py-2.5 text-center text-content-muted text-xs">{li.stt}</td>
                         {table.columns.map(col => {
                           const isNum = col.dataType === 'NUMBER' || col.dataType === 'CURRENCY';
+                          const isBool = col.dataType === 'BOOLEAN';
                           const raw = STANDARD_FIELD_KEYS.has(col.columnKey)
                             ? li[col.columnKey as keyof typeof li]
                             : li.extraData?.[col.columnKey];
+                          const rawStr = raw != null ? String(raw) : '';
                           return (
-                            <td key={col.columnKey} className={`px-3 py-2.5 text-content-primary text-xs${isNum ? ' text-right font-mono' : ''}`}>
-                              {isNum ? fmtNum(raw as number | null | undefined) : String(raw ?? '—')}
+                            <td key={col.columnKey} className={`px-3 py-2.5 text-content-primary text-xs${isNum ? ' text-right font-mono' : isBool ? ' text-center' : ''}`}>
+                              {isBool
+                                ? rawStr === 'true'
+                                  ? <Check className="w-3.5 h-3.5 text-success-500 inline" />
+                                  : rawStr === 'false'
+                                  ? <span className="text-content-muted">—</span>
+                                  : rawStr || '—'
+                                : isNum ? fmtNum(raw as number | null | undefined) : (rawStr || '—')}
                             </td>
                           );
                         })}
@@ -339,10 +507,12 @@ export function ChungTuView() {
     search, setSearch, statusFilter, setStatusFilter, typeFilter, setTypeFilter,
     dateFrom, setDateFrom, dateTo, setDateTo, exporting, page, setPage,
     editDoc, setEditDoc, editStatus, setEditStatus, editSaving,
-    transferOpen, setTransferOpen, transferIds, transferring, loadingTransfer,
+    kbModalOpen, setKbModalOpen, kbPendingIds, kbList, kbListLoading,
+    selectedKbId, setSelectedKbId, kbConfirming,
     confirmDialog, setConfirmDialog, toast, setToast, showToast,
-    handleBulkConfirm, handleBulkDelete, openTransferModal, openTransferAllConfirmed,
-    handleTransfer, deleteDoc, openEditModal, handleSaveEdit, handleExportExcel,
+    handleBulkConfirm, handleBulkDelete,
+    handleConfirmWithKb,
+    deleteDoc, openEditModal, handleSaveEdit, handleExportExcel,
     toggleSelect, toggleAll,
   } = list;
 
@@ -374,25 +544,6 @@ export function ChungTuView() {
               {exporting ? 'Đang xuất...' : (selectedIds.size > 0 ? `Xuất Excel (${selectedIds.size})` : 'Xuất Excel')}
             </button>
           )}
-          {(() => {
-            const confirmedCount = selectedIds.size > 0
-              ? [...selectedIds].filter(id => docs?.items.find(d => d.id === id)?.status === 'CONFIRMED').length
-              : (stats?.confirmed ?? 0);
-            const isDisabled = loadingTransfer || confirmedCount === 0;
-            return (
-              <button
-                onClick={() => selectedIds.size > 0 ? openTransferModal([...selectedIds]) : openTransferAllConfirmed()}
-                disabled={isDisabled}
-                title={confirmedCount === 0 ? 'Không có chứng từ "Đã xác nhận" nào để chuyển' : undefined}
-                className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                <Database className="w-4 h-4" />
-                {loadingTransfer ? 'Đang tải...' : (
-                  <>Chuyển vào kho tri thức{confirmedCount > 0 && <span className="ml-1.5 bg-white/20 px-1.5 py-0.5 rounded text-xs">{confirmedCount}</span>}</>
-                )}
-              </button>
-            );
-          })()}
         </div>
       </div>
 
@@ -423,44 +574,29 @@ export function ChungTuView() {
             </div>
           </div>
           <div className="w-px h-6 bg-strong shrink-0" />
-          <select
+          <SelectDropdown
             value={statusFilter}
-            onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
-            className="h-9 px-3 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary"
-          >
-            <option value="">Tất cả trạng thái</option>
-            <option value="DRAFT">Đang xử lý</option>
-            <option value="PROCESSED">Nháp</option>
-            <option value="CONFIRMED">Đã xác nhận</option>
-            <option value="TRANSFERRED">Đã chuyển kho</option>
-            <option value="ERROR">Lỗi</option>
-          </select>
-          <select
+            onChange={v => { setStatusFilter(v); setPage(1); }}
+            placeholder="Tất cả trạng thái"
+            options={[
+              { value: 'DRAFT', label: 'Đang xử lý' },
+              { value: 'PROCESSED', label: 'Nháp' },
+              { value: 'CONFIRMED', label: 'Đã xác nhận' },
+              { value: 'TRANSFERRED', label: 'Đã chuyển kho' },
+              { value: 'ERROR', label: 'Lỗi' },
+            ]}
+          />
+          <SelectDropdown
             value={typeFilter}
-            onChange={e => { setTypeFilter(e.target.value); setPage(1); }}
-            className="h-9 px-3 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary"
-          >
-            <option value="">Tất cả loại</option>
-            {Object.entries(TYPE_CONFIG).map(([k, v]) => (
-              <option key={k} value={k}>{v.label}</option>
-            ))}
-          </select>
-          <div className="flex items-center h-9 border border-default rounded-lg overflow-hidden bg-surface shrink-0 focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-primary-400">
-            <span className="pl-2.5 pr-1.5 text-[11px] font-medium text-content-muted whitespace-nowrap select-none">Từ ngày</span>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={e => { setDateFrom(e.target.value); setPage(1); }}
-              className="h-full text-sm bg-transparent border-0 focus:outline-none w-[128px] text-content-primary"
-            />
-            <span className="px-1.5 text-content-muted select-none text-sm">–</span>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={e => { setDateTo(e.target.value); setPage(1); }}
-              className="h-full text-sm bg-transparent border-0 focus:outline-none w-[128px] pr-2 text-content-primary"
-            />
-          </div>
+            onChange={v => { setTypeFilter(v); setPage(1); }}
+            placeholder="Tất cả loại"
+            options={Object.entries(TYPE_CONFIG).map(([k, v]) => ({ value: k, label: v.label }))}
+          />
+          <DateRangePicker
+            from={dateFrom}
+            to={dateTo}
+            onChange={(f, t) => { setDateFrom(f); setDateTo(t); setPage(1); }}
+          />
           {(search || statusFilter || typeFilter || dateFrom || dateTo) && (
             <>
               <div className="w-px h-6 bg-strong shrink-0" />
@@ -481,11 +617,6 @@ export function ChungTuView() {
             {canUpdate && (
               <button onClick={handleBulkConfirm} className="flex items-center gap-1.5 text-sm text-emerald-600 hover:text-emerald-500 font-medium">
                 <Check className="w-4 h-4" /> Xác nhận hàng loạt
-              </button>
-            )}
-            {canUpdate && (
-              <button onClick={() => openTransferModal([...selectedIds])} className="flex items-center gap-1.5 text-sm text-teal-600 hover:text-teal-500 font-medium">
-                <Database className="w-4 h-4" /> Chuyển vào kho tri thức
               </button>
             )}
             {canDelete && (
@@ -511,7 +642,7 @@ export function ChungTuView() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[820px]">
               <thead>
-                <tr className="border-b border-default bg-subtle text-xs font-semibold text-content-muted uppercase tracking-wide">
+                <tr className="bg-primary-100 border-b border-primary-200 text-xs font-semibold text-primary-600 uppercase tracking-wide">
                   <th className="w-10 px-4 py-3">
                     <input
                       type="checkbox"
@@ -566,7 +697,7 @@ export function ChungTuView() {
                     </td>
                     <td className="px-4 py-3"><TypeBadge type={doc.schema.type} /></td>
                     <td className="px-4 py-3 text-content-muted text-xs whitespace-nowrap">{fmtDate(doc.createdAt)}</td>
-                    <td className="px-4 py-3 text-content-muted text-xs">—</td>
+                    <td className="px-4 py-3 text-content-muted text-xs">{doc.createdBy ?? '—'}</td>
                     <td className="px-4 py-3"><StatusBadge status={doc.status} /></td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1">
@@ -662,10 +793,37 @@ export function ChungTuView() {
                   </p>
                 )}
               </div>
+
+              {/* KB selector — hiện khi chuyển sang Đã xác nhận */}
+              {editStatus === 'CONFIRMED' && editDoc.status !== 'CONFIRMED' && editDoc.status !== 'TRANSFERRED' && (
+                <div className="pt-1 border-t border-default">
+                  <label className="block text-xs font-medium text-content-secondary mb-1.5">
+                    Bộ tri thức <span className="text-danger-600">*</span>
+                  </label>
+                  {kbListLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-content-muted py-1">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Đang tải...
+                    </div>
+                  ) : (
+                    <SelectDropdown
+                      value={selectedKbId}
+                      onChange={setSelectedKbId}
+                      placeholder="-- Chọn bộ tri thức --"
+                      options={kbList.map(kb => ({ value: kb.id, label: kb.name }))}
+                      className="w-full"
+                    />
+                  )}
+                  <p className="text-xs text-content-muted mt-1">Chứng từ sẽ được gửi vào luồng kiểm duyệt & phê duyệt.</p>
+                </div>
+              )}
             </div>
             <div className="px-6 py-4 border-t border-default flex justify-end gap-3">
               <button onClick={() => setEditDoc(null)} className="px-4 py-2 text-sm text-content-secondary border border-default rounded-lg hover:bg-subtle">Hủy</button>
-              <button onClick={handleSaveEdit} disabled={editSaving} className="px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50">
+              <button
+                onClick={handleSaveEdit}
+                disabled={editSaving || (editStatus === 'CONFIRMED' && editDoc.status !== 'CONFIRMED' && editDoc.status !== 'TRANSFERRED' && !selectedKbId)}
+                className="px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+              >
                 {editSaving ? 'Đang lưu...' : 'Lưu'}
               </button>
             </div>
@@ -676,36 +834,51 @@ export function ChungTuView() {
       {/* Detail drawer */}
       <DetailDrawer detail={detail} list={list} />
 
-      {/* Transfer modal */}
-      {transferOpen && (
+      {/* KB Selection Modal — xác nhận & đưa vào kiểm duyệt */}
+      {kbModalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-surface border border-default rounded-xl shadow-2xl w-full max-w-sm">
-            <div className="p-6 text-center">
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 ${transferIds.length > 0 ? 'bg-teal-500/20' : 'bg-orange-500/20'}`}>
-                <Database className={`w-6 h-6 ${transferIds.length > 0 ? 'text-teal-500' : 'text-orange-400'}`} />
-              </div>
-              <h2 className="text-base font-semibold text-content-primary mb-2">Chuyển vào kho tri thức</h2>
-              {transferIds.length > 0 ? (
-                <p className="text-sm text-content-muted">
-                  Chuyển <span className="font-semibold text-content-primary">{transferIds.length}</span> chứng từ <span className="text-emerald-500 font-medium">đã xác nhận</span> vào kho tri thức?
-                </p>
-              ) : (
-                <p className="text-sm text-content-muted">
-                  Không có chứng từ nào ở trạng thái <span className="font-medium text-emerald-500">"Đã xác nhận"</span> trong lựa chọn hiện tại.
-                  <br />
-                  <span className="text-xs text-content-muted mt-1 block opacity-80">Vui lòng xác nhận chứng từ trước khi chuyển kho.</span>
-                </p>
-              )}
-            </div>
-            <div className="px-6 py-4 border-t border-default flex justify-center gap-3">
-              <button onClick={() => setTransferOpen(false)} disabled={transferring} className="px-6 py-2 text-sm text-content-secondary border border-default rounded-lg hover:bg-subtle disabled:opacity-50">
-                {transferIds.length > 0 ? 'Hủy' : 'Đóng'}
+          <div className="bg-surface border border-default rounded-xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-default">
+              <h2 className="text-base font-semibold text-content-primary">Xác nhận & Đưa vào kiểm duyệt</h2>
+              <button onClick={() => setKbModalOpen(false)} disabled={kbConfirming} className="p-1.5 rounded-lg text-content-muted hover:text-content-secondary hover:bg-subtle disabled:opacity-50">
+                <X className="w-4 h-4" />
               </button>
-              {transferIds.length > 0 && (
-                <button onClick={handleTransfer} disabled={transferring} className="px-6 py-2 text-sm font-medium bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50">
-                  {transferring ? 'Đang chuyển...' : 'Chuyển'}
-                </button>
-              )}
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-content-secondary">
+                <span className="font-semibold text-content-primary">{kbPendingIds.length}</span> chứng từ sẽ được xác nhận và gửi vào luồng <span className="font-medium text-primary-600">Kiểm duyệt & Phê duyệt</span>.
+              </p>
+              <div>
+                <label className="block text-xs font-medium text-content-secondary mb-1.5">
+                  Bộ tri thức <span className="text-danger-600">*</span>
+                </label>
+                {kbListLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-content-muted py-2">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Đang tải danh sách...
+                  </div>
+                ) : (
+                  <SelectDropdown
+                    value={selectedKbId}
+                    onChange={setSelectedKbId}
+                    placeholder="-- Chọn bộ tri thức --"
+                    options={kbList.map(kb => ({ value: kb.id, label: kb.name }))}
+                    className="w-full"
+                  />
+                )}
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-default flex justify-end gap-3">
+              <button onClick={() => setKbModalOpen(false)} disabled={kbConfirming} className="px-4 py-2 text-sm text-content-secondary border border-default rounded-lg hover:bg-subtle disabled:opacity-50">
+                Hủy
+              </button>
+              <button
+                onClick={handleConfirmWithKb}
+                disabled={!selectedKbId || kbConfirming}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors"
+              >
+                {kbConfirming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                {kbConfirming ? 'Đang xử lý...' : 'Xác nhận'}
+              </button>
             </div>
           </div>
         </div>
@@ -743,7 +916,7 @@ export function ChungTuView() {
             ? 'bg-surface text-danger-600 border-danger-500/30'
             : 'bg-surface text-success-600 border-success-500/30'
         }`}>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${toast.type === 'error' ? 'bg-danger-50/10' : 'bg-success-50/10'}`}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${toast.type === 'error' ? 'bg-danger-50/10' : 'bg-primary-50'}`}>
             {toast.type === 'error' ? <AlertCircle className="w-4 h-4 text-danger-500" /> : <Check className="w-4 h-4 text-success-500" />}
           </div>
           <span className="flex-1 leading-snug text-content-primary">{toast.message}</span>

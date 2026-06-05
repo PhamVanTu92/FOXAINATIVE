@@ -44,6 +44,7 @@ export interface DocListItem {
   ocrConfidence: number | null;
   ocrError: string | null;
   createdAt: string;
+  createdBy: string | null;
   schemaCode: string;
   schema: { name: string; type: DocType };
 }

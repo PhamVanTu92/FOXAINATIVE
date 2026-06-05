@@ -12,13 +12,22 @@ public class GetStatsQueryHandler : IRequestHandler<GetStatsQuery, KnowledgeStat
 
     public async Task<KnowledgeStatsDto> Handle(GetStatsQuery query, CancellationToken ct)
     {
-        var (totalBases, totalFiles, departmentsUsing, lastUpdatedAt) = await _repo.GetStatsAsync(ct);
+        var (totalBases, totalFiles, departmentsUsing, pdfFilesCount, filesByKb, lastUpdatedAt) =
+            await _repo.GetStatsAsync(ct);
 
         return new KnowledgeStatsDto
         {
             TotalKnowledgeBases = totalBases,
             TotalFiles = totalFiles,
             DepartmentsUsingCount = departmentsUsing,
+            PdfFilesCount = pdfFilesCount,
+            FilesByKnowledgeBase = filesByKb
+                .Select(x => new KnowledgeBaseFileCountDto
+                {
+                    KnowledgeBaseName = x.KnowledgeBaseName,
+                    FileCount = x.FileCount
+                })
+                .ToList(),
             LastUpdatedAt = lastUpdatedAt
         };
     }

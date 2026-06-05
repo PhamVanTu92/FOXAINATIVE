@@ -76,6 +76,13 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 export type ChatbotPurpose = 'customer_care' | 'sales' | 'tech_support' | 'other';
 /** Khớp với backend enum ChatbotForm */
 export type ChatbotMode = 'chat' | 'voice' | 'both';
+
+export interface TtsVoice {
+  id: string;
+  name: string;
+  language?: string;
+  gender?: string;
+}
 export type OverlapType = 'PERCENT' | 'CHARS';
 export type EmbedKind = 'WIDGET' | 'IFRAME' | 'REST';
 
@@ -170,6 +177,7 @@ export interface UpdateChatbotPayload {
   purpose?: ChatbotPurpose;
   mode?: ChatbotMode;
   active?: boolean;
+  saveHistory?: boolean;
   systemPrompt?: string;
   faqs?: FAQItem[];
   knowledgeBaseIds?: string[];
@@ -548,22 +556,32 @@ export const knowledgeBasesApi = {
 // ─── Chat streaming (SSE) ────────────────────────────────────────────────────
 
 export interface ChatStreamEvent {
-  name: string;            // 'agent'
-  type: string;            // 'message_chunk' | 'message_end' | ...
-  id: string;              // run id
-  content: string;
+  name?: string;
+  type: string;            // 'message_chunk' | 'message_complete' | 'audio_chunk' | 'conversation_started' | ...
+  id?: string;
+  content?: string;
   language?: string;
   finishReason?: string;
   artifact?: unknown;
   conversation_id?: string;
+  // audio_chunk fields
+  seq?: number;
+  audio?: string;          // base64 WAV
+  audio_format?: string;
 }
 
 export interface ChatStreamArgs {
   botId: string;                                       // ChatbotItem.id
   message: string;
   conversationId?: string | null;
+  inlineAudio?: boolean;                               // true = bật audio_chunk streaming
+  voiceId?: string;                                    // voice_id gửi lên backend cho inline TTS
   onChunk: (text: string) => void;
+  onAudioChunk?: (seq: number, audioBase64: string) => void;
   onMeta?: (meta: { conversationId?: string }) => void;
+  /** Text generation hoàn tất (message_complete). Audio_chunks có thể vẫn đang đến. */
+  onTextDone?: () => void;
+  /** SSE stream thực sự đóng — sau khi tất cả audio_chunk đã được gửi. */
   onDone?: () => void;
   onError?: (err: Error) => void;
   signal?: AbortSignal;
@@ -586,9 +604,11 @@ export const chatApi = {
             ...authHeader(),
           },
           body: JSON.stringify({
-            message:        args.message,
+            message:         args.message,
             conversation_id: args.conversationId ?? null,
             chatbot_id:      args.botId,
+            ...(args.inlineAudio              ? { inline_audio: true }          : {}),
+            ...(args.inlineAudio && args.voiceId ? { voice_id: args.voiceId }  : {}),
           }),
           signal,
         });
@@ -648,8 +668,11 @@ export const chatApi = {
                 if (ev.type === 'message_chunk' && ev.content) {
                   args.onChunk(ev.content);
                 }
-                if (ev.finishReason) {
-                  args.onDone?.();
+                if (ev.type === 'audio_chunk' && typeof ev.audio === 'string') {
+                  args.onAudioChunk?.(ev.seq ?? 0, ev.audio);
+                }
+                if (ev.type === 'message_complete' || ev.finishReason) {
+                  args.onTextDone?.();
                 }
               } catch {
                 // bỏ qua keepalive / dữ liệu không-JSON
@@ -677,7 +700,18 @@ export const chatApi = {
    * `publicId` (bot.publicId) — backend gate TTS theo `bot.form ∈ {voice, both}`.
    * Nếu bot ở mode chat → trả 403, hàm này throw.
    */
-  async synthesize(text: string, publicId?: string): Promise<Blob> {
+  async getVoices(): Promise<TtsVoice[]> {
+    try {
+      const res = await fetch(`${BASE}/v1/tts/voices`, { headers: authHeader() });
+      if (!res.ok) return [];
+      const json = await res.json().catch(() => []);
+      return Array.isArray(json) ? json : (json.voices ?? json.data ?? []);
+    } catch {
+      return [];
+    }
+  },
+
+  async synthesize(text: string, publicId?: string, voiceId?: string): Promise<Blob> {
     const res = await fetch(`${BASE}/v1/tts/synthesize`, {
       method: 'POST',
       headers: {
@@ -687,6 +721,7 @@ export const chatApi = {
       body: JSON.stringify({
         text,
         public_id: publicId ?? null,
+        voice_id: voiceId ?? null,
       }),
     });
     if (!res.ok) {

@@ -16,7 +16,7 @@ interface Props {
 
 export function ChatbotDetailView({ bot, onUpdateConfig, onEdit }: Props) {
   return (
-    <div className="flex-1 overflow-y-auto bg-dark-50/40">
+    <div className="flex-1 overflow-y-auto bg-page">
       <div className="px-6 py-6 space-y-6 max-w-5xl">
         <BotHeader bot={bot} onEdit={onEdit} />
         <ChunkSection bot={bot} onUpdateConfig={onUpdateConfig} />
@@ -30,11 +30,11 @@ function BotHeader({ bot, onEdit }: { bot: ChatbotItem; onEdit: () => void }) {
   const canUpdate = useRoutePermission('UPDATE');
 
   return (
-    <div className="bg-white rounded-xl border border-dark-200 shadow-sm px-5 py-4
+    <div className="bg-surface rounded-xl border border-default shadow-sm px-5 py-4
       flex items-center justify-between gap-3">
       <div className="min-w-0">
-        <h2 className="text-base font-semibold text-dark-800 truncate">{bot.name}</h2>
-        <p className="text-xs text-dark-500 mt-0.5 truncate">
+        <h2 className="text-base font-semibold text-content-primary truncate">{bot.name}</h2>
+        <p className="text-xs text-content-secondary mt-0.5 truncate">
           {bot.shortDescription || '—'}
           <span className="mx-1.5 text-dark-300">·</span>
           {bot.knowledgeBaseIds.length} bộ tri thức
@@ -100,10 +100,10 @@ function ChunkSection({
             value={chunkSize}
             onChange={e => setChunkSize(Number(e.target.value) || 0)}
             onBlur={commitChunkSize}
-            className="w-32 border border-dark-200 rounded-lg px-3 py-2 text-sm text-dark-800
-              focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
+            className="w-32 border border-default rounded-lg px-3 py-2 text-sm text-content-primary
+              focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-surface"
           />
-          <span className="text-xs text-dark-500">ký tự / chunk</span>
+          <span className="text-xs text-content-secondary">ký tự / chunk</span>
         </div>
       </Field>
 
@@ -130,10 +130,10 @@ function ChunkSection({
             value={overlapValue}
             onChange={e => setOverlapValue(Number(e.target.value) || 0)}
             onBlur={() => commitOverlap(overlapType, overlapValue)}
-            className="w-32 border border-dark-200 rounded-lg px-3 py-2 text-sm text-dark-800
-              focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
+            className="w-32 border border-default rounded-lg px-3 py-2 text-sm text-content-primary
+              focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-surface"
           />
-          <span className="text-xs text-dark-500">
+          <span className="text-xs text-content-secondary">
             {overlapType === 'PERCENT'
               ? '% độ dài chunk  |  Gợi ý: 10 – 20%'
               : 'ký tự overlap  |  Gợi ý: 32 – 128 ký tự'}
@@ -158,10 +158,10 @@ function SegmentBtn({
       className={`flex items-center gap-2 px-4 py-2 text-sm rounded-lg border transition-colors
         ${active
           ? 'bg-primary-50 text-primary-700 border-primary-300 ring-2 ring-primary-100'
-          : 'bg-white text-dark-600 border-dark-200 hover:bg-dark-50'}`}
+          : 'bg-surface text-content-secondary border-default hover:bg-subtle'}`}
     >
       <span className={`w-3 h-3 rounded-full border-2
-        ${active ? 'border-primary-600 bg-primary-600 ring-2 ring-primary-200' : 'border-dark-300 bg-white'}`} />
+        ${active ? 'border-primary-600 bg-primary-600 ring-2 ring-primary-200' : 'border-strong bg-surface'}`} />
       {children}
     </button>
   );
@@ -186,14 +186,14 @@ function IntegrationSection({ bot }: { bot: ChatbotItem }) {
   };
 
   return (
-    <section className="bg-white rounded-xl border border-dark-200 shadow-sm">
-      <header className="px-5 py-4 border-b border-dark-100 flex items-center gap-2">
-        <Code2 size={16} className="text-dark-500" />
-        <h2 className="text-base font-semibold text-dark-800">Tích hợp</h2>
+    <section className="bg-surface rounded-xl border border-default shadow-sm">
+      <header className="px-5 py-4 border-b border-default flex items-center gap-2">
+        <Code2 size={16} className="text-content-secondary" />
+        <h2 className="text-base font-semibold text-content-primary">Tích hợp</h2>
       </header>
 
       <div className="p-5 space-y-3">
-        <p className="text-xs text-dark-500">
+        <p className="text-xs text-content-secondary">
           Sao chép đoạn script bên dưới và dán vào mã nguồn của hệ thống bạn muốn nhúng chatbot.
         </p>
 
@@ -207,7 +207,7 @@ function IntegrationSection({ bot }: { bot: ChatbotItem }) {
             icon={<Webhook size={13} />}>REST API</TabBtn>
         </div>
 
-        {/* Code block */}
+        {/* Code block — intentionally dark in both themes */}
         <div className="relative rounded-lg border border-dark-800 bg-dark-900 overflow-hidden">
           <button
             onClick={copy}
@@ -230,7 +230,7 @@ function IntegrationSection({ bot }: { bot: ChatbotItem }) {
             <Cpu size={12} /> Bot ID: {bot.id}
           </span>
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md
-            bg-dark-100 text-dark-600 border border-dark-200 font-mono">
+            bg-subtle text-content-secondary border border-default font-mono">
             <FileText size={12} /> file://
           </span>
         </div>
@@ -253,7 +253,7 @@ function TabBtn({
       className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border transition-colors
         ${active
           ? 'bg-primary-600 text-white border-primary-600'
-          : 'bg-white text-dark-600 border-dark-200 hover:bg-dark-50'}`}
+          : 'bg-surface text-content-secondary border-default hover:bg-subtle'}`}
     >
       {icon}
       {children}
@@ -273,11 +273,11 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-dark-700 mb-1.5">
+      <label className="block text-sm font-medium text-content-primary mb-1.5">
         {label} {required && <span className="text-danger-600">*</span>}
       </label>
       {children}
-      {hint && <p className="text-xs text-dark-400 mt-1">{hint}</p>}
+      {hint && <p className="text-xs text-content-muted mt-1">{hint}</p>}
     </div>
   );
 }

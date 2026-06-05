@@ -1,5 +1,10 @@
+import { Suspense } from 'react';
 import { ChatbotChatView } from '@/modules/chatbot';
 
 export default function Page() {
-  return <ChatbotChatView lookup={{ byPurpose: 'customer_care', byNameContains: 'cskh' }} />;
+  return (
+    <Suspense>
+      <ChatbotChatView lookup={{ byPurpose: 'customer_care', byNameContains: 'cskh' }} />
+    </Suspense>
+  );
 }
