@@ -12,7 +12,6 @@ This prevents "zombie documents" from accumulating in storage.
 """
 from __future__ import annotations
 
-from datetime import datetime
 from datetime import timedelta
 from typing import List
 from urllib.parse import unquote
@@ -20,6 +19,7 @@ from urllib.parse import unquote
 from api.helpers.dependencies.database import get_db_session_factory
 from joint.logging import get_logger
 from joint.minio_storage import get_minio_service
+from joint.postgres.models import get_vietnam_now
 from joint.settings import Settings
 
 logger = get_logger(__name__)
@@ -60,7 +60,10 @@ class CleanupDraftDocumentsService:
             dict: Cleanup statistics with counts and errors
         """
         try:
-            cutoff_time = datetime.now() - timedelta(hours=self.grace_period_hours)
+            # Use timezone-aware Vietnam time so the comparison matches the
+            # created_at column (stored as timezone-aware timestamptz). A naive
+            # datetime.now() here would be off by the TZ offset (~7h).
+            cutoff_time = get_vietnam_now() - timedelta(hours=self.grace_period_hours)
 
             logger.info(
                 f"Starting draft document cleanup. "

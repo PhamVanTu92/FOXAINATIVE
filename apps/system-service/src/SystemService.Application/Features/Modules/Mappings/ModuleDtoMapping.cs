@@ -1,4 +1,5 @@
 using SystemService.Application.Features.Modules.Dtos;
+using SystemService.Application.Features.PermissionActions.Mappings;
 using SystemService.Domain.Entities;
 
 namespace SystemService.Application.Features.Modules.Mappings;
@@ -16,5 +17,9 @@ internal static class ModuleDtoMapping
         SortOrder: m.SortOrder,
         IsActive: m.IsActive,
         CreatedAt: m.CreatedAt,
-        UpdatedAt: m.UpdatedAt);
+        UpdatedAt: m.UpdatedAt,
+        AllowedActions: m.AllowedActions
+            .OrderBy(ma => ma.Action.SortOrder)
+            .Select(ma => ma.Action.ToDto())
+            .ToList());
 }

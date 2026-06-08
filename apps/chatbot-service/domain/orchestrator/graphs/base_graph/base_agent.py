@@ -24,6 +24,11 @@ from langgraph.graph import MessagesState
 
 logger = get_logger(__name__)
 
+# Substring marking a tool whose result is freshly-retrieved knowledge-base
+# context the current answer MUST be grounded in (e.g. ``retriever_tool``).
+# Handoff / routing tool results deliberately do not match this hint.
+_RETRIEVAL_TOOL_NAME_HINT = 'retriev'
+
 
 class BaseAgent(BaseModel):
     settings: Settings
@@ -83,6 +88,37 @@ class BaseAgent(BaseModel):
         return {
             'time': get_vietnam_time(),
         }
+
+    def _is_retrieval_context_message(self, message: BaseMessage) -> bool:
+        """Whether ``message`` carries freshly-retrieved knowledge-base context.
+
+        Only retrieval tool results (e.g. ``retriever_tool``) should anchor the
+        current answer; handoff/other tool results must not trigger grounding.
+        """
+        if not isinstance(message, ToolMessage):
+            return False
+        return _RETRIEVAL_TOOL_NAME_HINT in (message.name or '').lower()
+
+    @staticmethod
+    def _current_turn_grounding_reminder() -> HumanMessage:
+        """Directive appended after a fresh retrieval to prevent cross-turn bleed.
+
+        Forces the model to answer the latest question from THIS turn's retrieved
+        context only, instead of copying an earlier turn's answer or citation.
+        """
+        return HumanMessage(
+            content=(
+                'GROUNDING FOR THIS TURN: Answer the user\'s most recent '
+                'question using ONLY the retrieved context above from the '
+                'current turn. Do NOT reuse, repeat, or copy any answer, '
+                'wording, or **Source**/page citation from earlier assistant '
+                'turns — previous answers are conversation history, never a '
+                'source of truth. If the retrieved context above does not '
+                'contain the answer (including the specific article/section/'
+                'page asked about), say clearly that it was not found in the '
+                'knowledge base.'
+            ),
+        )
 
     def _extract_plain_text_content(self, content: Any) -> str:
         """Extract plain text from mixed message content blocks."""
@@ -180,11 +216,20 @@ class BaseAgent(BaseModel):
                 converted_tool_responses += 1
                 tool_name = msg.name or 'tool'
                 if plain_text:
-                    sanitized.append(
-                        HumanMessage(
-                            content=f"[Tool result from {tool_name}]\n{plain_text}",
-                        ),
-                    )
+                    if self._is_retrieval_context_message(msg):
+                        # Frame retrieval results as the authoritative context
+                        # for the current question so they outrank stale answer
+                        # text still present in the replayed history.
+                        wrapped = (
+                            '=== RETRIEVED KNOWLEDGE BASE CONTEXT '
+                            "(authoritative source for the user's CURRENT "
+                            'question — answer using ONLY this) ===\n'
+                            f'{plain_text}\n'
+                            '=== END RETRIEVED CONTEXT ==='
+                        )
+                    else:
+                        wrapped = f"[Tool result from {tool_name}]\n{plain_text}"
+                    sanitized.append(HumanMessage(content=wrapped))
                 continue
 
             if isinstance(msg, HumanMessage):
@@ -247,6 +292,17 @@ class BaseAgent(BaseModel):
         logger.info(
             f"Processed {len([m for m in processed_messages if isinstance(m, ToolMessage)])} ToolMessages",
         )
+
+        # STEP 1b: Per-turn grounding. When the latest step is a fresh retrieval,
+        # append a reminder so the model answers from THIS turn's context instead
+        # of echoing a previous answer/citation still present in the history.
+        if processed_messages and self._is_retrieval_context_message(
+            processed_messages[-1],
+        ):
+            processed_messages = processed_messages + [
+                self._current_turn_grounding_reminder(),
+            ]
+            logger.info('Appended current-turn grounding reminder after retrieval')
 
         # STEP 2: Combine system prompt with processed messages (for LLM input)
         messages = [

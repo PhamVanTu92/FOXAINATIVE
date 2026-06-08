@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 
 from api.helpers.dependencies.database import get_db_session
 from api.helpers.dependencies.shared_auth import CurrentUser
@@ -47,7 +48,7 @@ Request Body:
 ```
 
 Validation Rules:
-- name: Required, 3-100 characters, alphanumeric with underscore/hyphen only, must start/end with alphanumeric
+- name: Required; letters (including Vietnamese with diacritics), numbers, spaces, underscore and hyphen — e.g. "Tri thức nội bộ"
 - description: Optional, max 500 characters
 - embedding_provider: Optional, defaults to "foxaillm"
 - storage_provider: Optional, defaults to "qdrant"
@@ -77,7 +78,7 @@ Common Errors:
 - 422: Validation error on field constraints
 
 Integration Notes:
-- Validate collection name format client-side using regex: ^[a-zA-Z0-9][a-zA-Z0-9_-]*[a-zA-Z0-9]$
+- Validate collection name client-side allowing Unicode letters, numbers, spaces, underscore and hyphen (e.g. "Tri thức nội bộ")
 - Store returned collection ID for document uploads
 - Collection creation is synchronous and completes immediately""",
 )
@@ -108,8 +109,14 @@ async def create_collection(
             provider_embedding=request.provider_embedding,
         )
 
-        # Validate collection name
-        if not request.collection_name or not request.collection_name.strip():
+        # Normalize: trim surrounding whitespace and unify Unicode form (NFC) so
+        # Vietnamese names compare/store consistently (e.g. "Tri thức nội bộ").
+        collection_name = unicodedata.normalize(
+            'NFC', request.collection_name or '',
+        ).strip()
+
+        # Validate collection name is present
+        if not collection_name:
             return exception_handler.handle_bad_request(
                 message='Collection name is required and cannot be empty',
                 extra={
@@ -119,10 +126,15 @@ async def create_collection(
                 },
             )
 
-        # Validate collection name format (alphanumeric, underscore, hyphen)
-        if not re.match(r'^[a-zA-Z0-9_-]+$', request.collection_name):
+        # Validate collection name format. Allow Unicode letters (including
+        # Vietnamese with diacritics), numbers, spaces, underscore and hyphen —
+        # e.g. "Tri thức nội bộ". Other symbols / control chars are rejected.
+        if not re.match(r'^[\w -]+$', collection_name, re.UNICODE):
             return exception_handler.handle_bad_request(
-                message='Collection name can only contain letters, numbers, underscore, and hyphen',
+                message=(
+                    'Collection name can only contain letters (including '
+                    'Vietnamese), numbers, spaces, underscore, and hyphen'
+                ),
                 extra={
                     'endpoint': 'create_collection',
                     'collection_name': request.collection_name,
@@ -132,7 +144,7 @@ async def create_collection(
 
         # Create internal service input (collection belongs to user)
         service_input = CollectionCreationInput(
-            collection_name=request.collection_name,
+            collection_name=collection_name,
             user_id=current_user.user_id,
             description=request.description or '',
             provider_embedding=request.provider_embedding,
@@ -140,7 +152,7 @@ async def create_collection(
         )
 
         logger.info(
-            f'Creating collection: {request.collection_name} '
+            f'Creating collection: {collection_name} '
             f'by user: {current_user.user_id} with provider: {request.provider_embedding}',
         )
 
@@ -148,7 +160,7 @@ async def create_collection(
         result = await collection_creation_service.process(service_input, db)
 
         logger.info(
-            f'Collection creation completed for: {request.collection_name}',
+            f'Collection creation completed for: {collection_name}',
         )
         return exception_handler.handle_success(output=result.model_dump())
 

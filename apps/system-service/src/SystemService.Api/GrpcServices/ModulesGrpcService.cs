@@ -31,19 +31,30 @@ public sealed class ModulesGrpcService(ISender sender) : ModulesService.ModulesS
 
     public override async Task<ModuleDto> CreateModule(CreateModuleRequest request, ServerCallContext context)
     {
+        var actionIds = request.ActionIds.Count > 0
+            ? request.ActionIds.Select(id => ParseGuid(id, "action_ids")).ToList()
+            : null;
+
         var result = await sender.Send(
             new CreateModuleCommand(
                 GroupId: ParseGuid(request.GroupId, "group_id"),
                 Code: request.Code,
                 Name: request.Name,
                 Description: request.HasDescription ? request.Description : null,
-                SortOrder: request.SortOrder),
+                SortOrder: request.SortOrder,
+                ActionIds: actionIds),
             context.CancellationToken);
         return result.ToProto();
     }
 
     public override async Task<ModuleDto> UpdateModule(UpdateModuleRequest request, ServerCallContext context)
     {
+        IReadOnlyList<Guid>? actionIds = null;
+        if (request.UpdateActions)
+        {
+            actionIds = request.ActionIds.Select(id => ParseGuid(id, "action_ids")).ToList();
+        }
+
         var result = await sender.Send(
             new UpdateModuleCommand(
                 Id: ParseGuid(request.Id, "id"),
@@ -51,7 +62,8 @@ public sealed class ModulesGrpcService(ISender sender) : ModulesService.ModulesS
                 Name: request.HasName ? request.Name : null,
                 Description: request.HasDescription ? request.Description : null,
                 SortOrder: request.HasSortOrder ? request.SortOrder : null,
-                IsActive: request.HasIsActive ? request.IsActive : null),
+                IsActive: request.HasIsActive ? request.IsActive : null,
+                ActionIds: actionIds),
             context.CancellationToken);
         return result.ToProto();
     }
@@ -65,9 +77,7 @@ public sealed class ModulesGrpcService(ISender sender) : ModulesService.ModulesS
     private static Guid ParseGuid(string value, string field)
     {
         if (!Guid.TryParse(value, out var guid))
-        {
             throw new DomainValidationException($"Trường '{field}' phải là UUID hợp lệ.");
-        }
         return guid;
     }
 }

@@ -30,7 +30,7 @@ class FoxAILLMSettings(BaseModel):
         'foxai-embedding-v1',
         description="FoxAI LLM embedding Model to use. Example: 'foxai-embedding-v1'.",
     )
-    max_retries: str = Field(
+    max_retries: int = Field(
         3,
         description='Maximum number of retries for failed requests.',
     )

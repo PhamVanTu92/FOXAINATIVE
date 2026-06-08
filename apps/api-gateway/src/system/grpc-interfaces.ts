@@ -258,12 +258,20 @@ export interface RolesGrpcService {
 }
 
 // ─── Module Groups ──────────────────────────────────────────────────────────
+export interface ModuleAllowedActionDto {
+  id: string;
+  code: string;
+  name: string;
+  sortOrder: number;
+}
+
 export interface ModuleSummaryDto {
   id: string;
   code: string;
   name: string;
   sortOrder: number;
   isActive: boolean;
+  allowedActions: ModuleAllowedActionDto[];
 }
 
 export interface ModuleGroupDto {
@@ -317,6 +325,7 @@ export interface ModuleDto {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  allowedActions: ModuleAllowedActionDto[];
 }
 
 export interface ListModulesRequest { groupId?: string; activeOnly?: boolean; }
@@ -329,6 +338,7 @@ export interface CreateModuleRequest {
   name: string;
   description?: string;
   sortOrder: number;
+  actionIds?: string[];
 }
 export interface UpdateModuleRequest {
   id: string;
@@ -337,6 +347,8 @@ export interface UpdateModuleRequest {
   description?: string;
   sortOrder?: number;
   isActive?: boolean;
+  updateActions?: boolean;
+  actionIds?: string[];
 }
 
 export interface ModulesGrpcService {

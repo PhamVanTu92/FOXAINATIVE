@@ -22,6 +22,8 @@ class DeletingDocumentOutput(BaseModel):
     status: bool
     document_name: str
     message: str
+    # MinIO URL of the deleted document, so the caller can clean up storage.
+    file_url: str = ''
 
 
 class DeletingDocumentService(BaseService):
@@ -94,6 +96,9 @@ class DeletingDocumentService(BaseService):
 
             # Use display_name as document_name (without extension)
             document_name = document.display_name
+            # Capture file_url BEFORE deletion so the caller can remove the
+            # underlying MinIO object (the row is gone after delete).
+            file_url = document.file_url or ''
             logger.info(
                 f'Found document to delete: {document_name} (ID: {input.document_id})',
             )
@@ -112,6 +117,7 @@ class DeletingDocumentService(BaseService):
                     status=True,
                     document_name=document_name,
                     message=f"Document '{document_name}' deleted successfully",
+                    file_url=file_url,
                 )
             else:
                 logger.error(

@@ -8,4 +8,5 @@ public sealed record CreateModuleCommand(
     string Code,
     string Name,
     string? Description,
-    int SortOrder) : ITransactionalRequest<ModuleDto>;
+    int SortOrder,
+    IReadOnlyList<Guid>? ActionIds) : ITransactionalRequest<ModuleDto>;

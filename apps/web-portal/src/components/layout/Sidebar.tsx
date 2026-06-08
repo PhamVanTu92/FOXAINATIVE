@@ -166,7 +166,9 @@ export default function Sidebar() {
   useEffect(() => {
     if (!user) { setChatbotItems([]); return; }
     const load = () => {
-      chatbotApi.list().then(list => {
+      // Sidebar chỉ hiện bot user ĐƯỢC CHAT (owner ∪ quyền XEM per-bot ∪ admin),
+      // không phải danh sách quản lý theo CHATBOT_CONFIG → dùng scope 'chat'.
+      chatbotApi.list('chat').then(list => {
         setChatbotItems(list.filter(b => b.active).map(b => ({ label: b.name, href: `/chatbot/${b.id}`, icon: MessageSquare })));
       }).catch(() => setChatbotItems([]));
     };

@@ -25,7 +25,7 @@ class OpenAISettings(BaseModel):
         'text-embedding-3-small',
         description="OpenAI embedding Model to use. Example: 'text-embedding-3-large'.",
     )
-    max_retries: str = Field(
+    max_retries: int = Field(
         3,
         description='Maximum number of retries for failed requests.',
     )

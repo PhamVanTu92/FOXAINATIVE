@@ -3,6 +3,7 @@ syntax = "proto3";
 package foxai.system;
 
 import "common/pagination.proto";
+import "system/modules.proto";
 
 option csharp_namespace = "Foxai.System.V1";
 
@@ -32,6 +33,7 @@ message ModuleSummaryDto {
   string name = 3;
   int32 sort_order = 4;
   bool is_active = 5;
+  repeated ModuleAllowedActionDto allowed_actions = 6;
 }
 
 message ListModuleGroupsRequest { bool active_only = 1; }

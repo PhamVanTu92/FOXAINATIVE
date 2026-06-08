@@ -100,6 +100,24 @@ class ChatbotController(Repository):
         ).all()
         return [(row[0], row[1]) for row in rows]
 
+    def list_chatbots_by_collection(
+        self, session: Session, collection_id: uuid.UUID,
+    ) -> list[tuple[uuid.UUID, str]]:
+        """Return ``(chatbot_id, name)`` for every chatbot bound to a collection.
+
+        Used (via an internal endpoint) by index-service to block deleting a
+        knowledge-base collection that is still in use by a chatbot.
+        """
+        rows = session.execute(
+            select(ChatbotModel.id, ChatbotModel.name)
+            .join(
+                ChatbotCollectionModel,
+                ChatbotCollectionModel.chatbot_id == ChatbotModel.id,
+            )
+            .where(ChatbotCollectionModel.collection_id == collection_id),
+        ).all()
+        return [(row[0], row[1]) for row in rows]
+
     def list_for_user(
         self, session: Session, user_id: uuid.UUID,
     ) -> list[Chatbot]:
@@ -107,6 +125,13 @@ class ChatbotController(Repository):
             select(ChatbotModel)
             .where(ChatbotModel.user_id == user_id)
             .order_by(ChatbotModel.updated_at.desc()),
+        ).scalars().all()
+        return [Chatbot.model_validate(o) for o in objs]
+
+    def list_all(self, session: Session) -> list[Chatbot]:
+        """Every chatbot regardless of owner — for admins / CHATBOT_CONFIG.READ."""
+        objs = session.execute(
+            select(ChatbotModel).order_by(ChatbotModel.updated_at.desc()),
         ).scalars().all()
         return [Chatbot.model_validate(o) for o in objs]
 

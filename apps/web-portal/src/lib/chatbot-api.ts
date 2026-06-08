@@ -364,8 +364,16 @@ function defaultSuggestions(purpose: ChatbotPurpose): string[] {
 // ─── chatbotApi ──────────────────────────────────────────────────────────────
 
 export const chatbotApi = {
-  async list(): Promise<ChatbotItem[]> {
-    const raw = await req<ChatbotOut[]>('/v1/chatbots');
+  /**
+   * Liệt kê chatbot.
+   * - `'manage'` (mặc định): danh sách để quản lý (màn "Thiết lập bot hội thoại") —
+   *   admin / người có `CHATBOT_CONFIG.READ` thấy tất cả, còn lại chỉ thấy bot mình tạo.
+   * - `'chat'`: danh sách bot user ĐƯỢC CHAT — bot mình sở hữu ∪ được cấp quyền XEM
+   *   per-bot (`CHATBOT_<id>.READ`) ∪ (admin thấy hết). Dùng cho sidebar/menu chọn bot.
+   */
+  async list(scope: 'manage' | 'chat' = 'manage'): Promise<ChatbotItem[]> {
+    const qs = scope === 'chat' ? '?scope=chat' : '';
+    const raw = await req<ChatbotOut[]>(`/v1/chatbots${qs}`);
     return raw.map(toItem);
   },
 

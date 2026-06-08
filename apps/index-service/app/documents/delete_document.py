@@ -2,12 +2,16 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from urllib.parse import unquote
+
 from domain.db_service.document_services import DeletingDocumentInput
 from domain.db_service.document_services import DeletingDocumentService
 from domain.storage_services import QdrantService
 from joint.base import BaseModel
 from joint.base import BaseService
 from joint.logging.logger import get_logger
+from joint.minio_storage import get_minio_service
+from joint.minio_storage import MinioService
 from joint.settings import Settings
 
 logger = get_logger(__name__)
@@ -41,6 +45,40 @@ class DocumentDeletionService(BaseService):
     @property
     def deleting_document_service(self) -> DeletingDocumentService:
         return DeletingDocumentService(settings=self.settings.postgres)
+
+    @property
+    def minio_service(self) -> MinioService:
+        return get_minio_service(self.settings)
+
+    def _delete_minio_file(self, file_url: str, document_name: str) -> None:
+        """Best-effort removal of the document's object from MinIO.
+
+        file_url format: ``{public_url_base}/files/{bucket}/{object_name}``.
+        Failures are logged but never abort the deletion (PostgreSQL and
+        Qdrant are already cleaned up at this point).
+        """
+        if not file_url:
+            logger.warning(
+                f"No file_url for document '{document_name}'; skipping MinIO cleanup",
+            )
+            return
+        try:
+            parts = file_url.split('/files/')
+            if len(parts) != 2:
+                logger.warning(
+                    f"Cannot parse file_url for MinIO cleanup: {file_url}",
+                )
+                return
+            bucket_name, object_name = parts[1].split('/', 1)
+            object_name = unquote(object_name)
+            self.minio_service.delete_object(bucket_name, object_name)
+            logger.info(
+                f"Deleted MinIO object for document '{document_name}': {object_name}",
+            )
+        except Exception as minio_error:
+            logger.warning(
+                f"Failed to delete MinIO file for document '{document_name}': {minio_error}",
+            )
 
     async def process(self, inputs: DocumentDeletionInput, db_session=None) -> DocumentDeletionOutput:
         """
@@ -91,6 +129,10 @@ class DocumentDeletionService(BaseService):
                 logger.warning(
                     f"Collection '{inputs.collection_name}' was not found in Qdrant (may not exist)",
                 )
+
+            # Step 3: Delete the underlying file from MinIO storage.
+            # Without this the object is orphaned in storage forever.
+            self._delete_minio_file(postgres_result.file_url, document_name)
 
             return DocumentDeletionOutput(
                 message=f"Document '{document_name}' deleted successfully",

@@ -27,10 +27,10 @@ class GeminiSettings(BaseModel):
         description='Temperature for LLM generation. Higher values make output more random.',
     )
     embedding_model: str = Field(
-        'gemini-embedding-exp-03-07',
-        description="Gemini embedding Model to use. Example: 'gemini-embedding-exp-03-07'.",
+        'gemini-embedding-001',
+        description="Gemini embedding Model to use. Example: 'gemini-embedding-001'.",
     )
-    max_retries: str = Field(
+    max_retries: int = Field(
         3,
         description='Maximum number of retries for failed requests.',
     )
@@ -44,7 +44,7 @@ class GeminiSettings(BaseModel):
     )
     embedding_size: int = Field(
         3072,
-        description='Size of the embedding vector for Gemini. Default is 3072.',
+        description='Size of the embedding vector for Gemini. Default is 3072 (gemini-embedding-001).',
     )
     max_context_window: int = Field(
         1000000,

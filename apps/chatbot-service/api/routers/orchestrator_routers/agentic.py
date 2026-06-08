@@ -3,10 +3,13 @@ from __future__ import annotations
 import asyncio
 
 from api.helpers.chatbot_resolver import resolve_chatbot
+from api.routers.tts_routers.tts_router import ALLOWED_VOICES
 from api.helpers.dependencies.database import get_async_db_session_factory
 from api.helpers.dependencies.database import get_db_session
+from api.helpers.dependencies.shared_auth import chatbot_module_code
 from api.helpers.dependencies.shared_auth import CurrentUser
 from api.helpers.dependencies.shared_auth import get_current_user
+from api.helpers.dependencies.shared_auth import has_permission
 from api.helpers.exception_handler import ExceptionHandler
 from api.helpers.response_samples import OrchestratorResponseSamples
 from api.helpers.validators import MAX_USER_INPUT_CHARS
@@ -185,9 +188,14 @@ eventSource.onerror = (error) => {
                 message='Chatbot not found or inactive',
                 extra={'chatbot_id': str(request_body.chatbot_id)},
             )
-        if overrides.chatbot.user_id != user_id:
-            return exception_handler.handle_bad_request(
-                message='You do not own this chatbot',
+        # Per-bot chat permission (XEM = READ): allow the bot owner, anyone
+        # granted CHATBOT_<id>.READ, or admins. Others are forbidden.
+        bot = overrides.chatbot
+        if bot.user_id != user_id and not has_permission(
+            current_user, chatbot_module_code(bot.id), 'READ',
+        ):
+            return exception_handler.handle_forbidden(
+                message='Bạn không có quyền chat với chatbot này',
                 extra={
                     'chatbot_id': str(request_body.chatbot_id),
                     'user_id': str(user_id),
@@ -209,6 +217,23 @@ eventSource.onerror = (error) => {
     faq_block = overrides.faq_block if overrides else ''
     chatbot_id = overrides.chatbot.id if overrides else None
 
+    # Inline streaming voice (approach C): only when the client opts in AND the
+    # bound chatbot is voice-enabled. A per-bot preferred voice may be stored in
+    # widget_theme.voiceName; otherwise the server default applies downstream.
+    tts_voice_enabled = bool(request_body.inline_audio)
+    tts_voice_name = None
+    if overrides is not None:
+        bot = overrides.chatbot
+        if bot.form not in ('voice', 'both'):
+            tts_voice_enabled = False
+        if isinstance(bot.widget_theme, dict):
+            preferred = bot.widget_theme.get('voiceName')
+            if isinstance(preferred, str) and preferred:
+                tts_voice_name = preferred
+    # Per-request voice pick (from the voice selector) wins over the bot default.
+    if request_body.voice_id and request_body.voice_id in ALLOWED_VOICES:
+        tts_voice_name = request_body.voice_id
+
     try:
         # Create StreamAgentInput with user_id from token and provider information from request
         stream_agent_input = StreamAgentInput(
@@ -225,6 +250,8 @@ eventSource.onerror = (error) => {
             chatbot_id=chatbot_id,
             chatbot_instructions=chatbot_instructions,
             faq_block=faq_block,
+            tts_voice_enabled=tts_voice_enabled,
+            tts_voice_name=tts_voice_name,
         )
 
         # Create StreamAgentService with dynamic configuration per request

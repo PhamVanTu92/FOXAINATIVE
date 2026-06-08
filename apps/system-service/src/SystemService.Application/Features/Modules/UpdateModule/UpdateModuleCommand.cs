@@ -9,4 +9,5 @@ public sealed record UpdateModuleCommand(
     string? Name,
     string? Description,
     int? SortOrder,
-    bool? IsActive) : ITransactionalRequest<ModuleDto>;
+    bool? IsActive,
+    IReadOnlyList<Guid>? ActionIds) : ITransactionalRequest<ModuleDto>;

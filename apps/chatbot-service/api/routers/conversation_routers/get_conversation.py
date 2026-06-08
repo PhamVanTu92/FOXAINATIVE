@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from api.helpers.dependencies.database import get_db_session
 from api.helpers.dependencies.shared_auth import CurrentUser
-from api.helpers.dependencies.shared_auth import get_manager_user
+from api.helpers.dependencies.shared_auth import get_current_user
 from api.helpers.exception_handler import ExceptionHandler
 from api.helpers.response_samples import ConversationResponseSamples
 from app.conversations import ConversationGettingInput
@@ -107,7 +107,10 @@ async def get_conversations(
     search: str = Query(
         None, description='Search query to filter conversations by title',
     ),
-    current_user: CurrentUser = Depends(get_manager_user),
+    # Lịch sử hội thoại là của riêng user (service lọc theo user_id bên dưới),
+    # nên mọi user đã đăng nhập đều xem được phần của mình — không bắt buộc role
+    # manager. Trước đây dùng get_manager_user khiến NHAN_VIEN mở trang chat bị 403.
+    current_user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db_session),
 ):
     """

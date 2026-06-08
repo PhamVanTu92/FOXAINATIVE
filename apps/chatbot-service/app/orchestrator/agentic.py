@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import time
 import uuid
 from functools import cached_property
@@ -29,6 +30,8 @@ from domain.db_service.message_services import GettingAllMessagesByConversationI
 from domain.db_service.message_services import GettingAllMessagesByConversationService
 from domain.llm_services import TitleGenerationInput
 from domain.llm_services import TitleGenerationService
+from domain.llm_services.tts_streaming import split_complete_sentences
+from domain.llm_services.tts_streaming import synthesize_sentence_wav
 from domain.orchestrator.graphs.agentic_graph.graph import AgenticService
 from domain.orchestrator.tools.summarization_tool import SummarizationInput
 from domain.orchestrator.tools.summarization_tool import SummarizationService
@@ -119,6 +122,19 @@ class StreamAgentRequestBody(BaseModel):
         None,
         description='Optional chatbot ID — when present, server overrides collections/providers/prompt with stored chatbot config.',
     )
+    inline_audio: bool = Field(
+        False,
+        description=(
+            'Opt-in to inline streaming voice: when true (and the bound chatbot '
+            'is voice-enabled), the SSE stream also emits audio_chunk events '
+            '(sentence-level WAV) so the client can speak while text streams.'
+        ),
+    )
+    voice_id: Optional[str] = Field(
+        None,
+        description='Voice id (from GET /v1/tts/voices, e.g. "Kore") for the '
+                    'inline streaming audio. Overrides the chatbot default voice.',
+    )
 
 
 class StreamAgentInput(BaseModel):
@@ -148,6 +164,12 @@ class StreamAgentInput(BaseModel):
     # Per-chatbot prompt augmentations.
     chatbot_instructions: Optional[str] = None
     faq_block: Optional[str] = None
+    # Inline streaming TTS (approach C): when enabled, the stream also emits
+    # ``audio_chunk`` events (sentence-level WAV) so the client can speak the
+    # answer while it is still being written. Opt-in to avoid spending TTS
+    # quota for clients that don't consume audio.
+    tts_voice_enabled: bool = False
+    tts_voice_name: Optional[str] = None
 
 
 class StreamAgentOutput(BaseModel):
@@ -162,6 +184,17 @@ class StreamAgentOutput(BaseModel):
     )
     conversation_id: Optional[str] = Field(
         None, description='Conversation ID for client tracking',
+    )
+    # Inline audio (type == 'audio_chunk'): base64 WAV of one sentence, plus the
+    # 0-based ``seq`` so the client plays them gaplessly and in order.
+    audio: Optional[str] = Field(
+        None, description='Base64-encoded WAV audio for an audio_chunk event',
+    )
+    seq: Optional[int] = Field(
+        None, description='Ordering index for inline audio chunks',
+    )
+    audio_format: Optional[str] = Field(
+        None, description="Audio container of the 'audio' field, e.g. 'wav'",
     )
 
 
@@ -798,6 +831,62 @@ class StreamAgentService(BaseService):
         full_response = ''
         stream_completed = False
 
+        # ── Inline streaming TTS (approach C) ────────────────────────────────
+        # Opt-in: synthesize each finished sentence in the background and emit
+        # it as an audio_chunk SSE event so the client can speak while the text
+        # is still streaming. Entirely best-effort — failures never interrupt
+        # the text stream.
+        voice_enabled = bool(getattr(input, 'tts_voice_enabled', False))
+        tts_api_key = self.settings.gemini.api_key
+        tts_model = self.settings.gemini.tts_model
+        tts_voice = input.tts_voice_name or self.settings.gemini.tts_voice_name
+        _sentence_buffer = ''
+        _audio_seq = 0
+        _tts_tasks: Dict[int, asyncio.Task] = {}
+        _audio_ready: Dict[int, Optional[bytes]] = {}
+        _next_emit_seq = 0
+
+        def _make_audio_event(seq_no: int, data: bytes) -> ServerSentEvent:
+            """Build one audio_chunk SSE event from WAV bytes."""
+            payload = StreamAgentOutput(
+                name='agent',
+                type='audio_chunk',
+                id=str(uuid4()),
+                content='',
+                finishReason='',
+                conversation_id=str(conversation_id),
+                audio=base64.b64encode(data).decode('ascii'),
+                seq=seq_no,
+                audio_format='wav',
+            )
+            return ServerSentEvent(data=payload.model_dump_json())
+
+        def _drain_audio_events() -> list:
+            """Harvest *finished* TTS tasks → in-order audio_chunk events.
+
+            Non-blocking: only emits chunks already done, so text streaming is
+            never stalled waiting on synthesis.
+            """
+            nonlocal _next_emit_seq
+            for _seq in list(_tts_tasks.keys()):
+                _task = _tts_tasks[_seq]
+                if _task.done():
+                    try:
+                        _audio_ready[_seq] = _task.result()
+                    except Exception:
+                        _audio_ready[_seq] = None
+                    _tts_tasks.pop(_seq, None)
+            # Emit only a contiguous run starting at the next expected seq so the
+            # client always receives audio in order.
+            events: list = []
+            while _next_emit_seq in _audio_ready:
+                _data = _audio_ready.pop(_next_emit_seq)
+                _cur = _next_emit_seq
+                _next_emit_seq += 1
+                if _data:
+                    events.append(_make_audio_event(_cur, _data))
+            return events
+
         # Get existing message IDs to hilter out history
         current_state = await graph.aget_state(config)
         existing_message_ids = set()
@@ -873,8 +962,69 @@ class StreamAgentService(BaseService):
                     )
                     yield ServerSentEvent(data=payload.model_dump_json())
 
+                    # Inline TTS: queue any newly-completed sentences for
+                    # synthesis, then emit whatever audio is ready (in order).
+                    if voice_enabled:
+                        try:
+                            _sentence_buffer += msg.content
+                            _sentences, _sentence_buffer = split_complete_sentences(
+                                _sentence_buffer,
+                            )
+                            for _sentence in _sentences:
+                                _tts_tasks[_audio_seq] = asyncio.create_task(
+                                    synthesize_sentence_wav(
+                                        _sentence,
+                                        api_key=tts_api_key,
+                                        model=tts_model,
+                                        voice=tts_voice,
+                                    ),
+                                )
+                                _audio_seq += 1
+                            for _audio_event in _drain_audio_events():
+                                yield _audio_event
+                        except Exception as _audio_err:
+                            logger.warning(
+                                f'Inline audio (stream) error: {_audio_err}',
+                            )
+
                     # Update last activity time
                     last_activity = current_time
+
+            # Inline TTS flush: emit each remaining audio chunk THE MOMENT it is
+            # ready, in seq order — stream them out one by one instead of
+            # batch-waiting for the slowest sentence. The client gets audio[0]
+            # as soon as its synthesis finishes and can start playing while the
+            # later sentences are still being synthesized.
+            if voice_enabled:
+                try:
+                    _tail = _sentence_buffer.strip()
+                    if _tail:
+                        _tts_tasks[_audio_seq] = asyncio.create_task(
+                            synthesize_sentence_wav(
+                                _tail,
+                                api_key=tts_api_key,
+                                model=tts_model,
+                                voice=tts_voice,
+                            ),
+                        )
+                        _audio_seq += 1
+                    while _next_emit_seq < _audio_seq:
+                        _cur = _next_emit_seq
+                        _next_emit_seq += 1
+                        if _cur in _audio_ready:
+                            _data = _audio_ready.pop(_cur)
+                        else:
+                            _task = _tts_tasks.pop(_cur, None)
+                            _data = None
+                            if _task is not None:
+                                try:
+                                    _data = await _task
+                                except Exception:
+                                    _data = None
+                        if _data:
+                            yield _make_audio_event(_cur, _data)
+                except Exception as _audio_err:
+                    logger.warning(f'Inline audio (flush) error: {_audio_err}')
 
             # Mark that streaming completed successfully
             stream_completed = True

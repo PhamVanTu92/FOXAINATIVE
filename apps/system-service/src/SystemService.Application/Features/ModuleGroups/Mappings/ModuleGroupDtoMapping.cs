@@ -1,4 +1,5 @@
 using SystemService.Application.Features.ModuleGroups.Dtos;
+using SystemService.Application.Features.PermissionActions.Mappings;
 using SystemService.Domain.Entities;
 
 namespace SystemService.Application.Features.ModuleGroups.Mappings;
@@ -9,7 +10,16 @@ internal static class ModuleGroupDtoMapping
     {
         var modules = g.Modules?
             .OrderBy(m => m.SortOrder).ThenBy(m => m.Name)
-            .Select(m => new ModuleSummaryDto(m.Id, m.Code, m.Name, m.SortOrder, m.IsActive))
+            .Select(m => new ModuleSummaryDto(
+                Id: m.Id,
+                Code: m.Code,
+                Name: m.Name,
+                SortOrder: m.SortOrder,
+                IsActive: m.IsActive,
+                AllowedActions: m.AllowedActions
+                    .OrderBy(ma => ma.Action.SortOrder)
+                    .Select(ma => ma.Action.ToDto())
+                    .ToList()))
             .ToList() ?? new List<ModuleSummaryDto>();
 
         return new ModuleGroupDto(

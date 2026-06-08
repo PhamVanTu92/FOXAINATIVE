@@ -31,10 +31,20 @@ class GeminiEmbeddingProvider(BaseEmbeddingProvider, BaseModel):
         global _client
 
         if _client is None:
-            logger.info('Initializing Gemini Embeddings client')
+            # The Gemini API expects the fully-qualified resource name
+            # (e.g. 'models/gemini-embedding-001'). Without the 'models/'
+            # prefix the BatchEmbedContents call returns HTTP 400
+            # "unexpected model name format", failing every upload at the
+            # embedding step. Normalize here so the .env value can be set
+            # either with or without the prefix.
+            model_name = self.settings.embedding_model
+            if not model_name.startswith(('models/', 'tunedModels/')):
+                model_name = f'models/{model_name}'
+
+            logger.info(f'Initializing Gemini Embeddings client (model: {model_name})')
             _client = GoogleGenerativeAIEmbeddings(
                 google_api_key=self.settings.api_key,
-                model=self.settings.embedding_model,
+                model=model_name,
             )
             logger.info('Gemini Embeddings client initialized')
 

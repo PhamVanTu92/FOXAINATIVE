@@ -7,7 +7,6 @@ Documents must be uploaded first via BatchUploadOnlyService.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
 from typing import List
 from typing import Optional
 from uuid import UUID
@@ -96,8 +95,6 @@ class BatchProcessDocumentInput(BaseModel):
 
     # Shared metadata to apply to all documents
     processing_type: str
-    effective_from: Optional[datetime] = None
-    effective_to: Optional[datetime] = None
     issuing_unit: Optional[str] = None
     access_scope: Optional[str] = None
     version: Optional[str] = None
@@ -164,8 +161,6 @@ class BatchProcessDocumentService(BaseService):
                 document_ids=inputs.document_ids,
                 processing_type=inputs.processing_type,
                 processing_status='pending',  # Commit: draft -> pending
-                effective_from=inputs.effective_from,
-                effective_to=inputs.effective_to,
                 issuing_unit=inputs.issuing_unit,
                 access_scope=inputs.access_scope,
                 version=inputs.version,

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import struct
 import uuid
+from typing import List
 from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
@@ -38,11 +39,22 @@ MAX_TTS_TEXT_LENGTH = 5000
 
 _controller = ChatbotController()
 
-# Voice names the SDK is allowed to request. Anything outside this set falls
-# back to the server default.
-ALLOWED_VOICES = {
-    'Zephyr', 'Puck', 'Charon', 'Kore', 'Fenrir', 'Leda', 'Orus', 'Aoede',
-}
+# Available TTS voices (Gemini prebuilt, multilingual — read Vietnamese fine).
+# ``id`` is what the client sends back as ``voice_id`` when synthesizing.
+VOICES = [
+    {'id': 'Zephyr', 'name': 'Zephyr', 'gender': 'female', 'language': 'multilingual'},
+    {'id': 'Puck',   'name': 'Puck',   'gender': 'male',   'language': 'multilingual'},
+    {'id': 'Charon', 'name': 'Charon', 'gender': 'male',   'language': 'multilingual'},
+    {'id': 'Kore',   'name': 'Kore',   'gender': 'female', 'language': 'multilingual'},
+    {'id': 'Fenrir', 'name': 'Fenrir', 'gender': 'male',   'language': 'multilingual'},
+    {'id': 'Leda',   'name': 'Leda',   'gender': 'female', 'language': 'multilingual'},
+    {'id': 'Orus',   'name': 'Orus',   'gender': 'male',   'language': 'multilingual'},
+    {'id': 'Aoede',  'name': 'Aoede',  'gender': 'female', 'language': 'multilingual'},
+]
+
+# Voice ids the SDK is allowed to request. Anything outside falls back to the
+# server default.
+ALLOWED_VOICES = {v['id'] for v in VOICES}
 
 # Gemini TTS output format.
 TTS_SAMPLE_RATE = 24000
@@ -94,17 +106,40 @@ def reset_tts_client() -> None:
         _tts_client = None
 
 
+class TtsVoiceOut(BaseModel):
+    """A selectable TTS voice (for the client voice picker)."""
+    id: str
+    name: str
+    gender: str
+    language: str
+
+
 class TTSRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=MAX_TTS_TEXT_LENGTH)
+    voice_id: Optional[str] = Field(
+        None,
+        description='Voice id from GET /v1/tts/voices (e.g. "Kore"). '
+                    'The text is read aloud in this voice.',
+    )
     voice_name: Optional[str] = Field(
         None,
-        description='Optional voice override (Zephyr/Puck/Charon/Kore/Fenrir/Leda/Orus/Aoede).',
+        description='Deprecated alias of voice_id.',
     )
     public_id: Optional[uuid.UUID] = Field(
         None,
         description='Optional chatbot public_id. When set, gates TTS on '
                     'chatbot.form == voice/both and uses the chatbot-configured voice.',
     )
+
+
+@router.get(
+    '/voices',
+    response_model=List[TtsVoiceOut],
+    summary='List available TTS voices',
+)
+async def list_voices() -> List[TtsVoiceOut]:
+    """Return the voices the user can pick from in the voice selector."""
+    return [TtsVoiceOut(**voice) for voice in VOICES]
 
 
 @router.post(
@@ -150,9 +185,11 @@ async def synthesize_speech(
                 voice_override = v
 
     # Resolution order: per-request override (whitelisted) > chatbot config > server default.
+    # Caller's picked voice (voice_id preferred; voice_name kept for compat).
+    requested_voice = request_body.voice_id or request_body.voice_name
     voice = (
-        request_body.voice_name
-        if request_body.voice_name in ALLOWED_VOICES
+        requested_voice
+        if requested_voice in ALLOWED_VOICES
         else (voice_override or settings.gemini.tts_voice_name)
     )
     model = settings.gemini.tts_model

@@ -14,6 +14,14 @@ service ModulesService {
   rpc DeleteModule(DeleteModuleRequest) returns (foxai.common.EmptyResponse);
 }
 
+// Action được phép dùng trong một module (dùng cho UI phân quyền).
+message ModuleAllowedActionDto {
+  string id = 1;
+  string code = 2;
+  string name = 3;
+  int32 sort_order = 4;
+}
+
 message ModuleDto {
   string id = 1;
   string group_id = 2;
@@ -26,6 +34,7 @@ message ModuleDto {
   bool is_active = 9;
   string created_at = 10;
   string updated_at = 11;
+  repeated ModuleAllowedActionDto allowed_actions = 12;
 }
 
 message ListModulesRequest {
@@ -43,6 +52,7 @@ message CreateModuleRequest {
   string name = 3;
   optional string description = 4;
   int32 sort_order = 5;
+  repeated string action_ids = 6;
 }
 
 message UpdateModuleRequest {
@@ -52,4 +62,8 @@ message UpdateModuleRequest {
   optional string description = 4;
   optional int32 sort_order = 5;
   optional bool is_active = 6;
+  // Nếu update_actions = true: thay thế toàn bộ danh sách action bằng action_ids (có thể rỗng).
+  // Nếu update_actions = false (mặc định): giữ nguyên danh sách action hiện tại.
+  bool update_actions = 7;
+  repeated string action_ids = 8;
 }

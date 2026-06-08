@@ -26,7 +26,7 @@ class ClaudeSettings(BaseModel):
         'voyage-3-large',
         description="Claude embedding Model to use. Example: 'voyage-3-large'.",
     )
-    max_retries: str = Field(
+    max_retries: int = Field(
         3,
         description='Maximum number of retries for failed requests.',
     )
