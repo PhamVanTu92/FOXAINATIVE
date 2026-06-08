@@ -84,6 +84,80 @@ class QdrantCollectionManager(QdrantClient):
             )
             raise
 
+    async def clone_collection(self, old_name: str, new_name: str) -> bool:
+        """Copy a collection's points into a brand-new collection.
+
+        Qdrant has no native rename, so a rename is done by cloning into
+        ``new_name`` (same config the system always builds) and then dropping
+        ``old_name`` separately — AFTER the caller has committed Postgres — so a
+        mid-way failure never loses the original vectors.
+
+        Args:
+            old_name: Source collection name.
+            new_name: Target collection name (must not already exist).
+
+        Returns:
+            bool: True once ``new_name`` holds every point from ``old_name``.
+
+        Raises:
+            ValueError: If ``new_name`` already exists.
+            RuntimeError: If the point copy ends up short of the source count.
+        """
+        existing = [c.name for c in self.storage_client.get_collections().collections]
+        if new_name in existing:
+            raise ValueError(f"Collection '{new_name}' already exists in Qdrant")
+
+        # Always (re)build the target so future queries/upserts have a home,
+        # even when the source had no vectors yet.
+        await self.create_collection(new_name)
+
+        if old_name not in existing:
+            logger.warning(
+                f"Qdrant collection '{old_name}' not found — created empty '{new_name}'",
+            )
+            return True
+
+        # Stream every point across in batches, preserving id, vector, payload.
+        copied = 0
+        offset = None
+        while True:
+            points, offset = self.storage_client.scroll(
+                collection_name=old_name,
+                limit=256,
+                with_payload=True,
+                with_vectors=True,
+                offset=offset,
+            )
+            if points:
+                self.storage_client.upsert(
+                    collection_name=new_name,
+                    points=[
+                        models.PointStruct(
+                            id=p.id, vector=p.vector, payload=p.payload,
+                        )
+                        for p in points
+                    ],
+                )
+                copied += len(points)
+            if offset is None:
+                break
+
+        src_count = self.storage_client.get_collection(old_name).points_count
+        new_count = self.storage_client.get_collection(new_name).points_count
+        if new_count < src_count:
+            # Copy fell short — drop the half-built target and abort the rename.
+            self.storage_client.delete_collection(collection_name=new_name)
+            raise RuntimeError(
+                f"Point copy incomplete ({new_count}/{src_count}) for "
+                f"'{old_name}' -> '{new_name}' — clone aborted",
+            )
+
+        logger.info(
+            f"Cloned Qdrant collection '{old_name}' -> '{new_name}' "
+            f"({copied} points)",
+        )
+        return True
+
     async def delete_collection(self, collection_name: str) -> bool:
         """
         Deletes a collection.

@@ -7,7 +7,11 @@ namespace SystemService.Infrastructure.Persistence.Repositories;
 public sealed class ModuleGroupRepository(SystemDbContext db) : IModuleGroupRepository
 {
     public Task<ModuleGroup?> FindByIdAsync(Guid id, CancellationToken ct = default) =>
-        db.ModuleGroups.FirstOrDefaultAsync(g => g.Id == id, ct);
+        db.ModuleGroups
+            .Include(g => g.Modules.OrderBy(m => m.SortOrder).ThenBy(m => m.Name))
+                .ThenInclude(m => m.AllowedActions)
+                    .ThenInclude(ma => ma.Action)
+            .FirstOrDefaultAsync(g => g.Id == id, ct);
 
     public Task<ModuleGroup?> FindByCodeAsync(string code, CancellationToken ct = default) =>
         db.ModuleGroups.FirstOrDefaultAsync(g => g.Code == code, ct);
@@ -22,6 +26,8 @@ public sealed class ModuleGroupRepository(SystemDbContext db) : IModuleGroupRepo
 
         return await query
             .Include(g => g.Modules.Where(m => !activeOnly || m.IsActive).OrderBy(m => m.SortOrder).ThenBy(m => m.Name))
+                .ThenInclude(m => m.AllowedActions)
+                    .ThenInclude(ma => ma.Action)
             .OrderBy(g => g.SortOrder)
             .ThenBy(g => g.Name)
             .ToListAsync(ct);

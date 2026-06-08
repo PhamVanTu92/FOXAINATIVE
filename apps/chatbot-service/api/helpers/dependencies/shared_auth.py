@@ -177,6 +177,37 @@ def _has_any_role(user_roles: List[str], allowed: set[str]) -> bool:
     return any(r.lower() in allowed for r in user_roles)
 
 
+# ── Fine-grained permission helpers (matrix-based authz) ──────────────────────
+# system-service issues JWT permissions as ``<MODULE_CODE>.<ACTION_CODE>``
+# (e.g. ``CHATBOT_CONFIG.CREATE`` or ``CHATBOT_<id>.READ``). Each chatbot is
+# mirrored as module ``CHATBOT_<chatbot_uuid_hex>`` (see system_modules.py);
+# the "Thiết lập bot hội thoại" management screen is module ``CHATBOT_CONFIG``.
+
+#: Management module — guards create / list / edit / delete of chatbots.
+CHATBOT_CONFIG_MODULE = 'CHATBOT_CONFIG'
+
+
+def chatbot_module_code(chatbot_id) -> str:
+    """Permission module code for a specific chatbot (matches system_modules)."""
+    raw = (
+        chatbot_id.hex if isinstance(chatbot_id, uuid.UUID)
+        else str(chatbot_id).replace('-', '')
+    )
+    return f'CHATBOT_{raw}'.upper()
+
+
+def is_admin(user: CurrentUser) -> bool:
+    """ADMIN / SUPER_ADMIN bypass all permission checks."""
+    return _has_any_role(user.roles, _ADMIN_ROLES)
+
+
+def has_permission(user: CurrentUser, module_code: str, action: str) -> bool:
+    """True if the user is admin, or holds the ``module.action`` permission."""
+    if is_admin(user):
+        return True
+    return f'{module_code}.{action}' in (user.permissions or [])
+
+
 async def get_admin_user(
     current_user: CurrentUser = Depends(get_current_user),
 ) -> CurrentUser:

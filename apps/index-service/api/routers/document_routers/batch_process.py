@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
 from typing import List
 from typing import Optional
 from uuid import UUID
@@ -13,6 +12,7 @@ from api.helpers.exception_handler import ExceptionHandler
 from api.helpers.response_samples import DocumentResponseSamples
 from app.documents.batch_process import BatchProcessDocumentInput
 from app.documents.batch_process import BatchProcessDocumentService
+from app.documents.create_document import DocumentProcessingType
 from fastapi import APIRouter
 from fastapi import Body
 from fastapi import Depends
@@ -63,8 +63,6 @@ Request Body:
     "doc-uuid-3"
   ],
   "processing_type": "document_structured_llm",
-  "effective_from": "2026-01-01T00:00:00+07:00",
-  "effective_to": "2027-01-01T00:00:00+07:00",
   "issuing_unit": "Human Resources",
   "access_scope": "internal",
   "version": "v1.0"
@@ -74,8 +72,6 @@ Request Body:
 Validation Rules:
 - document_ids: Required, array of UUIDs, must be from same collection, status must be 'pending'
 - processing_type: Required, enum ['excel', 'document_structured_llm']
-- effective_from: Optional, ISO 8601 datetime
-- effective_to: Optional, ISO 8601 datetime, must be after effective_from
 - issuing_unit: Optional, max 200 characters
 - access_scope: Optional, max 100 characters
 - version: Optional, max 50 characters
@@ -104,7 +100,7 @@ Business Rules:
 - Metadata applies to all documents in batch
 
 Common Errors:
-- 400: Invalid document_ids, documents not in pending status, invalid processing_type, effective_to before effective_from
+- 400: Invalid document_ids, documents not in pending status, invalid processing_type
 - 401: Missing or invalid access token
 - 403: User does not own collection or documents
 - 404: Collection or documents not found
@@ -125,12 +121,6 @@ async def batch_process_documents(
     ),
     processing_type: str = Body(
         ..., description="Type of document processing: 'excel' or 'document_structured_llm'",
-    ),
-    effective_from: Optional[datetime] = Body(
-        None, description='Document effective start date (ISO format)',
-    ),
-    effective_to: Optional[datetime] = Body(
-        None, description='Document effective end date (ISO format)',
     ),
     issuing_unit: Optional[str] = Body(
         None, description='Organization or unit that issued the documents',
@@ -207,14 +197,20 @@ async def batch_process_documents(
             },
         )
 
-    # Validate datetime fields
-    if effective_from and effective_to and effective_from >= effective_to:
+    # Validate processing_type against allowed values BEFORE accepting the job.
+    # Without this, an invalid value still returns 202 but every document fails
+    # silently in the background when DocumentCreationInput rejects the enum.
+    allowed_processing_types = {t.value for t in DocumentProcessingType}
+    if processing_type not in allowed_processing_types:
         return exception_handler.handle_bad_request(
-            message='effective_from must be earlier than effective_to',
+            message=(
+                f"Invalid processing_type '{processing_type}'. "
+                f"Allowed values: {sorted(allowed_processing_types)}"
+            ),
             extra={
                 'endpoint': 'batch_process_documents',
-                'effective_from': effective_from.isoformat() if effective_from else None,
-                'effective_to': effective_to.isoformat() if effective_to else None,
+                'collection_id': str(collection_id),
+                'processing_type': processing_type,
             },
         )
 
@@ -228,8 +224,6 @@ async def batch_process_documents(
         service_input = BatchProcessDocumentInput(
             document_ids=document_ids,
             processing_type=processing_type,
-            effective_from=effective_from,
-            effective_to=effective_to,
             issuing_unit=issuing_unit,
             access_scope=access_scope,
             version=version,

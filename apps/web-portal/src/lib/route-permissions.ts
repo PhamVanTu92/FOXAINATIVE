@@ -13,6 +13,7 @@ const ROUTE_RULES: RouteRule[] = [
 
   // Cấu hình hệ thống — exact trước prefix
   { match: (p) => p === '/he-thong/vai-tro',        module: 'ROLE_CONFIG' },
+  { match: (p) => p === '/he-thong/phan-he',        module: 'ROLE_CONFIG' },
   { match: (p) => p === '/he-thong/nguoi-dung',     module: 'USER_CONFIG' },
   { match: (p) => p === '/he-thong/to-chuc',        module: 'ORG_STRUCTURE' },
   { match: (p) => p.startsWith('/he-thong/ocr'),    module: 'OCR_CONFIG' },
@@ -36,6 +37,17 @@ const ROUTE_RULES: RouteRule[] = [
 ];
 
 export function resolveModuleCode(pathname: string): string | null {
+  // Route chat theo từng bot: /chatbot/<uuid> → module CHATBOT_<uuid hex viết hoa>
+  // (khớp chatbot_module_code() ở backend + system_modules.py). Nhờ vậy quyền XEM
+  // per-bot (CHATBOT_<id>.READ) mới mở đúng trang chat của bot đó, thay vì bị rule
+  // catch-all map nhầm sang CHATBOT_ACCOUNTING.
+  const hex = pathname
+    .match(
+      /^\/chatbot\/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})(?:\/|$)/,
+    )
+    ?.[1]?.replace(/-/g, '')
+    .toUpperCase();
+  if (hex) return `CHATBOT_${hex}`;
   for (const rule of ROUTE_RULES) {
     if (rule.match(pathname)) return rule.module;
   }

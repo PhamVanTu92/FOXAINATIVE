@@ -12,6 +12,7 @@ from api.routers.chunk_routers import update_chunk
 from api.routers.collection_routers import create_collection
 from api.routers.collection_routers import delete_collection
 from api.routers.collection_routers import get_collection
+from api.routers.collection_routers import update_collection
 from api.routers.document_routers import batch_process
 from api.routers.document_routers import batch_upload
 from api.routers.document_routers import delete_document
@@ -168,6 +169,12 @@ app.include_router(
 
 app.include_router(
     get_collection.router,
+    prefix='/v1/collections',
+    tags=['collection'],
+)
+
+app.include_router(
+    update_collection.router,
     prefix='/v1/collections',
     tags=['collection'],
 )

@@ -12,10 +12,19 @@ out/
 # Environment
 .env
 .env.local
-.env.uat
 .env.*.local
 !.env.example
-!.env.production.example
+# Extra secret/backup guards (đừng đẩy secret thật lên git)
+.env.bak*
+.env.*.bak*
+*.rar
+*.bak-ok
+*.bak-broken
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
 
 # Logs
 logs/

@@ -23,6 +23,7 @@ public static class DataSeeder
 
         await SeedPermissionActionsAsync(db, ct);
         await SeedModuleGroupsAndModulesAsync(db, ct);
+        await SeedModuleActionsAsync(db, ct);
         await SeedRolesAsync(db, ct);
         await SeedAdminUserAsync(db, hasher, ct);
 
@@ -93,6 +94,39 @@ public static class DataSeeder
                     SortOrder = moduleSeed.SortOrder,
                     IsActive = true,
                 });
+            }
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static async Task SeedModuleActionsAsync(SystemDbContext db, CancellationToken ct)
+    {
+        var allActions = await db.PermissionActions.ToDictionaryAsync(a => a.Code, ct);
+        var allModules = await db.Modules.ToDictionaryAsync(m => m.Code, ct);
+
+        var existing = await db.ModuleActions
+            .Select(ma => new { ma.ModuleId, ma.ActionId })
+            .ToListAsync(ct);
+        var existingSet = existing.Select(ma => (ma.ModuleId, ma.ActionId)).ToHashSet();
+
+        foreach (var groupSeed in ModuleSeedData.Groups)
+        {
+            foreach (var moduleSeed in groupSeed.Modules)
+            {
+                if (!allModules.TryGetValue(moduleSeed.Code, out var module)) continue;
+
+                foreach (var actionCode in moduleSeed.ActionCodes)
+                {
+                    if (!allActions.TryGetValue(actionCode, out var action)) continue;
+                    if (existingSet.Contains((module.Id, action.Id))) continue;
+
+                    db.ModuleActions.Add(new ModuleAction
+                    {
+                        ModuleId = module.Id,
+                        ActionId = action.Id,
+                    });
+                }
             }
         }
 

@@ -228,6 +228,27 @@ class BatchUploadService(BaseService):
                         f"Failed to create document: {doc_result.message}",
                     )
 
+                if doc_result.already_exists:
+                    # A document with this display_name already exists in the
+                    # collection. The just-uploaded MinIO object is now orphaned
+                    # and doc_result.document_id points to the OLD document, so
+                    # treat this file as a failure instead of silently returning
+                    # the existing id (which would later be reprocessed/overwritten).
+                    try:
+                        self.minio_service.delete_object(
+                            bucket_name, object_name,
+                        )
+                        logger.info(
+                            f'Cleaned up duplicate MinIO object: {object_name}',
+                        )
+                    except Exception as cleanup_error:
+                        logger.warning(
+                            f'Failed to cleanup duplicate MinIO: {cleanup_error}',
+                        )
+                    raise ValueError(
+                        f'A document named "{file_stem}" already exists in this collection',
+                    )
+
                 logger.info(
                     f'Created document {doc_result.document_id} for file {file.filename}',
                     extra={

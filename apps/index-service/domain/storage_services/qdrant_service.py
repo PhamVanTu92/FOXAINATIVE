@@ -75,6 +75,10 @@ class QdrantService(BaseModel):
         """Create a new collection."""
         return await self.collection_manager.create_collection(collection_name)
 
+    async def clone_collection(self, old_name: str, new_name: str) -> bool:
+        """Clone all points of ``old_name`` into a new collection ``new_name``."""
+        return await self.collection_manager.clone_collection(old_name, new_name)
+
     async def delete_collection(self, collection_name: str) -> bool:
         """Delete a collection."""
         return await self.collection_manager.delete_collection(collection_name)

@@ -310,16 +310,37 @@ class DocumentBackgroundProcessor:
             )
 
             logger.info(f'Document {document_id}: Uploading chunks to Qdrant')
-            await self.document_creation_service._upload_to_qdrant_by_type(
-                processing_type=processing_type,
-                doc_chunks=doc_chunks,
-                collection_name=collection_name.strip(),
-                effective_from=effective_from.isoformat() if effective_from else None,
-                effective_to=effective_to.isoformat() if effective_to else None,
-                issuing_unit=issuing_unit,
-                access_scope=access_scope,
-                version=version,
-            )
+            try:
+                await self.document_creation_service._upload_to_qdrant_by_type(
+                    processing_type=processing_type,
+                    doc_chunks=doc_chunks,
+                    collection_name=collection_name.strip(),
+                    effective_from=effective_from.isoformat() if effective_from else None,
+                    effective_to=effective_to.isoformat() if effective_to else None,
+                    issuing_unit=issuing_unit,
+                    access_scope=access_scope,
+                    version=version,
+                )
+            except Exception as qdrant_error:
+                # Qdrant push failed AFTER chunks were committed to PostgreSQL.
+                # Roll back those chunks so we don't leave orphans (present in PG
+                # but absent in Qdrant), which would also cause duplicates on retry.
+                logger.error(
+                    f'Document {document_id}: Qdrant upload failed, rolling back '
+                    f'{len(chunk_schemas)} PostgreSQL chunks: {qdrant_error}',
+                )
+                try:
+                    from joint.postgres.models import Chunk as ChunkModel
+                    db_session.query(ChunkModel).filter(
+                        ChunkModel.document_id == document_id,
+                    ).delete(synchronize_session=False)
+                    db_session.commit()
+                except Exception as cleanup_error:
+                    db_session.rollback()
+                    logger.error(
+                        f'Document {document_id}: Failed to roll back chunks: {cleanup_error}',
+                    )
+                raise
 
             logger.info(
                 f'Document {document_id}: Successfully uploaded to Qdrant',

@@ -83,6 +83,25 @@ namespace SystemService.Infrastructure.Persistence.Migrations
                     b.ToTable("modules", (string)null);
                 });
 
+            modelBuilder.Entity("SystemService.Domain.Entities.ModuleAction", b =>
+                {
+                    b.Property<Guid>("ModuleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("module_id");
+
+                    b.Property<Guid>("ActionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("action_id");
+
+                    b.HasKey("ModuleId", "ActionId")
+                        .HasName("pk_module_actions");
+
+                    b.HasIndex("ActionId")
+                        .HasDatabaseName("ix_module_actions_action_id");
+
+                    b.ToTable("module_actions", (string)null);
+                });
+
             modelBuilder.Entity("SystemService.Domain.Entities.ModuleGroup", b =>
                 {
                     b.Property<Guid>("Id")
@@ -559,6 +578,27 @@ namespace SystemService.Infrastructure.Persistence.Migrations
                     b.Navigation("Group");
                 });
 
+            modelBuilder.Entity("SystemService.Domain.Entities.ModuleAction", b =>
+                {
+                    b.HasOne("SystemService.Domain.Entities.PermissionAction", "Action")
+                        .WithMany("ModuleActions")
+                        .HasForeignKey("ActionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_module_actions_permission_actions_action_id");
+
+                    b.HasOne("SystemService.Domain.Entities.Module", "Module")
+                        .WithMany("AllowedActions")
+                        .HasForeignKey("ModuleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_module_actions_modules_module_id");
+
+                    b.Navigation("Action");
+
+                    b.Navigation("Module");
+                });
+
             modelBuilder.Entity("SystemService.Domain.Entities.OrganizationNode", b =>
                 {
                     b.HasOne("SystemService.Domain.Entities.User", "Manager")
@@ -684,6 +724,8 @@ namespace SystemService.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("SystemService.Domain.Entities.Module", b =>
                 {
+                    b.Navigation("AllowedActions");
+
                     b.Navigation("RolePermissions");
 
                     b.Navigation("UserPermissionOverrides");
@@ -703,6 +745,8 @@ namespace SystemService.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("SystemService.Domain.Entities.PermissionAction", b =>
                 {
+                    b.Navigation("ModuleActions");
+
                     b.Navigation("RolePermissions");
 
                     b.Navigation("UserPermissionOverrides");

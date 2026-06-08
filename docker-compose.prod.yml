@@ -254,8 +254,29 @@ services:
       AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
       INDEX_SERVICE_URL: ${INDEX_SERVICE_URL}
       QUERY_SERVICE_URL: ${QUERY_SERVICE_URL}
+      # Public prefix qua gateway → để Swagger trỏ đúng /api/chatbot/openapi.json
+      ROOT_PATH: /api/chatbot
       # Security
       SECURITY__SECRET_KEY: ${JWT_SECRET}
+      # JWT verification (shared_auth.py đọc trực tiếp từ os.environ)
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ISSUER: foxai-system-service
+      JWT_AUDIENCE: foxai-platform
+      # FoxAI LLM (required)
+      FOXAILLM__API_KEY: ${FOXAILLM_API_KEY}
+      FOXAILLM__BASE_URL: ${FOXAILLM_BASE_URL}
+      # LLM providers (empty = disabled)
+      GEMINI__API_KEY: ${GEMINI_LLM_API_KEY:-}
+      GEMINI__EMBEDDING_MODEL: models/gemini-embedding-001
+      CLAUDE__API_KEY: ${CLAUDE_API_KEY:-}
+      # MinIO (required)
+      MINIO__HOST: ${MINIO_HOST}
+      MINIO__USERNAME: ${MINIO_ROOT_USER}
+      MINIO__PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO__PUBLIC_URL_BASE: ${MINIO_PUBLIC_URL_BASE}
+      # Trigger section construction so pydantic thấy các section này tồn tại
+      MEM0__ENABLED: 'true'
+      KEYCLOAK__BASE_URL: ''
     networks:
       - foxai-internal
     extra_hosts:
@@ -393,7 +414,7 @@ services:
       SYSTEM_SERVICE_GRPC_URL: system-service:50051
       KNOWLEDGE_SERVICE_GRPC_URL: knowledge-service:50052
       OCR_SERVICE_URL: http://ocr-api:3003
-      CHATBOT_SERVICE_URL: chatbot-service:8000
+      CHATBOT_SERVICE_URL: http://chatbot-service:8000
       CORS_ORIGIN: ${CORS_ORIGIN:-}
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3001}
       REDIS_HOST: ${REDIS_HOST:-host.docker.internal}

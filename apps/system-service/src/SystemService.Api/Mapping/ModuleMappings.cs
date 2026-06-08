@@ -22,6 +22,15 @@ internal static class ModuleMappings
         };
 
         if (!string.IsNullOrEmpty(dto.Description)) msg.Description = dto.Description;
+
+        msg.AllowedActions.AddRange(dto.AllowedActions.Select(a => new MProto.ModuleAllowedActionDto
+        {
+            Id = a.Id.ToString(),
+            Code = a.Code,
+            Name = a.Name,
+            SortOrder = a.SortOrder,
+        }));
+
         return msg;
     }
 }

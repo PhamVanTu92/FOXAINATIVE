@@ -13,13 +13,22 @@ from typing import List
 from typing import Optional
 
 from api.helpers.dependencies.database import get_db_session
+from api.helpers.dependencies.shared_auth import CHATBOT_CONFIG_MODULE
+from api.helpers.dependencies.shared_auth import chatbot_module_code
 from api.helpers.dependencies.shared_auth import CurrentUser
+from api.helpers.dependencies.shared_auth import get_current_user
 from api.helpers.dependencies.shared_auth import get_manager_user
+from api.helpers.dependencies.shared_auth import has_permission
 from api.helpers.exception_handler import ExceptionHandler
 from fastapi import APIRouter
 from fastapi import Depends
+from fastapi import Header
 from fastapi import HTTPException
+from fastapi import Query
 from fastapi import status
+from joint.utils.system_modules import delete_chatbot_module
+from joint.utils.system_modules import register_chatbot_module
+from joint.utils.system_modules import rename_chatbot_module
 from joint.logging import get_logger
 from joint.postgres.database import Chatbot as ChatbotSchema
 from joint.postgres.database import ChatbotController
@@ -179,17 +188,75 @@ def _ensure_owner(bot: ChatbotSchema, current_user: CurrentUser) -> None:
         )
 
 
+def _ensure_can(
+    bot: ChatbotSchema, current_user: CurrentUser, action: str,
+) -> None:
+    """Allow the bot owner, or anyone with ``CHATBOT_CONFIG.<action>`` (admins
+    bypass via has_permission). ``action`` ∈ {READ, UPDATE, DELETE}.
+
+    Với ``READ`` chấp nhận thêm quyền XEM per-bot ``CHATBOT_<id>.READ``: ai
+    được chat bot thì cũng được đọc cấu hình hiển thị của bot đó (trang chat
+    cần nạp tên/theme/form qua ``GET /v1/chatbots/{id}``). UPDATE/DELETE vẫn chỉ
+    dành cho chủ sở hữu hoặc người quản lý (CHATBOT_CONFIG).
+    """
+    if bot.user_id == current_user.user_id:
+        return
+    if has_permission(current_user, CHATBOT_CONFIG_MODULE, action):
+        return
+    if action == 'READ' and has_permission(
+        current_user, chatbot_module_code(bot.id), 'READ',
+    ):
+        return
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail='Bạn không có quyền thao tác với chatbot này',
+    )
+
+
 # ────────────────────────────────────────────────────────────────────
 # Authenticated CRUD
 # ────────────────────────────────────────────────────────────────────
 
 @router.get('/chatbots', response_model=List[ChatbotOut])
 def list_chatbots(
-    current_user: CurrentUser = Depends(get_manager_user),
+    scope: str = Query(
+        'manage',
+        description=(
+            "'manage' (mặc định): danh sách để quản lý — admin / "
+            "CHATBOT_CONFIG.READ thấy tất cả, còn lại chỉ thấy bot mình sở "
+            "hữu. 'chat': danh sách bot user ĐƯỢC CHAT — bot mình sở hữu, "
+            'hoặc được cấp quyền XEM per-bot (CHATBOT_<id>.READ), hoặc admin. '
+            'Dùng cho menu/sidebar chọn bot để trò chuyện.'
+        ),
+    ),
+    current_user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db_session),
 ):
-    """List all chatbots owned by the current user."""
-    bots = _controller.list_for_user(db, current_user.user_id)
+    """List chatbots.
+
+    Hai ngữ cảnh khác nhau, tách bằng ``scope``:
+
+    * ``manage`` (mặc định) — màn "Thiết lập bot hội thoại": admin và người
+      có ``CHATBOT_CONFIG.READ`` thấy mọi bot; còn lại chỉ thấy bot mình tạo.
+    * ``chat`` — menu chọn bot để trò chuyện: chỉ trả về bot mà user **được
+      chat** = bot mình sở hữu ∪ được cấp ``CHATBOT_<id>.READ`` (quyền XEM)
+      ∪ (admin thấy hết). Khớp đúng với rào chat ở ``/v1/agents/chat/stream``,
+      nên menu không còn hiện bot mà bấm vào sẽ bị 403.
+    """
+    if scope == 'chat':
+        # "Bot tôi được chat": lọc theo quyền XEM per-bot (admin bypass trong
+        # has_permission → thấy hết; owner luôn được).
+        bots = [
+            bot for bot in _controller.list_all(db)
+            if bot.user_id == current_user.user_id
+            or has_permission(
+                current_user, chatbot_module_code(bot.id), 'READ',
+            )
+        ]
+    elif has_permission(current_user, CHATBOT_CONFIG_MODULE, 'READ'):
+        bots = _controller.list_all(db)
+    else:
+        bots = _controller.list_for_user(db, current_user.user_id)
     out: List[ChatbotOut] = []
     for bot in bots:
         rows = _controller.list_collections(db, bot.id)
@@ -201,6 +268,43 @@ def list_chatbots(
     return out
 
 
+class CollectionUsageItem(BaseModel):
+    """One chatbot that uses a knowledge-base collection."""
+    id: str
+    name: str
+
+
+class CollectionUsageOut(BaseModel):
+    """Whether a collection is bound to any chatbot (used by index-service)."""
+    collection_id: str
+    in_use: bool
+    chatbots: List[CollectionUsageItem]
+
+
+@router.get(
+    '/chatbots/by-collection/{collection_id}',
+    response_model=CollectionUsageOut,
+)
+def chatbots_using_collection(
+    collection_id: uuid.UUID,
+    current_user: CurrentUser = Depends(get_manager_user),
+    db: Session = Depends(get_db_session),
+):
+    """List chatbots that currently use a given knowledge-base collection.
+
+    Called by index-service to block deletion of a collection still bound to a
+    chatbot (so the bot doesn't silently lose its knowledge base).
+    """
+    rows = _controller.list_chatbots_by_collection(db, collection_id)
+    return CollectionUsageOut(
+        collection_id=str(collection_id),
+        in_use=bool(rows),
+        chatbots=[
+            CollectionUsageItem(id=str(cid), name=name) for cid, name in rows
+        ],
+    )
+
+
 @router.post(
     '/chatbots',
     response_model=ChatbotOut,
@@ -208,10 +312,16 @@ def list_chatbots(
 )
 def create_chatbot(
     payload: ChatbotMutate,
-    current_user: CurrentUser = Depends(get_manager_user),
+    current_user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db_session),
+    authorization: Optional[str] = Header(None),
 ):
-    """Create a new chatbot for the current user."""
+    """Create a new chatbot. Requires ``CHATBOT_CONFIG.CREATE`` (admins bypass)."""
+    if not has_permission(current_user, CHATBOT_CONFIG_MODULE, 'CREATE'):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='Bạn không có quyền tạo chatbot',
+        )
     schema = ChatbotSchema(
         user_id=current_user.user_id,
         name=payload.name,
@@ -237,6 +347,8 @@ def create_chatbot(
         CollectionBinding(collection_id=cid, collection_name=cname)
         for cid, cname in rows
     ]
+    # Mirror the bot as a permission module so it appears in the role matrix.
+    register_chatbot_module(saved.id, saved.name, authorization)
     return _to_out(saved, bindings)
 
 
@@ -292,11 +404,11 @@ def apply_chatbot(
 @router.get('/chatbots/{chatbot_id}', response_model=ChatbotOut)
 def get_chatbot(
     chatbot_id: uuid.UUID,
-    current_user: CurrentUser = Depends(get_manager_user),
+    current_user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db_session),
 ):
     bot, bindings = _load_with_collections(db, chatbot_id)
-    _ensure_owner(bot, current_user)
+    _ensure_can(bot, current_user, 'READ')
     return _to_out(bot, bindings)
 
 
@@ -304,11 +416,12 @@ def get_chatbot(
 def update_chatbot(
     chatbot_id: uuid.UUID,
     payload: ChatbotMutate,
-    current_user: CurrentUser = Depends(get_manager_user),
+    current_user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db_session),
+    authorization: Optional[str] = Header(None),
 ):
     bot, _ = _load_with_collections(db, chatbot_id)
-    _ensure_owner(bot, current_user)
+    _ensure_can(bot, current_user, 'UPDATE')
 
     updated = ChatbotSchema(
         id=bot.id,
@@ -341,6 +454,8 @@ def update_chatbot(
         CollectionBinding(collection_id=cid, collection_name=cname)
         for cid, cname in rows
     ]
+    # Keep the mirrored permission module's name in sync.
+    rename_chatbot_module(chatbot_id, result.name, authorization)
     return _to_out(result, bindings)
 
 
@@ -350,12 +465,15 @@ def update_chatbot(
 )
 def delete_chatbot(
     chatbot_id: uuid.UUID,
-    current_user: CurrentUser = Depends(get_manager_user),
+    current_user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db_session),
+    authorization: Optional[str] = Header(None),
 ):
     bot, _ = _load_with_collections(db, chatbot_id)
-    _ensure_owner(bot, current_user)
+    _ensure_can(bot, current_user, 'DELETE')
     _controller.delete(db, chatbot_id)
+    # Remove the mirrored permission module.
+    delete_chatbot_module(chatbot_id, authorization)
     return None
 
 

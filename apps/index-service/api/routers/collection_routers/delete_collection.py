@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import os
+from typing import Optional
 from uuid import UUID
 
+import httpx
 from api.helpers.dependencies.database import get_db_session
 from api.helpers.dependencies.shared_auth import CurrentUser
 from api.helpers.dependencies.shared_auth import get_manager_user
@@ -12,6 +15,7 @@ from app.colllections import CollectionDeletionOutput
 from app.colllections import CollectionDeletionService
 from fastapi import APIRouter
 from fastapi import Depends
+from fastapi import Header
 from fastapi import status
 from joint.logging import get_logger
 from joint.settings.defaults import DEFAULT_EMBEDDING_PROVIDER
@@ -23,6 +27,37 @@ logger = get_logger(__name__)
 
 router = APIRouter()
 settings = get_settings()
+
+# chatbot-service holds the chatbot↔collection bindings (different database), so
+# we ask it over HTTP whether a collection is still in use before deleting.
+CHATBOT_SERVICE_URL = os.getenv('CHATBOT_SERVICE_URL', 'http://chatbot-service:8000')
+
+
+async def _chatbots_using_collection(
+    collection_id: UUID, authorization: Optional[str],
+) -> list[str]:
+    """Return the names of chatbots currently bound to ``collection_id``.
+
+    Fails open (returns ``[]``) if the check cannot be completed, so an
+    unrelated chatbot-service outage never blocks a legitimate deletion.
+    """
+    url = f'{CHATBOT_SERVICE_URL}/v1/chatbots/by-collection/{collection_id}'
+    headers = {'Authorization': authorization} if authorization else {}
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.get(url, headers=headers)
+        if resp.status_code == 200:
+            data = resp.json()
+            if data.get('in_use'):
+                return [c.get('name', '') for c in data.get('chatbots', [])]
+            return []
+        logger.warning(
+            f'Collection-usage check returned {resp.status_code} '
+            f'for {collection_id}',
+        )
+    except Exception as e:
+        logger.warning(f'Collection-usage check failed (allowing delete): {e}')
+    return []
 
 
 @router.delete(
@@ -75,6 +110,7 @@ async def delete_collection(
     collection_id: UUID,
     current_user: CurrentUser = Depends(get_manager_user),
     db: Session = Depends(get_db_session),
+    authorization: Optional[str] = Header(None),
 ) -> CollectionDeletionOutput:
     """
     Delete a specific collection from both PostgreSQL and Qdrant by collection ID.
@@ -94,6 +130,25 @@ async def delete_collection(
     )
 
     try:
+        # Guard: refuse to delete a collection still bound to a chatbot, so the
+        # bot doesn't silently lose its knowledge base. The binding lives in
+        # chatbot-service (different DB), hence the cross-service check.
+        bot_names = await _chatbots_using_collection(collection_id, authorization)
+        if bot_names:
+            names = ', '.join(n for n in bot_names if n) or 'một chatbot'
+            return exception_handler.handle_bad_request(
+                message=(
+                    'Không thể xóa: bộ tri thức đang được sử dụng bởi chatbot: '
+                    f'{names}. Hãy gỡ liên kết khỏi các chatbot này trước khi xóa.'
+                ),
+                extra={
+                    'endpoint': 'delete_collection',
+                    'collection_id': str(collection_id),
+                    'user_id': str(current_user.user_id),
+                    'chatbots': bot_names,
+                },
+            )
+
         # Initialize service with default providers (deletion doesn't create new vectors)
         collection_deletion_service = CollectionDeletionService(
             settings=settings,

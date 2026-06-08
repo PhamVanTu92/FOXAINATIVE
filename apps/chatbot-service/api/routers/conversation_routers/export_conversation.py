@@ -6,7 +6,7 @@ from typing import Optional
 
 from api.helpers.dependencies.database import get_db_session
 from api.helpers.dependencies.shared_auth import CurrentUser
-from api.helpers.dependencies.shared_auth import get_manager_user
+from api.helpers.dependencies.shared_auth import get_current_user
 from api.helpers.exception_handler import ExceptionHandler
 from api.helpers.response_samples import ConversationResponseSamples
 from app.conversations import ConversationExportInput
@@ -85,7 +85,9 @@ async def export_conversations(
     end_date: Optional[datetime] = Query(
         None, description='Filter messages until this date (ISO format)',
     ),
-    current_user: CurrentUser = Depends(get_manager_user),
+    # Export chỉ hội thoại của chính user (service lọc theo user_id) → mọi user
+    # đã đăng nhập đều xuất được phần của mình.
+    current_user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db_session),
 ):
     """Export all conversations to Excel file.
