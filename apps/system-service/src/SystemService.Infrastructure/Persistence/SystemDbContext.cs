@@ -9,6 +9,7 @@ public class SystemDbContext(DbContextOptions<SystemDbContext> options) : DbCont
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<ModuleGroup> ModuleGroups => Set<ModuleGroup>();
     public DbSet<Module> Modules => Set<Module>();
+    public DbSet<ModuleAction> ModuleActions => Set<ModuleAction>();
     public DbSet<PermissionAction> PermissionActions => Set<PermissionAction>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();

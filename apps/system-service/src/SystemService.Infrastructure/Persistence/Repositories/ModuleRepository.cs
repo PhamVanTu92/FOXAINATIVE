@@ -7,17 +7,27 @@ namespace SystemService.Infrastructure.Persistence.Repositories;
 public sealed class ModuleRepository(SystemDbContext db) : IModuleRepository
 {
     public Task<Module?> FindByIdAsync(Guid id, CancellationToken ct = default) =>
-        db.Modules.Include(m => m.Group).FirstOrDefaultAsync(m => m.Id == id, ct);
+        db.Modules
+            .Include(m => m.Group)
+            .Include(m => m.AllowedActions).ThenInclude(ma => ma.Action)
+            .FirstOrDefaultAsync(m => m.Id == id, ct);
 
     public Task<Module?> FindByCodeAsync(string code, CancellationToken ct = default) =>
-        db.Modules.Include(m => m.Group).FirstOrDefaultAsync(m => m.Code == code, ct);
+        db.Modules
+            .Include(m => m.Group)
+            .Include(m => m.AllowedActions).ThenInclude(ma => ma.Action)
+            .FirstOrDefaultAsync(m => m.Code == code, ct);
 
     public Task<bool> CodeExistsAsync(string code, CancellationToken ct = default) =>
         db.Modules.AnyAsync(m => m.Code == code, ct);
 
     public async Task<IReadOnlyList<Module>> ListAsync(Guid? groupId, bool activeOnly, CancellationToken ct = default)
     {
-        var query = db.Modules.AsQueryable();
+        var query = db.Modules
+            .Include(m => m.Group)
+            .Include(m => m.AllowedActions).ThenInclude(ma => ma.Action)
+            .AsQueryable();
+
         if (groupId is { } gid) query = query.Where(m => m.GroupId == gid);
         if (activeOnly) query = query.Where(m => m.IsActive);
 
@@ -30,7 +40,10 @@ public sealed class ModuleRepository(SystemDbContext db) : IModuleRepository
     public async Task<IReadOnlyList<Module>> FindByIdsAsync(IEnumerable<Guid> ids, CancellationToken ct = default)
     {
         var idList = ids.Distinct().ToList();
-        return await db.Modules.Where(m => idList.Contains(m.Id)).ToListAsync(ct);
+        return await db.Modules
+            .Include(m => m.AllowedActions).ThenInclude(ma => ma.Action)
+            .Where(m => idList.Contains(m.Id))
+            .ToListAsync(ct);
     }
 
     public Task<bool> HasRolePermissionsAsync(Guid moduleId, CancellationToken ct = default) =>

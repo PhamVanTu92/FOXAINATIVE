@@ -1,3 +1,5 @@
+using SystemService.Application.Features.PermissionActions.Dtos;
+
 namespace SystemService.Application.Features.ModuleGroups.Dtos;
 
 public sealed record ModuleGroupDto(
@@ -16,4 +18,5 @@ public sealed record ModuleSummaryDto(
     string Code,
     string Name,
     int SortOrder,
-    bool IsActive);
+    bool IsActive,
+    IReadOnlyList<PermissionActionDto> AllowedActions);
