@@ -763,21 +763,16 @@ export const chatApi = {
 export function buildEmbedSnippet(bot: ChatbotItem, kind: EmbedKind): string {
   const publicId = bot.publicId || bot.id;
   if (kind === 'WIDGET') {
+    const greeting = bot.widget?.welcomeMessage ?? DEFAULT_WIDGET.welcomeMessage;
     return `<!-- FOXAI Chatbot Widget: ${MODE_LABELS[bot.mode]} -->
-<script>
-  (function(w,d,s,o,f,js,fjs){
-    w['FoxAI-Widget']=o;
-    w[o]=w[o]||function(){(w[o].q=w[o].q||[]).push(arguments)};
-    js=d.createElement(s);fjs=d.getElementsByTagName(s)[0];
-    js.id=o;js.src=f;js.async=1;fjs.parentNode.insertBefore(js,fjs);
-  }(window,document,'script','foxai','${BASE}/dist/sdk.js'));
-  foxai('init', {
-    botId    : '${publicId}',
-    position : 'bottom-right',
-    theme    : 'light',
-    lang     : 'vi',
-    title    : '${bot.name}',
-  });
+<script
+  src="${BASE}/dist/sdk.js"
+  data-chatbot-id="${publicId}"
+  data-api-url="${BASE}"
+  data-bot-name="${bot.name}"
+  data-position="bottom-right"
+  data-greeting="${greeting}"
+  async>
 </script>`;
   }
   if (kind === 'IFRAME') {
