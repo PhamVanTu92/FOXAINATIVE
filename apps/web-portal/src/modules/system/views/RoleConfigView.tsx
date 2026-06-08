@@ -1,21 +1,18 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   Plus, Search, Key, Shield, Edit2, Trash2, AlertCircle,
-  Loader2, CheckSquare, Square, X, Check,
+  Loader2, X, Check, Minus, ChevronRight,
 } from 'lucide-react';
 import { rolesApi } from '@/lib/users-api';
 import type { RoleItem } from '@/lib/users-api';
 import { useRoleConfig } from '../hooks/useRoleConfig';
 import { useRoutePermission } from '@/hooks/usePermission';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-function toKey(moduleId: string, actionId: string) {
-  return `${moduleId}:${actionId}`;
-}
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function toKey(moduleId: string, actionId: string) { return `${moduleId}:${actionId}`; }
 
-// ─── Avatar helpers ────────────────────────────────────────────────────────────
 const ROLE_COLORS = [
   'bg-primary-500', 'bg-violet-500', 'bg-success-600',
   'bg-teal-500', 'bg-orange-500', 'bg-sky-500', 'bg-danger-500', 'bg-warning-600',
@@ -29,80 +26,142 @@ function roleInitials(name: string) {
   return name.split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
 }
 
-// ─── Indeterminate checkbox ────────────────────────────────────────────────────
-function IndeterminateCheckbox({
-  checked, indeterminate, onChange,
-}: { checked: boolean; indeterminate?: boolean; onChange: () => void }) {
-  const ref = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (ref.current) ref.current.indeterminate = indeterminate ?? false;
-  }, [indeterminate]);
+// ─── Custom Permission Checkbox ────────────────────────────────────────────────
+// Shows diff vs original: newly added = green ring, newly removed = red border+dash
+function PermBox({
+  checked, wasChecked, onChange,
+}: {
+  checked: boolean;
+  wasChecked: boolean;
+  onChange: () => void;
+}) {
+  const added   = checked && !wasChecked;
+  const removed = !checked && wasChecked;
+
+  const cls = checked
+    ? added
+      ? 'bg-primary-600 border-primary-600 ring-2 ring-success-400/70 ring-offset-1 shadow-sm'
+      : 'bg-primary-600 border-primary-600 shadow-sm hover:bg-primary-700'
+    : removed
+      ? 'bg-danger-50 border-danger-400 ring-2 ring-danger-300/60 ring-offset-1'
+      : 'bg-surface border-dark-200 hover:border-primary-500 hover:bg-primary-50';
+
   return (
-    <input
-      ref={ref}
-      type="checkbox"
-      checked={checked}
-      onChange={onChange}
-      className="w-4 h-4 rounded accent-primary-600 cursor-pointer"
-    />
+    <button
+      type="button"
+      onClick={onChange}
+      className={`w-5 h-5 rounded flex items-center justify-center transition-all duration-150 border-2 ${cls}`}
+    >
+      {checked
+        ? <Check size={11} strokeWidth={3} className="text-white" />
+        : removed
+          ? <Minus size={11} strokeWidth={3} className="text-danger-400" />
+          : null
+      }
+    </button>
+  );
+}
+
+// Column header checkbox — uses Minus icon for indeterminate state
+function ColBox({
+  checked, indeterminate, onChange,
+}: {
+  checked: boolean;
+  indeterminate?: boolean;
+  onChange: () => void;
+}) {
+  const active = checked || indeterminate;
+  return (
+    <button
+      type="button"
+      onClick={onChange}
+      className={[
+        'w-5 h-5 rounded flex items-center justify-center transition-all border-2',
+        active
+          ? 'bg-white/30 border-white/70 hover:bg-white/40'
+          : 'bg-primary-700/40 border-white/30 hover:border-white/60',
+      ].join(' ')}
+    >
+      {indeterminate && !checked
+        ? <Minus size={11} strokeWidth={3} className="text-white" />
+        : checked
+          ? <Check size={11} strokeWidth={3} className="text-white" />
+          : null
+      }
+    </button>
+  );
+}
+
+// Group-level checkbox — orange/warning tinted to distinguish from global col header
+function GroupColBox({
+  checked, indeterminate, onChange,
+}: {
+  checked: boolean;
+  indeterminate?: boolean;
+  onChange: () => void;
+}) {
+  const active = checked || indeterminate;
+  return (
+    <button
+      type="button"
+      onClick={onChange}
+      title={active ? 'Bỏ chọn cả nhóm này' : 'Chọn cả nhóm này'}
+      className={[
+        'w-4 h-4 rounded flex items-center justify-center transition-all border-2',
+        active
+          ? 'bg-warning-500 border-warning-500 hover:bg-warning-600 shadow-sm'
+          : 'bg-white border-warning-300 hover:border-warning-500 hover:bg-warning-50',
+      ].join(' ')}
+    >
+      {indeterminate && !checked
+        ? <Minus size={9} strokeWidth={3} className="text-white" />
+        : checked
+          ? <Check size={9} strokeWidth={3} className="text-white" />
+          : null
+      }
+    </button>
   );
 }
 
 // ─── Role Form Modal ───────────────────────────────────────────────────────────
-function RoleFormModal({
-  role, onClose, onSaved,
-}: {
-  role?: RoleItem;
-  onClose: () => void;
-  onSaved: (r: RoleItem) => void;
+function RoleFormModal({ role, onClose, onSaved }: {
+  role?: RoleItem; onClose: () => void; onSaved: (r: RoleItem) => void;
 }) {
   const [form, setForm] = useState({
-    code: role?.code ?? '',
-    name: role?.name ?? '',
-    description: role?.description ?? '',
+    code: role?.code ?? '', name: role?.name ?? '', description: role?.description ?? '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    setError('');
+    e.preventDefault(); setSaving(true); setError('');
     try {
       const result = role
         ? await rolesApi.update(role.id, { name: form.name, description: form.description })
         : await rolesApi.create({ code: form.code || undefined, name: form.name, description: form.description || undefined });
       onSaved(result);
-    } catch (err: unknown) {
-      setError((err as Error).message);
-    } finally {
-      setSaving(false);
-    }
+    } catch (err: unknown) { setError((err as Error).message); } finally { setSaving(false); }
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-surface rounded-xl shadow-2xl w-full max-w-md mx-4">
         <div className="flex items-center justify-between px-6 py-4 border-b border-default">
-          <h2 className="font-semibold text-content-primary">
-            {role ? 'Sửa vai trò' : 'Thêm vai trò mới'}
-          </h2>
-          <button onClick={onClose} className="text-content-muted hover:text-content-primary">
-            <X size={18} />
-          </button>
+          <h2 className="font-semibold text-content-primary">{role ? 'Sửa vai trò' : 'Thêm vai trò mới'}</h2>
+          <button onClick={onClose} className="text-content-muted hover:text-content-primary"><X size={18} /></button>
         </div>
         <form onSubmit={submit} className="p-6 space-y-4">
           {!role && (
             <div>
               <label className="block text-sm font-medium text-content-primary mb-1">
                 Mã vai trò
-                <span className="text-content-muted font-normal ml-1">(để trống để tự tạo)</span>
+                <span className="text-content-muted font-normal ml-1 text-xs">(để trống để tự tạo)</span>
               </label>
               <input
                 value={form.code}
                 onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
                 placeholder="VD: KE_TOAN_TRUONG"
-                className="w-full border border-default rounded-lg px-3 py-2 text-sm text-content-primary placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-surface font-mono"
+                className="w-full border border-default rounded-lg px-3 py-2 text-sm font-mono text-content-primary placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-surface"
               />
             </div>
           )}
@@ -134,18 +193,12 @@ function RoleFormModal({
             </div>
           )}
           <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors"
-            >
+            <button type="button" onClick={onClose}
+              className="px-4 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors">
               Hủy
             </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-60"
-            >
+            <button type="submit" disabled={saving}
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-60 transition-colors">
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
               {role ? 'Lưu thay đổi' : 'Tạo vai trò'}
             </button>
@@ -157,26 +210,16 @@ function RoleFormModal({
 }
 
 // ─── Delete Confirm Modal ──────────────────────────────────────────────────────
-function DeleteConfirmModal({
-  role, onClose, onDeleted,
-}: {
-  role: RoleItem;
-  onClose: () => void;
-  onDeleted: () => void;
+function DeleteConfirmModal({ role, onClose, onDeleted }: {
+  role: RoleItem; onClose: () => void; onDeleted: () => void;
 }) {
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
 
   async function confirm() {
-    setDeleting(true);
-    setError('');
-    try {
-      await rolesApi.remove(role.id);
-      onDeleted();
-    } catch (err: unknown) {
-      setError((err as Error).message);
-      setDeleting(false);
-    }
+    setDeleting(true); setError('');
+    try { await rolesApi.remove(role.id); onDeleted(); }
+    catch (err: unknown) { setError((err as Error).message); setDeleting(false); }
   }
 
   return (
@@ -186,38 +229,84 @@ function DeleteConfirmModal({
           <h2 className="font-semibold text-content-primary">Xóa vai trò</h2>
           <button onClick={onClose} className="text-content-muted hover:text-content-primary"><X size={18} /></button>
         </div>
-        <div className="px-6 py-5">
+        <div className="px-6 py-5 space-y-3">
           <p className="text-sm text-content-secondary">
             Bạn có chắc muốn xóa vai trò{' '}
             <strong className="text-content-primary">{role.name}</strong>?
             Hành động này không thể hoàn tác.
           </p>
           {role.isSystem && (
-            <div className="mt-3 flex items-center gap-2 bg-warning-50/10 border border-warning-500/30 text-warning-700 rounded-lg px-3 py-2 text-sm">
-              <AlertCircle size={14} className="shrink-0" />
-              Đây là vai trò hệ thống, không nên xóa.
+            <div className="flex items-center gap-2 bg-warning-50/10 border border-warning-500/30 text-warning-700 rounded-lg px-3 py-2 text-sm">
+              <AlertCircle size={14} className="shrink-0" /> Đây là vai trò hệ thống.
             </div>
           )}
           {error && (
-            <div className="mt-3 flex items-center gap-2 bg-danger-50/10 border border-danger-500/30 text-danger-700 rounded-lg px-3 py-2 text-sm">
+            <div className="flex items-center gap-2 bg-danger-50/10 border border-danger-500/30 text-danger-700 rounded-lg px-3 py-2 text-sm">
               <AlertCircle size={14} className="shrink-0" /> {error}
             </div>
           )}
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-strong">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors"
-          >
+          <button onClick={onClose}
+            className="px-4 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors">
             Hủy
           </button>
-          <button
-            onClick={confirm}
-            disabled={deleting}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm bg-danger-600 text-white rounded-lg hover:bg-danger-700 disabled:opacity-60 transition-colors"
-          >
-            {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-            Xóa vai trò
+          <button onClick={confirm} disabled={deleting}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm bg-danger-600 text-white rounded-lg hover:bg-danger-700 disabled:opacity-60 transition-colors">
+            {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} Xóa vai trò
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Unsaved Changes Warning Modal ────────────────────────────────────────────
+function UnsavedChangesModal({
+  onDiscard, onSaveFirst, onCancel,
+}: {
+  onDiscard: () => void;
+  onSaveFirst: () => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    setSaving(true);
+    try { await onSaveFirst(); }
+    catch { /* error shown in main view */ }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-surface rounded-xl shadow-2xl w-full max-w-sm mx-4">
+        <div className="px-6 py-5">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-warning-100 flex items-center justify-center shrink-0 mt-0.5">
+              <AlertCircle size={18} className="text-warning-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-content-primary">Có thay đổi chưa lưu</h3>
+              <p className="text-sm text-content-secondary mt-1">
+                Nếu chuyển sang vai trò khác, các thay đổi phân quyền hiện tại sẽ bị mất.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 px-6 py-4 border-t border-strong">
+          <button onClick={onCancel}
+            className="px-3 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors">
+            Ở lại
+          </button>
+          <button onClick={onDiscard}
+            className="px-3 py-2 text-sm border border-danger-200 text-danger-600 rounded-lg hover:bg-danger-50 transition-colors">
+            Bỏ thay đổi
+          </button>
+          <button onClick={handleSave} disabled={saving}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-60 transition-colors">
+            {saving ? <Loader2 size={13} className="animate-spin" /> : <Key size={13} />}
+            Lưu rồi chuyển
           </button>
         </div>
       </div>
@@ -228,19 +317,13 @@ function DeleteConfirmModal({
 // ─── Main View ────────────────────────────────────────────────────────────────
 export function RoleConfigView() {
   const {
-    roles, rolesLoading,
-    search, setSearch,
-    selectedRole,
-    moduleGroups, actions, checked, permLoading, saving,
+    roles, rolesLoading, search, setSearch, selectedRole,
+    moduleGroups, allActions, checked, originalChecked, permLoading, saving,
     error, successMsg,
-    showCreate, setShowCreate,
-    editRole, setEditRole,
-    deleteRole, setDeleteRole,
-    handleSelectRole,
-    toggleCell, toggleColumn, columnState,
-    selectAll, deselectAll,
-    savePermissions,
-    isDirty,
+    showCreate, setShowCreate, editRole, setEditRole, deleteRole, setDeleteRole,
+    handleSelectRole, toggleCell, toggleColumn, columnState,
+    toggleGroupColumn, groupColumnState,
+    selectAll, deselectAll, savePermissions, isDirty,
     onRoleCreated, onRoleUpdated, onRoleDeleted,
   } = useRoleConfig();
 
@@ -248,15 +331,67 @@ export function RoleConfigView() {
   const canUpdate = useRoutePermission('UPDATE');
   const canDelete = useRoutePermission('DELETE');
 
+  // Pending role switch (warn if dirty)
+  const [pendingRole, setPendingRole] = useState<RoleItem | null>(null);
+  function onRoleClick(role: RoleItem) {
+    if (isDirty && selectedRole && selectedRole.id !== role.id) {
+      setPendingRole(role);
+    } else {
+      handleSelectRole(role);
+    }
+  }
+
+  // Search within matrix
+  const [matrixSearch, setMatrixSearch] = useState('');
+
+  // Collapsible groups
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  function toggleGroup(groupId: string) {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId); else next.add(groupId);
+      return next;
+    });
+  }
+  function collapseAll() {
+    setCollapsedGroups(new Set(moduleGroups.map(g => g.id)));
+  }
+  function expandAll() {
+    setCollapsedGroups(new Set());
+  }
+  const allCollapsed = moduleGroups.length > 0 && collapsedGroups.size === moduleGroups.length;
+
+  // When search is active, always show rows (ignore collapse state)
+  const isCollapsed = (groupId: string) => !matrixSearch && collapsedGroups.has(groupId);
+  const visibleModules = (groupId: string, modules: typeof moduleGroups[0]['modules']) =>
+    !matrixSearch ? modules : modules.filter(m =>
+      m.name.toLowerCase().includes(matrixSearch.toLowerCase())
+    );
+  const visibleGroups = !matrixSearch
+    ? moduleGroups
+    : moduleGroups.filter(g => g.modules.some(m =>
+        m.name.toLowerCase().includes(matrixSearch.toLowerCase())
+      ));
+
+  // Stats
+  const totalGranted  = checked.size;
+  const addedCount    = [...checked].filter(k => !originalChecked.has(k)).length;
+  const removedCount  = [...originalChecked].filter(k => !checked.has(k)).length;
+  const totalModules  = moduleGroups.reduce((n, g) => n + g.modules.length, 0);
+
   return (
     <div className="flex h-full bg-subtle">
 
-      {/* ── Left Panel ───────────────────────────────────────────────── */}
-      <div className="w-72 shrink-0 flex flex-col border-r border-default bg-surface">
+      {/* ── Left Panel — Role list ──────────────────────────────────── */}
+      <div className="w-[17rem] shrink-0 flex flex-col border-r border-default bg-surface">
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-default">
-          <span className="text-sm font-semibold text-content-primary">Danh sách vai trò</span>
+          <div className="flex items-center gap-2">
+            <Shield size={14} className="text-primary-500" />
+            <span className="text-sm font-semibold text-content-primary">Vai trò</span>
+            <span className="text-xs px-1.5 py-0.5 rounded-full bg-dark-100 text-dark-500 font-medium">{roles.length}</span>
+          </div>
           {canCreate && (
             <button
               onClick={() => setShowCreate(true)}
@@ -275,7 +410,7 @@ export function RoleConfigView() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Tìm vai trò..."
-              className="w-full pl-8 pr-3 py-1.5 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-surface text-content-primary"
+              className="w-full pl-8 pr-3 py-1.5 text-sm border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary"
             />
           </div>
         </div>
@@ -294,29 +429,20 @@ export function RoleConfigView() {
               return (
                 <button
                   key={role.id}
-                  onClick={() => handleSelectRole(role)}
+                  onClick={() => onRoleClick(role)}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors group relative ${
-                    isActive
-                      ? 'bg-primary-50 border-r-2 border-primary-500'
-                      : 'hover:bg-subtle'
+                    isActive ? 'bg-primary-50 border-r-2 border-primary-500' : 'hover:bg-subtle'
                   }`}
                 >
-                  {/* Avatar */}
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold shrink-0 ${roleColor(role.name)}`}>
                     {roleInitials(role.name)}
                   </div>
-
-                  {/* Info */}
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm font-medium truncate ${isActive ? 'text-primary-700' : 'text-content-primary'}`}>
                       {role.name}
                     </p>
-                    <p className="text-xs text-content-muted mt-0.5 font-mono">
-                      {role.userCount !== undefined ? `${role.userCount} người dùng` : role.code}
-                    </p>
+                    <p className="text-xs text-content-muted mt-0.5 font-mono truncate">{role.code}</p>
                   </div>
-
-                  {/* Hover actions */}
                   {(canUpdate || canDelete) && (
                     <div className={`flex items-center gap-0.5 shrink-0 transition-opacity ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                       {canUpdate && (
@@ -346,79 +472,142 @@ export function RoleConfigView() {
         </div>
       </div>
 
-      {/* ── Right Panel ──────────────────────────────────────────────── */}
+      {/* ── Right Panel ────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {!selectedRole ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-content-muted gap-3">
-            <Shield size={52} className="text-content-muted opacity-50" />
-            <p className="text-sm">Chọn một vai trò để xem và chỉnh sửa phân quyền</p>
+          <div className="flex-1 flex flex-col items-center justify-center gap-4">
+            <div className="p-5 rounded-2xl bg-dark-100/60">
+              <Shield size={40} className="text-dark-300" />
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-medium text-content-primary">Chọn vai trò để xem phân quyền</p>
+              <p className="text-xs text-content-muted mt-1">Mỗi vai trò có tập hợp quyền truy cập riêng trên từng phân hệ</p>
+            </div>
           </div>
         ) : (
           <>
-            {/* Role header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-default bg-surface shrink-0">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0 ${roleColor(selectedRole.name)}`}>
-                  <Key size={18} />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-base font-semibold text-content-primary">{selectedRole.name}</h2>
-                    <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-warning-100 text-warning-700 font-mono">
-                      {selectedRole.code}
-                    </span>
-                    {selectedRole.isSystem && (
-                      <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-primary-100 text-primary-700">
-                        Hệ thống
-                      </span>
+            {/* ── Role header ─────────────────────────────────────── */}
+            <div className="bg-surface border-b border-default shrink-0">
+              {/* Top row: info + buttons */}
+              <div className="flex items-center justify-between px-6 py-3.5">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0 ${roleColor(selectedRole.name)}`}>
+                    {roleInitials(selectedRole.name)}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="text-base font-semibold text-content-primary">{selectedRole.name}</h2>
+                      <code className="text-xs px-2 py-0.5 rounded bg-dark-100 text-dark-600 border border-dark-200 font-mono">
+                        {selectedRole.code}
+                      </code>
+                      {selectedRole.isSystem && (
+                        <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-primary-100 text-primary-700">Hệ thống</span>
+                      )}
+                    </div>
+                    {selectedRole.description && (
+                      <p className="text-xs text-content-secondary mt-0.5">{selectedRole.description}</p>
                     )}
                   </div>
-                  {selectedRole.description && (
-                    <p className="text-xs text-content-secondary mt-0.5">{selectedRole.description}</p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  {canUpdate && (
+                    <button
+                      onClick={() => setEditRole(selectedRole)}
+                      className="flex items-center gap-1.5 px-3 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors"
+                    >
+                      <Edit2 size={13} /> Sửa vai trò
+                    </button>
+                  )}
+                  {canUpdate && (
+                    <button
+                      onClick={savePermissions}
+                      disabled={saving || permLoading || !isDirty}
+                      className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                        isDirty
+                          ? 'bg-primary-600 text-white hover:bg-primary-700 shadow-sm'
+                          : 'bg-dark-100 text-dark-400 cursor-not-allowed'
+                      } disabled:opacity-60`}
+                    >
+                      {saving ? <Loader2 size={14} className="animate-spin" /> : <Key size={14} />}
+                      Lưu phân quyền
+                    </button>
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                {canUpdate && (
-                  <button
-                    onClick={() => setEditRole(selectedRole)}
-                    className="flex items-center gap-1.5 px-3 py-2 text-sm border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors"
-                  >
-                    <Edit2 size={14} /> Sửa vai trò
-                  </button>
-                )}
-                {canUpdate && (
-                  <button
-                    onClick={savePermissions}
-                    disabled={saving || permLoading || !isDirty}
-                    className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors"
-                  >
-                    {saving ? <Loader2 size={14} className="animate-spin" /> : <Key size={14} />}
-                    Lưu phân quyền
-                  </button>
-                )}
-              </div>
-            </div>
 
-            {/* Toolbar */}
-            <div className="flex items-center justify-between px-6 py-2.5 bg-surface border-b border-strong shrink-0">
-              <div className="flex items-center gap-1.5 text-xs text-content-secondary">
-                <Shield size={13} className="text-primary-500" />
-                Thiết lập quyền truy cập cho vai trò. Click checkbox để bật/tắt từng quyền.
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={selectAll}
-                  className="flex items-center gap-1 px-3 py-1.5 text-xs border border-default text-content-secondary rounded-lg hover:bg-subtle transition-colors"
-                >
-                  <CheckSquare size={12} /> Chọn tất cả
-                </button>
-                <button
-                  onClick={deselectAll}
-                  className="flex items-center gap-1 px-3 py-1.5 text-xs border border-default text-content-muted rounded-lg hover:bg-subtle transition-colors"
-                >
-                  <Square size={12} /> Bỏ tất cả
-                </button>
+              {/* Bottom row: stats + quick actions */}
+              <div className="flex items-center justify-between px-6 py-2 bg-dark-50/60 border-t border-strong">
+                <div className="flex items-center gap-4 text-xs">
+                  {/* Permission count */}
+                  <span className="flex items-center gap-1.5 text-content-secondary">
+                    <Key size={11} className="text-primary-500" />
+                    <span className="font-semibold text-primary-600">{totalGranted}</span>
+                    <span>quyền / {totalModules} phân hệ</span>
+                  </span>
+
+                  {/* Unsaved diff indicator */}
+                  {isDirty && (
+                    <span className="flex items-center gap-1.5 text-warning-700 font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-warning-500 animate-pulse" />
+                      Chưa lưu:
+                      {addedCount > 0 && (
+                        <span className="flex items-center gap-0.5 text-success-600">
+                          <Plus size={10} strokeWidth={3} />{addedCount}
+                        </span>
+                      )}
+                      {removedCount > 0 && (
+                        <span className="flex items-center gap-0.5 text-danger-600">
+                          <Minus size={10} strokeWidth={3} />{removedCount}
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </div>
+
+                {/* Search within matrix */}
+                <div className="relative">
+                  <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-content-muted" />
+                  <input
+                    value={matrixSearch}
+                    onChange={e => setMatrixSearch(e.target.value)}
+                    placeholder="Tìm phân hệ..."
+                    className="pl-8 pr-3 py-1 text-xs border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface text-content-primary w-36"
+                  />
+                  {matrixSearch && (
+                    <button
+                      onClick={() => setMatrixSearch('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-content-muted hover:text-content-primary"
+                    >
+                      <X size={11} />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  {/* Collapse/expand all groups */}
+                  <button
+                    onClick={allCollapsed ? expandAll : collapseAll}
+                    className="flex items-center gap-1 px-2.5 py-1 text-xs border border-default text-content-secondary rounded-lg hover:bg-surface transition-colors"
+                    title={allCollapsed ? 'Mở tất cả nhóm' : 'Đóng tất cả nhóm'}
+                  >
+                    <ChevronRight size={11} className={`transition-transform ${allCollapsed ? '' : 'rotate-90'}`} />
+                    {allCollapsed ? 'Mở tất cả' : 'Đóng tất cả'}
+                  </button>
+                  <div className="w-px h-4 bg-dark-200" />
+                  <button
+                    onClick={selectAll}
+                    className="flex items-center gap-1 px-2.5 py-1 text-xs border border-default text-content-secondary rounded-lg hover:bg-surface transition-colors"
+                  >
+                    <Check size={11} strokeWidth={3} /> Chọn tất cả
+                  </button>
+                  <button
+                    onClick={deselectAll}
+                    className="flex items-center gap-1 px-2.5 py-1 text-xs border border-default text-content-muted rounded-lg hover:bg-surface transition-colors"
+                  >
+                    <X size={11} /> Bỏ chọn
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -429,35 +618,38 @@ export function RoleConfigView() {
               </div>
             )}
             {successMsg && (
-              <div className="mx-6 mt-3 flex items-center gap-2 bg-primary-50 border border-success-500/30 text-success-700 rounded-lg px-4 py-2 text-sm shrink-0">
+              <div className="mx-6 mt-3 flex items-center gap-2 bg-success-50 border border-success-200 text-success-700 rounded-lg px-4 py-2 text-sm shrink-0">
                 <Check size={14} className="shrink-0" /> {successMsg}
               </div>
             )}
 
-            {/* Permission Matrix */}
+            {/* ── Permission Matrix ────────────────────────────────── */}
             <div className="flex-1 overflow-auto">
               {permLoading ? (
-                <div className="flex items-center justify-center h-48 gap-2 text-content-muted text-sm">
-                  <Loader2 size={18} className="animate-spin" /> Đang tải quyền hạn...
+                <div className="flex flex-col items-center justify-center h-48 gap-3 text-content-muted">
+                  <Loader2 size={24} className="animate-spin text-primary-400" />
+                  <span className="text-sm">Đang tải phân quyền...</span>
                 </div>
               ) : moduleGroups.length === 0 ? (
-                <div className="flex items-center justify-center h-48 text-content-muted text-sm">
-                  Chưa có phân hệ nào được cấu hình.
+                <div className="flex flex-col items-center justify-center h-48 gap-3">
+                  <Shield size={32} className="text-dark-200" />
+                  <span className="text-sm text-content-muted">Chưa có phân hệ nào được cấu hình.</span>
                 </div>
               ) : (
-                <table className="w-full text-sm">
+                <table className="w-full text-sm border-collapse">
+                  {/* Sticky header */}
                   <thead className="sticky top-0 z-10">
-                    <tr className="bg-primary-100 border-b border-primary-200">
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-primary-600 uppercase tracking-wide w-64">
+                    <tr className="bg-gradient-to-r from-primary-600 to-primary-700 shadow">
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-white/90 uppercase tracking-wide w-64 sticky left-0 z-20 bg-primary-600">
                         Phân hệ / Module
                       </th>
-                      {actions.map(action => {
+                      {allActions.map(action => {
                         const { checked: colChecked, indeterminate } = columnState(action.id);
                         return (
-                          <th key={action.id} className="px-4 py-3 text-center text-xs font-semibold text-primary-600 uppercase tracking-wide min-w-[80px]">
-                            <div className="flex flex-col items-center gap-1.5">
+                          <th key={action.id} className="px-3 py-3 text-center text-xs font-semibold text-white/90 uppercase tracking-wider min-w-[82px]">
+                            <div className="flex flex-col items-center gap-2">
                               <span>{action.name}</span>
-                              <IndeterminateCheckbox
+                              <ColBox
                                 checked={colChecked}
                                 indeterminate={indeterminate}
                                 onChange={() => toggleColumn(action.id)}
@@ -468,42 +660,130 @@ export function RoleConfigView() {
                       })}
                     </tr>
                   </thead>
+
                   <tbody>
-                    {moduleGroups.map(group => (
-                      <React.Fragment key={group.id}>
-                        {/* Group header */}
-                        <tr className="bg-warning-50/10 border-b border-warning-500/30">
-                          <td
-                            colSpan={actions.length + 1}
-                            className="px-5 py-2 text-xs font-semibold text-warning-600 uppercase tracking-wide"
-                          >
-                            {group.name}
-                          </td>
-                        </tr>
-                        {/* Module rows */}
-                        {group.modules.map(module => (
-                          <tr
-                            key={module.id}
-                            className="border-b border-strong hover:bg-subtle transition-colors"
-                          >
-                            <td className="px-5 py-2.5 text-sm text-content-secondary">{module.name}</td>
-                            {actions.map(action => {
-                              const isChecked = checked.has(toKey(module.id, action.id));
+                    {visibleGroups.map(group => {
+                      const groupGranted = group.modules.reduce(
+                        (n, m) => n + m.allowedActions.filter(a => checked.has(toKey(m.id, a.id))).length, 0
+                      );
+                      const groupTotal = group.modules.reduce((n, m) => n + m.allowedActions.length, 0);
+
+                      return (
+                        <React.Fragment key={group.id}>
+                          {/* Group header row — name cell + per-action group checkboxes */}
+                          <tr className="border-y border-warning-200/70 bg-gradient-to-r from-warning-50 to-orange-50">
+                            {/* Left: chevron + group name + stats — click to collapse */}
+                            <td
+                              className="px-4 py-2 cursor-pointer select-none sticky left-0 z-[2] bg-gradient-to-r from-warning-50 to-orange-50 shadow-[1px_0_0_0_#fcd34d]"
+                              onClick={() => toggleGroup(group.id)}
+                            >
+                              <div className="flex items-center gap-2">
+                                <ChevronRight
+                                  size={14}
+                                  className={`text-warning-500 transition-transform duration-150 shrink-0 ${
+                                    isCollapsed(group.id) ? '' : 'rotate-90'
+                                  }`}
+                                />
+                                <span className="text-xs font-bold text-warning-700 uppercase tracking-widest">{group.name}</span>
+                                <span className="text-xs text-warning-500/80">({group.modules.length} phân hệ)</span>
+                                {groupTotal > 0 && (
+                                  <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-semibold ${
+                                    groupGranted === groupTotal && groupGranted > 0
+                                      ? 'bg-success-100 text-success-700'
+                                      : groupGranted > 0
+                                        ? 'bg-primary-100 text-primary-700'
+                                        : 'bg-dark-100 text-dark-400'
+                                  }`}>
+                                    {groupGranted} / {groupTotal}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            {/* Per-action group-level checkboxes */}
+                            {allActions.map(action => {
+                              const hasEligible = group.modules.some(m =>
+                                m.allowedActions.some(a => a.id === action.id)
+                              );
+                              const { checked: grpChecked, indeterminate: grpIndet } =
+                                groupColumnState(group.id, action.id);
                               return (
-                                <td key={action.id} className="px-4 py-2.5 text-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={isChecked}
-                                    onChange={() => toggleCell(module.id, action.id)}
-                                    className="w-4 h-4 rounded accent-primary-600 cursor-pointer"
-                                  />
+                                <td key={action.id} className="px-3 py-2 text-center">
+                                  {hasEligible ? (
+                                    <div className="flex justify-center">
+                                      <GroupColBox
+                                        checked={grpChecked}
+                                        indeterminate={grpIndet}
+                                        onChange={() => toggleGroupColumn(group.id, action.id)}
+                                      />
+                                    </div>
+                                  ) : (
+                                    <span className="text-warning-300/60 text-xs select-none">—</span>
+                                  )}
                                 </td>
                               );
                             })}
                           </tr>
-                        ))}
-                      </React.Fragment>
-                    ))}
+
+                          {/* Module rows — hidden when group is collapsed */}
+                          {!isCollapsed(group.id) && visibleModules(group.id, group.modules).map((module, idx) => {
+                            const allowedSet   = new Set(module.allowedActions.map(a => a.id));
+                            const rowGranted   = module.allowedActions.filter(a => checked.has(toKey(module.id, a.id))).length;
+                            const rowTotal     = module.allowedActions.length;
+                            const allGranted   = rowGranted === rowTotal && rowTotal > 0;
+                            const rowBg        = idx % 2 === 1 ? 'bg-dark-50' : 'bg-surface';
+
+                            return (
+                              <tr
+                                key={module.id}
+                                className={`group/row border-b border-strong transition-colors hover:bg-primary-50/30 ${rowBg}`}
+                              >
+                                {/* Module name + row count — sticky first column */}
+                                <td className={`px-5 py-2.5 sticky left-0 z-[1] group-hover/row:bg-primary-50/30 shadow-[1px_0_0_0_#e2e8f0] ${rowBg}`}>
+                                  <div className="flex items-center justify-between gap-2 min-w-0">
+                                    <div className="min-w-0">
+                                      <span className="text-sm text-content-secondary font-medium">{module.name}</span>
+                                    </div>
+                                    {rowTotal > 0 && (
+                                      <span className={`shrink-0 text-xs font-medium tabular-nums ${
+                                        allGranted ? 'text-success-600' : rowGranted > 0 ? 'text-primary-500' : 'text-content-muted'
+                                      }`}>
+                                        {rowGranted}/{rowTotal}
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+
+                                {/* Action cells */}
+                                {allActions.map(action => {
+                                  const isAllowed      = allowedSet.has(action.id);
+                                  const isCellChecked  = checked.has(toKey(module.id, action.id));
+                                  const wasOrigChecked = originalChecked.has(toKey(module.id, action.id));
+
+                                  return (
+                                    <td
+                                      key={action.id}
+                                      className={`px-3 py-2.5 text-center ${!isAllowed ? 'bg-dark-100/50' : ''}`}
+                                    >
+                                      {isAllowed ? (
+                                        <div className="flex justify-center">
+                                          <PermBox
+                                            checked={isCellChecked}
+                                            wasChecked={wasOrigChecked}
+                                            onChange={() => toggleCell(module.id, action.id)}
+                                          />
+                                        </div>
+                                      ) : (
+                                        <span className="text-dark-200/80 text-xs select-none" title="Không áp dụng">—</span>
+                                      )}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            );
+                          })}
+                        </React.Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               )}
@@ -512,25 +792,17 @@ export function RoleConfigView() {
         )}
       </div>
 
-      {/* ── Modals ───────────────────────────────────────────────────── */}
-      {showCreate && (
-        <RoleFormModal
-          onClose={() => setShowCreate(false)}
-          onSaved={onRoleCreated}
-        />
-      )}
-      {editRole && (
-        <RoleFormModal
-          role={editRole}
-          onClose={() => setEditRole(null)}
-          onSaved={onRoleUpdated}
-        />
-      )}
-      {deleteRole && (
-        <DeleteConfirmModal
-          role={deleteRole}
-          onClose={() => setDeleteRole(null)}
-          onDeleted={onRoleDeleted}
+      {/* ── Modals ───────────────────────────────────────────────── */}
+      {showCreate && <RoleFormModal onClose={() => setShowCreate(false)} onSaved={onRoleCreated} />}
+      {editRole   && <RoleFormModal role={editRole} onClose={() => setEditRole(null)} onSaved={onRoleUpdated} />}
+      {deleteRole && <DeleteConfirmModal role={deleteRole} onClose={() => setDeleteRole(null)} onDeleted={onRoleDeleted} />}
+
+      {/* Warn before switching role with unsaved changes */}
+      {pendingRole && (
+        <UnsavedChangesModal
+          onDiscard={() => { handleSelectRole(pendingRole); setPendingRole(null); }}
+          onSaveFirst={async () => { await savePermissions(); handleSelectRole(pendingRole); setPendingRole(null); }}
+          onCancel={() => setPendingRole(null)}
         />
       )}
     </div>

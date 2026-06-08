@@ -13,6 +13,7 @@ const ROUTE_RULES: RouteRule[] = [
 
   // Cấu hình hệ thống — exact trước prefix
   { match: (p) => p === '/he-thong/vai-tro',        module: 'ROLE_CONFIG' },
+  { match: (p) => p === '/he-thong/phan-he',        module: 'ROLE_CONFIG' },
   { match: (p) => p === '/he-thong/nguoi-dung',     module: 'USER_CONFIG' },
   { match: (p) => p === '/he-thong/to-chuc',        module: 'ORG_STRUCTURE' },
   { match: (p) => p.startsWith('/he-thong/ocr'),    module: 'OCR_CONFIG' },
