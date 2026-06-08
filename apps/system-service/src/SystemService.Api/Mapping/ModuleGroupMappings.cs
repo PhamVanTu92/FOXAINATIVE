@@ -22,15 +22,24 @@ internal static class ModuleGroupMappings
 
         foreach (var m in dto.Modules)
         {
-            msg.Modules.Add(new MgProto.ModuleSummaryDto
+            var summary = new MgProto.ModuleSummaryDto
             {
                 Id = m.Id.ToString(),
                 Code = m.Code,
                 Name = m.Name,
                 SortOrder = m.SortOrder,
                 IsActive = m.IsActive,
-            });
+            };
+            summary.AllowedActions.AddRange(m.AllowedActions.Select(a => new MgProto.ModuleAllowedActionDto
+            {
+                Id = a.Id.ToString(),
+                Code = a.Code,
+                Name = a.Name,
+                SortOrder = a.SortOrder,
+            }));
+            msg.Modules.Add(summary);
         }
+
         return msg;
     }
 }
