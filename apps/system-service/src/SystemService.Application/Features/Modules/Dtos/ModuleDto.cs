@@ -1,3 +1,5 @@
+using SystemService.Application.Features.PermissionActions.Dtos;
+
 namespace SystemService.Application.Features.Modules.Dtos;
 
 public sealed record ModuleDto(
@@ -11,4 +13,5 @@ public sealed record ModuleDto(
     int SortOrder,
     bool IsActive,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt,
+    IReadOnlyList<PermissionActionDto> AllowedActions);

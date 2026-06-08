@@ -9,7 +9,8 @@ namespace SystemService.Application.Features.Modules.CreateModule;
 
 public sealed class CreateModuleCommandHandler(
     IModuleRepository modules,
-    IModuleGroupRepository groups) : IRequestHandler<CreateModuleCommand, ModuleDto>
+    IModuleGroupRepository groups,
+    IPermissionActionRepository actions) : IRequestHandler<CreateModuleCommand, ModuleDto>
 {
     public async Task<ModuleDto> Handle(CreateModuleCommand request, CancellationToken cancellationToken)
     {
@@ -18,9 +19,7 @@ public sealed class CreateModuleCommandHandler(
 
         var code = request.Code.Trim().ToUpperInvariant();
         if (await modules.CodeExistsAsync(code, cancellationToken))
-        {
             throw new CodeAlreadyExistsException("Module", code);
-        }
 
         var m = new Module
         {
@@ -33,6 +32,20 @@ public sealed class CreateModuleCommandHandler(
             SortOrder = request.SortOrder,
             IsActive = true,
         };
+
+        if (request.ActionIds is { Count: > 0 })
+        {
+            var actionList = await actions.FindByIdsAsync(request.ActionIds, cancellationToken);
+            var foundIds = actionList.Select(a => a.Id).ToHashSet();
+            var missing = request.ActionIds.FirstOrDefault(id => !foundIds.Contains(id));
+            if (missing != Guid.Empty && !foundIds.Contains(missing))
+                throw new NotFoundException("PermissionAction", missing);
+
+            foreach (var action in actionList)
+            {
+                m.AllowedActions.Add(new ModuleAction { ModuleId = m.Id, ActionId = action.Id, Action = action, Module = m });
+            }
+        }
 
         modules.Add(m);
         return m.ToDto();

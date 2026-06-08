@@ -14,6 +14,7 @@ public class PermissionAction : BaseEntity, IAggregateRoot
     public int SortOrder { get; set; }
     public bool IsActive { get; set; } = true;
 
+    public ICollection<ModuleAction> ModuleActions { get; set; } = new List<ModuleAction>();
     public ICollection<RolePermission> RolePermissions { get; set; } = new List<RolePermission>();
     public ICollection<UserPermissionOverride> UserPermissionOverrides { get; set; } = new List<UserPermissionOverride>();
 }

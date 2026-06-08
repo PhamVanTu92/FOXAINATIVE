@@ -18,6 +18,8 @@
 8. [Thống kê Dashboard](#8-thống-kê-dashboard)
 9. [Nhóm phân hệ (Module Groups)](#9-nhóm-phân-hệ-module-groups)
 10. [Phân hệ (Modules)](#10-phân-hệ-modules)
+11. [Hành động phân quyền (Permission Actions)](#11-hành-động-phân-quyền-permission-actions)
+12. [Hành động được phép của phân hệ (Module Actions)](#12-hành-động-được-phép-của-phân-hệ-module-actions)
 
 > **Xem nhanh endpoint mới:**  
 > `GET /api/knowledge-bases/stats` — [4.1 Thống kê bộ tri thức](#41-thống-kê-bộ-tri-thức) *(cập nhật — thêm `pdfFilesCount`, `filesByKnowledgeBase`)*  
@@ -26,7 +28,10 @@
 > `PATCH /api/knowledge-bases/files/:fileId` — [4.8 Đổi tên / Chuyển bộ tri thức cho tệp](#48-đổi-tên--chuyển-bộ-tri-thức-cho-tệp)  
 > `POST /api/knowledge-files` — [5.8 Tải lên tệp không cần chọn bộ tri thức](#58-tải-lên-tệp-không-cần-chọn-bộ-tri-thức) *(mới — `knowledgeBaseId` tùy chọn)*  
 > `POST /api/module-groups` — [9.2 Tạo nhóm phân hệ](#92-tạo-nhóm-phân-hệ) *(mới)*  
-> `POST /api/modules` — [10.2 Tạo phân hệ](#102-tạo-phân-hệ) *(mới)*
+> `POST /api/modules` — [10.2 Tạo phân hệ](#102-tạo-phân-hệ) *(cập nhật — thêm `actionIds`)*  
+> `PATCH /api/modules/:id` — [10.4 Cập nhật phân hệ](#104-cập-nhật-phân-hệ) *(cập nhật — thêm `updateActions`, `actionIds`)*  
+> `POST /api/permission-actions` — [11.2 Tạo hành động phân quyền](#112-tạo-hành-động-phân-quyền) *(mới)*  
+> `PUT /api/modules/:id/actions` — [12.1 Gán hành động cho phân hệ](#121-gán-hành-động-cho-phân-hệ) *(mới)*
 
 ---
 
@@ -1576,7 +1581,13 @@ GET /api/modules?groupId=550e8400-e29b-41d4-a716-100000000001&activeOnly=true
       "sortOrder": 1,
       "isActive": true,
       "createdAt": "2026-01-01T00:00:00Z",
-      "updatedAt": "2026-01-01T00:00:00Z"
+      "updatedAt": "2026-01-01T00:00:00Z",
+      "allowedActions": [
+        { "id": "uuid-action-read",   "code": "READ",   "name": "Xem",  "sortOrder": 1 },
+        { "id": "uuid-action-create", "code": "CREATE", "name": "Thêm", "sortOrder": 2 },
+        { "id": "uuid-action-update", "code": "UPDATE", "name": "Sửa",  "sortOrder": 3 },
+        { "id": "uuid-action-delete", "code": "DELETE", "name": "Xóa",  "sortOrder": 4 }
+      ]
     }
   ]
 }
@@ -1593,6 +1604,18 @@ GET /api/modules?groupId=550e8400-e29b-41d4-a716-100000000001&activeOnly=true
 | `description` | string \| null | Mô tả |
 | `sortOrder` | number | Thứ tự hiển thị trong nhóm |
 | `isActive` | boolean | Trạng thái kích hoạt |
+| `allowedActions` | array | Danh sách hành động được phép hiển thị cho phân hệ này trong lưới phân quyền (sắp xếp theo `sortOrder`) |
+
+**Cấu trúc `allowedActions[n]`:**
+
+| Field | Kiểu | Mô tả |
+|-------|------|-------|
+| `id` | UUID | ID hành động |
+| `code` | string | Mã hành động (`READ`, `CREATE`, `UPDATE`, `DELETE`, `EXPORT`, ...) |
+| `name` | string | Tên hiển thị (cột trong lưới phân quyền) |
+| `sortOrder` | number | Thứ tự cột |
+
+> **UI phân quyền sử dụng `allowedActions` để:** (1) quyết định cột nào hiển thị cho từng hàng (phân hệ); (2) tránh hiển thị checkbox không có nghĩa — ví dụ phân hệ "Dashboard" chỉ có `READ` + `EXPORT`, không hiện cột `CREATE`/`DELETE`.
 
 ---
 
@@ -1611,7 +1634,13 @@ POST /api/modules
   "code": "TO_CHUC",
   "name": "Cơ cấu tổ chức",
   "description": "Quản lý sơ đồ tổ chức và phòng ban",
-  "sortOrder": 3
+  "sortOrder": 3,
+  "actionIds": [
+    "uuid-action-read",
+    "uuid-action-create",
+    "uuid-action-update",
+    "uuid-action-delete"
+  ]
 }
 ```
 
@@ -1622,6 +1651,7 @@ POST /api/modules
 | `name` | **Có** | Không rỗng, max 200 ký tự |
 | `description` | Không | Max 500 ký tự |
 | `sortOrder` | **Có** | Số nguyên ≥ 0 |
+| `actionIds` | Không | Mảng UUID hành động phân quyền. Bỏ trống hoặc không gửi = phân hệ chưa cấu hình cột action |
 
 **Response 201:**
 ```json
@@ -1636,7 +1666,13 @@ POST /api/modules
   "sortOrder": 3,
   "isActive": true,
   "createdAt": "2026-06-04T08:30:00Z",
-  "updatedAt": "2026-06-04T08:30:00Z"
+  "updatedAt": "2026-06-04T08:30:00Z",
+  "allowedActions": [
+    { "id": "uuid-action-read",   "code": "READ",   "name": "Xem",  "sortOrder": 1 },
+    { "id": "uuid-action-create", "code": "CREATE", "name": "Thêm", "sortOrder": 2 },
+    { "id": "uuid-action-update", "code": "UPDATE", "name": "Sửa",  "sortOrder": 3 },
+    { "id": "uuid-action-delete", "code": "DELETE", "name": "Xóa",  "sortOrder": 4 }
+  ]
 }
 ```
 
@@ -1656,7 +1692,7 @@ POST /api/modules
 GET /api/modules/:id
 ```
 
-**Response 200:** object phân hệ đầy đủ (cấu trúc giống 1 phần tử trong [10.1](#101-danh-sách-phân-hệ)).
+**Response 200:** object phân hệ đầy đủ bao gồm `allowedActions` (cấu trúc giống 1 phần tử trong [10.1](#101-danh-sách-phân-hệ)).
 
 **Lỗi:**
 
@@ -1681,14 +1717,33 @@ PATCH /api/modules/:id
   "name": "Cơ cấu tổ chức (cập nhật)",
   "description": "Mô tả mới",
   "sortOrder": 4,
-  "isActive": false
+  "isActive": false,
+  "updateActions": true,
+  "actionIds": [
+    "uuid-action-read",
+    "uuid-action-create",
+    "uuid-action-update",
+    "uuid-action-delete",
+    "uuid-action-export"
+  ]
 }
 ```
 
-> `code` không thể thay đổi sau khi tạo.  
-> `groupId` cho phép chuyển phân hệ sang nhóm khác.
+| Field | Bắt buộc | Mô tả |
+|-------|----------|-------|
+| `groupId` | Không | Chuyển phân hệ sang nhóm khác |
+| `name` | Không | Tên hiển thị mới |
+| `description` | Không | Mô tả mới (gửi chuỗi rỗng `""` để xóa) |
+| `sortOrder` | Không | Thứ tự hiển thị mới |
+| `isActive` | Không | Kích hoạt / vô hiệu hóa |
+| `updateActions` | Không | `true` = thay thế toàn bộ danh sách action bằng `actionIds`. `false` (mặc định) = giữ nguyên |
+| `actionIds` | Không | Mảng UUID hành động mới. Chỉ có hiệu lực khi `updateActions = true`. Gửi mảng rỗng `[]` = xóa toàn bộ action của phân hệ |
 
-**Response 200:** object phân hệ sau khi cập nhật.
+> - `code` không thể thay đổi sau khi tạo.
+> - Để **thay đổi actions**: gửi `updateActions: true` kèm `actionIds` mới — server sẽ xóa toàn bộ cấu hình cũ và thay bằng danh sách mới.
+> - Để **giữ nguyên actions**: bỏ qua `updateActions` (hoặc `false`) — bất kể `actionIds` có trong body hay không.
+
+**Response 200:** object phân hệ sau khi cập nhật, bao gồm `allowedActions` phản ánh trạng thái mới.
 
 **Lỗi:**
 
@@ -1696,6 +1751,7 @@ PATCH /api/modules/:id
 |----|-------------|
 | 404 | Phân hệ không tồn tại |
 | 404 | `groupId` mới không tồn tại |
+| 404 | Một trong các `actionIds` không tồn tại |
 
 ---
 
@@ -1715,3 +1771,259 @@ DELETE /api/modules/:id
 |----|-------------|
 | 404 | Phân hệ không tồn tại |
 | 422 | Phân hệ đang được dùng trong cấu hình quyền của vai trò hoặc người dùng |
+
+---
+
+## 11. Hành động phân quyền (Permission Actions)
+
+Hành động phân quyền định nghĩa **loại thao tác** mà một vai trò có thể thực hiện trên một Phân hệ — ví dụ `READ`, `CREATE`, `UPDATE`, `DELETE`, `APPROVE`, `EXPORT`. Khi gán quyền cho vai trò, admin chọn từng cặp `(Phân hệ, Hành động)` (xem [3.4 Gán / Thu hồi quyền cho vai trò](#34-gán--thu-hồi-quyền-cho-vai-trò)).
+
+**Quyền yêu cầu:** `ROLE_CONFIG`
+
+---
+
+### 11.1 Danh sách hành động phân quyền
+
+```
+GET /api/permission-actions
+```
+
+**Query params:**
+
+| Param | Kiểu | Mặc định | Mô tả |
+|-------|------|----------|-------|
+| `activeOnly` | boolean | `false` | `true` = chỉ trả hành động đang kích hoạt |
+
+**Ví dụ:**
+```
+GET /api/permission-actions
+GET /api/permission-actions?activeOnly=true
+```
+
+**Response 200:**
+```json
+{
+  "items": [
+    {
+      "id": "550e8400-e29b-41d4-a716-300000000001",
+      "code": "READ",
+      "name": "Xem",
+      "description": "Xem danh sách và chi tiết",
+      "sortOrder": 1,
+      "isActive": true,
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-300000000002",
+      "code": "CREATE",
+      "name": "Tạo mới",
+      "description": "Tạo bản ghi mới",
+      "sortOrder": 2,
+      "isActive": true,
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-01-01T00:00:00Z"
+    }
+  ]
+}
+```
+
+| Field | Kiểu | Mô tả |
+|-------|------|-------|
+| `id` | UUID | ID hành động |
+| `code` | string | Mã định danh duy nhất (`UPPER_SNAKE_CASE`, max 32 ký tự) |
+| `name` | string | Tên hiển thị |
+| `description` | string \| null | Mô tả |
+| `sortOrder` | number | Thứ tự hiển thị trong lưới phân quyền |
+| `isActive` | boolean | Trạng thái kích hoạt |
+
+---
+
+### 11.2 Tạo hành động phân quyền
+
+```
+POST /api/permission-actions
+```
+
+**Quyền:** `ROLE_CONFIG / CREATE`
+
+**Body:**
+```json
+{
+  "code": "EXPORT",
+  "name": "Xuất dữ liệu",
+  "description": "Xuất danh sách ra file Excel / PDF",
+  "sortOrder": 5
+}
+```
+
+| Field | Bắt buộc | Ràng buộc |
+|-------|----------|-----------|
+| `code` | **Có** | `UPPER_SNAKE_CASE`, bắt đầu bằng chữ cái (`^[A-Z][A-Z0-9_]*$`), **max 32 ký tự**, duy nhất toàn hệ thống |
+| `name` | **Có** | Không rỗng, max 100 ký tự |
+| `description` | Không | Max 500 ký tự |
+| `sortOrder` | **Có** | Số nguyên ≥ 0 |
+
+> **Gợi ý mã chuẩn:** `READ` · `CREATE` · `UPDATE` · `DELETE` · `APPROVE` · `UPLOAD` · `EXPORT` · `IMPORT`
+
+**Response 201:**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-300000000005",
+  "code": "EXPORT",
+  "name": "Xuất dữ liệu",
+  "description": "Xuất danh sách ra file Excel / PDF",
+  "sortOrder": 5,
+  "isActive": true,
+  "createdAt": "2026-06-04T09:00:00Z",
+  "updatedAt": "2026-06-04T09:00:00Z"
+}
+```
+
+**Lỗi:**
+
+| Mã | Nguyên nhân |
+|----|-------------|
+| 400 | `code` sai định dạng hoặc vượt 32 ký tự, `name` rỗng, `sortOrder` thiếu |
+| 422 | `code` đã tồn tại trong hệ thống |
+
+---
+
+### 11.3 Chi tiết hành động phân quyền
+
+```
+GET /api/permission-actions/:id
+```
+
+**Response 200:** object hành động đầy đủ (cấu trúc giống 1 phần tử trong [11.1](#111-danh-sách-hành-động-phân-quyền)).
+
+**Lỗi:**
+
+| Mã | Nguyên nhân |
+|----|-------------|
+| 404 | Hành động không tồn tại |
+
+---
+
+### 11.4 Cập nhật hành động phân quyền
+
+```
+PATCH /api/permission-actions/:id
+```
+
+**Quyền:** `ROLE_CONFIG / UPDATE`
+
+**Body (tất cả optional — gửi ít nhất 1 field):**
+```json
+{
+  "name": "Xuất dữ liệu (Excel/PDF)",
+  "description": "Xuất báo cáo ra file",
+  "sortOrder": 6,
+  "isActive": true
+}
+```
+
+> `code` không thể thay đổi sau khi tạo.
+
+**Response 200:** object hành động sau khi cập nhật.
+
+**Lỗi:**
+
+| Mã | Nguyên nhân |
+|----|-------------|
+| 404 | Hành động không tồn tại |
+
+---
+
+### 11.5 Xóa hành động phân quyền
+
+```
+DELETE /api/permission-actions/:id
+```
+
+**Quyền:** `ROLE_CONFIG / DELETE`
+
+**Response:** `204 No Content`
+
+**Lỗi:**
+
+| Mã | Nguyên nhân |
+|----|-------------|
+| 404 | Hành động không tồn tại |
+| 422 | Hành động đang được dùng trong cấu hình quyền của vai trò hoặc người dùng |
+
+---
+
+## 12. Hành động được phép của phân hệ (Module Actions)
+
+Xác định **tập hợp hành động (cột)** hiển thị trong lưới phân quyền cho từng phân hệ (hàng). Ví dụ: phân hệ "Dashboard" chỉ hiển thị cột `XEM` và `XUẤT`; phân hệ "Cấu hình người dùng" hiển thị đầy đủ 5 cột.
+
+Dữ liệu này được trả về tự động qua field `allowedActions` trong mọi response của **[mục 10 Phân hệ](#10-phân-hệ-modules)**. Endpoint riêng dưới đây dùng khi cần thao tác nhanh mà không cần gọi `PATCH /api/modules/:id`.
+
+**Quyền yêu cầu:** `ROLE_CONFIG / UPDATE`
+
+---
+
+### 12.1 Gán hành động cho phân hệ
+
+```
+PUT /api/modules/:id/actions
+```
+
+Thay thế **toàn bộ** danh sách action của phân hệ bằng danh sách mới. Tương đương gọi `PATCH /api/modules/:id` với `updateActions: true`.
+
+**Body:**
+```json
+{
+  "actionIds": [
+    "uuid-action-read",
+    "uuid-action-create",
+    "uuid-action-update",
+    "uuid-action-delete",
+    "uuid-action-export"
+  ]
+}
+```
+
+> Gửi `actionIds: []` để xóa toàn bộ action của phân hệ (phân hệ sẽ không hiển thị cột nào trong lưới phân quyền).
+
+**Response 200:**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-200000000001",
+  "code": "USER_CONFIG",
+  "name": "Cấu hình người dùng",
+  "allowedActions": [
+    { "id": "uuid-action-read",   "code": "READ",   "name": "Xem",  "sortOrder": 1 },
+    { "id": "uuid-action-create", "code": "CREATE", "name": "Thêm", "sortOrder": 2 },
+    { "id": "uuid-action-update", "code": "UPDATE", "name": "Sửa",  "sortOrder": 3 },
+    { "id": "uuid-action-delete", "code": "DELETE", "name": "Xóa",  "sortOrder": 4 },
+    { "id": "uuid-action-export", "code": "EXPORT", "name": "Xuất", "sortOrder": 5 }
+  ]
+}
+```
+
+**Lỗi:**
+
+| Mã | Nguyên nhân |
+|----|-------------|
+| 404 | Phân hệ không tồn tại |
+| 404 | Một trong các `actionIds` không tồn tại |
+
+---
+
+### 12.2 Mặc định action theo loại phân hệ
+
+Khi seed dữ liệu, hệ thống tự động gán action mặc định cho từng phân hệ:
+
+| Phân hệ | Actions mặc định |
+|---------|-----------------|
+| Dashboard, Báo cáo & Thống kê | READ, EXPORT |
+| Thông báo | READ |
+| Cấu hình vai trò, Cơ cấu tổ chức, Cấu hình OCR, Thiết lập bot | READ, CREATE, UPDATE, DELETE |
+| Cấu hình người dùng | READ, CREATE, UPDATE, DELETE, EXPORT |
+| Quản lý tri thức, Kết nối dữ liệu tự động | READ, CREATE, UPDATE, DELETE, EXPORT |
+| Kiểm duyệt & Phê duyệt, OCR & Chuẩn hóa | READ, UPDATE, DELETE |
+| Upload tài liệu, Nhận dạng OCR | READ, CREATE, DELETE |
+| Quản lý Chứng từ | READ, UPDATE, DELETE, EXPORT |
+| Bot Kế toán, Bot CSKH | READ, CREATE, UPDATE, DELETE |

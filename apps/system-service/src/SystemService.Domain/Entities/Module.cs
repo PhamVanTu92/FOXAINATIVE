@@ -16,6 +16,7 @@ public class Module : BaseEntity, IAggregateRoot
     public bool IsActive { get; set; } = true;
 
     public ModuleGroup Group { get; set; } = default!;
+    public ICollection<ModuleAction> AllowedActions { get; set; } = new List<ModuleAction>();
     public ICollection<RolePermission> RolePermissions { get; set; } = new List<RolePermission>();
     public ICollection<UserPermissionOverride> UserPermissionOverrides { get; set; } = new List<UserPermissionOverride>();
 }
