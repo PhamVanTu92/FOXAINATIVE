@@ -167,10 +167,10 @@ public static class DataSeeder
             if (spec.GrantAll)
             {
                 foreach (var module in allModules.Values)
-                foreach (var action in allActions.Values)
-                {
-                    targetPairs.Add((module.Id, action.Id));
-                }
+                    foreach (var action in allActions.Values)
+                    {
+                        targetPairs.Add((module.Id, action.Id));
+                    }
             }
             else
             {

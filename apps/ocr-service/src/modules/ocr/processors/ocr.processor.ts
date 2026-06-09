@@ -3,7 +3,7 @@ import * as path from 'path';
 import { Inject, Logger } from '@nestjs/common';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
-import { DocumentStatus, ocrPrisma } from '@foxai/ocr-db';
+import { DocumentStatus, Prisma, ocrPrisma } from '@foxai/ocr-db';
 import type { OcrJobPayload, OcrFileRef } from '@foxai/shared-types';
 import { QUEUE_NAMES } from '@foxai/shared-types';
 import type { OcrResult, OcrRequest } from '@foxai/shared-types';
@@ -57,11 +57,11 @@ export class OcrProcessor extends WorkerHost {
       const baseRequest: Omit<OcrRequest, 'fileUrl' | 'mimeType'> = {
         documentId, schemaId, language,
         promptTemplate: schema.description ?? null,
-        schemaFields: schema.fields.map(f => ({
+        schemaFields: schema.fields.map((f: { fieldKey: string; label: string; dataType: string; id: string; description?: string | null }) => ({
           fieldKey: f.fieldKey, label: f.label, dataType: f.dataType,
-          description: (f as { description?: string | null }).description ?? null,
+          description: f.description ?? null,
         })),
-        schemaTables: schema.tables.map(t => ({
+        schemaTables: schema.tables.map((t: { tableKey: string; name: string; columns: { columnKey: string; label: string; dataType: string }[] }) => ({
           tableKey: t.tableKey,
           name: t.name,
           columns: t.columns.map(c => ({ columnKey: c.columnKey, label: c.label, dataType: c.dataType })),
@@ -160,10 +160,10 @@ export class OcrProcessor extends WorkerHost {
       const result = mergeOcrResults(results);
       await job.updateProgress(70);
 
-      const fieldKeyToId = new Map(schema.fields.map((f) => [f.fieldKey, f.id]));
+      const fieldKeyToId = new Map<string, string>(schema.fields.map((f: { fieldKey: string; id: string }): [string, string] => [f.fieldKey, f.id]));
       const denorm: Record<string, string | undefined> = {};
 
-      await ocrPrisma.$transaction(async (tx) => {
+      await ocrPrisma.$transaction(async (tx: Prisma.TransactionClient) => {
         await tx.documentValue.deleteMany({ where: { documentId, isManuallyEdited: false } });
         await tx.documentLineItem.deleteMany({ where: { documentId, isManuallyAdded: false } });
 

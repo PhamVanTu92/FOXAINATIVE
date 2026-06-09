@@ -1,6 +1,6 @@
 [project]
 name = "index"
-version = "0.1.0"
+version = "1.0.0"
 description = "Index service for document processing and storage"
 readme = "README.md"
 requires-python = ">=3.12"

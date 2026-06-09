@@ -150,16 +150,20 @@ public sealed class OrganizationTreeTests(PostgresContainerFixture postgres) : I
         var root = await _orgs.CreateNodeAsync(new CreateNodeRequest { Code = rootCode, Name = "ListRoot" });
         var child = await _orgs.CreateNodeAsync(new CreateNodeRequest { Code = $"luc-{Guid.NewGuid():N}", Name = "ListChild", ParentId = root.Id });
 
+        var uid1 = Guid.NewGuid().ToString("N");
+        var uid2 = Guid.NewGuid().ToString("N");
         await _users.CreateUserAsync(new CreateUserRequest
         {
-            Email = $"lu-1-{Guid.NewGuid():N}@foxai.local",
+            Username = $"lu.{uid1}",
+            Email = $"lu-1-{uid1}@foxai.local",
             Password = "Test@12345",
             FullName = "User in root",
             OrganizationId = root.Id,
         });
         await _users.CreateUserAsync(new CreateUserRequest
         {
-            Email = $"lu-2-{Guid.NewGuid():N}@foxai.local",
+            Username = $"lu.{uid2}",
+            Email = $"lu-2-{uid2}@foxai.local",
             Password = "Test@12345",
             FullName = "User in child",
             OrganizationId = child.Id,

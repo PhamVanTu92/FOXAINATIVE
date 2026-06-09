@@ -115,7 +115,7 @@ export class DocumentService {
     if (doc.status !== DocumentStatus.DRAFT && doc.status !== DocumentStatus.PROCESSED)
       throw new ConflictException('Chỉ có thể sửa chứng từ ở trạng thái Nháp hoặc Đã xử lý.');
 
-    await this.prisma.client.$transaction(async (tx) => {
+    await this.prisma.client.$transaction(async (tx: Prisma.TransactionClient) => {
       if (dto.values) {
         for (const v of dto.values) {
           await tx.documentValue.upsert({
@@ -175,12 +175,12 @@ export class DocumentService {
 
   async bulkTransfer(dto: BulkActionDto, transferredBy = 'system') {
     const docs = await this.prisma.client.document.findMany({ where: { id: { in: dto.documentIds } }, select: { id: true, status: true } });
-    const transferable = docs.filter((d) => d.status === DocumentStatus.CONFIRMED).map((d) => d.id);
-    const skipped = docs.filter((d) => d.status !== DocumentStatus.CONFIRMED).map((d) => d.id);
+    const transferable = docs.filter((d: { id: string; status: DocumentStatus }) => d.status === DocumentStatus.CONFIRMED).map((d: { id: string; status: DocumentStatus }) => d.id);
+    const skipped = docs.filter((d: { id: string; status: DocumentStatus }) => d.status !== DocumentStatus.CONFIRMED).map((d: { id: string; status: DocumentStatus }) => d.id);
     if (transferable.length > 0) {
       await this.prisma.client.$transaction([
         this.prisma.client.document.updateMany({ where: { id: { in: transferable } }, data: { status: DocumentStatus.TRANSFERRED, processedAt: new Date(), processedBy: transferredBy } }),
-        this.prisma.client.documentAuditLog.createMany({ data: transferable.map((id) => ({ documentId: id, action: 'STATUS_CHANGE', oldStatus: DocumentStatus.CONFIRMED, newStatus: DocumentStatus.TRANSFERRED, changedBy: transferredBy, note: 'Chuyển vào kho tri thức hàng loạt.' })) }),
+        this.prisma.client.documentAuditLog.createMany({ data: transferable.map((id: string) => ({ documentId: id, action: 'STATUS_CHANGE', oldStatus: DocumentStatus.CONFIRMED, newStatus: DocumentStatus.TRANSFERRED, changedBy: transferredBy, note: 'Chuyển vào kho tri thức hàng loạt.' })) }),
       ]);
     }
     return { transferred: transferable.length, skipped };
@@ -188,12 +188,12 @@ export class DocumentService {
 
   async bulkConfirm(dto: BulkActionDto, confirmedBy = 'system') {
     const docs = await this.prisma.client.document.findMany({ where: { id: { in: dto.documentIds } }, select: { id: true, status: true } });
-    const confirmable = docs.filter((d) => d.status === DocumentStatus.DRAFT || d.status === DocumentStatus.PROCESSED).map((d) => d.id);
-    const skipped = docs.filter((d) => d.status !== DocumentStatus.DRAFT && d.status !== DocumentStatus.PROCESSED).map((d) => d.id);
+    const confirmable = docs.filter((d: { id: string; status: DocumentStatus }) => d.status === DocumentStatus.DRAFT || d.status === DocumentStatus.PROCESSED).map((d: { id: string; status: DocumentStatus }) => d.id);
+    const skipped = docs.filter((d: { id: string; status: DocumentStatus }) => d.status !== DocumentStatus.DRAFT && d.status !== DocumentStatus.PROCESSED).map((d: { id: string; status: DocumentStatus }) => d.id);
     if (confirmable.length > 0) {
       await this.prisma.client.$transaction([
         this.prisma.client.document.updateMany({ where: { id: { in: confirmable } }, data: { status: DocumentStatus.CONFIRMED, confirmedAt: new Date(), confirmedBy } }),
-        this.prisma.client.documentAuditLog.createMany({ data: confirmable.map((id) => ({ documentId: id, action: 'STATUS_CHANGE', newStatus: DocumentStatus.CONFIRMED, changedBy: confirmedBy, note: 'Xác nhận hàng loạt.' })) }),
+        this.prisma.client.documentAuditLog.createMany({ data: confirmable.map((id: string) => ({ documentId: id, action: 'STATUS_CHANGE', newStatus: DocumentStatus.CONFIRMED, changedBy: confirmedBy, note: 'Xác nhận hàng loạt.' })) }),
       ]);
     }
     return { confirmed: confirmable.length, skipped };
@@ -201,8 +201,8 @@ export class DocumentService {
 
   async bulkDelete(dto: BulkActionDto) {
     const docs = await this.prisma.client.document.findMany({ where: { id: { in: dto.documentIds } }, select: { id: true, status: true } });
-    const deletable = docs.filter((d) => d.status === DocumentStatus.DRAFT || d.status === DocumentStatus.ERROR).map((d) => d.id);
-    const skipped = docs.filter((d) => d.status !== DocumentStatus.DRAFT && d.status !== DocumentStatus.ERROR).map((d) => d.id);
+    const deletable = docs.filter((d: { id: string; status: DocumentStatus }) => d.status === DocumentStatus.DRAFT || d.status === DocumentStatus.ERROR).map((d: { id: string; status: DocumentStatus }) => d.id);
+    const skipped = docs.filter((d: { id: string; status: DocumentStatus }) => d.status !== DocumentStatus.DRAFT && d.status !== DocumentStatus.ERROR).map((d: { id: string; status: DocumentStatus }) => d.id);
     if (deletable.length > 0) await this.prisma.client.document.deleteMany({ where: { id: { in: deletable } } });
     return { deleted: deletable.length, skipped };
   }
