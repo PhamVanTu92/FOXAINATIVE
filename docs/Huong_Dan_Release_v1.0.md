@@ -336,24 +336,33 @@ Tất cả service phải ở trạng thái **`running`** (không phải `exited
 
 ### 7.2 Health check các service
 
+> **Lưu ý:** Trong production, chỉ `api-gateway` (3001) và `web-portal` (8082) được expose ra host.
+> Các service nội bộ (`system-service`, `knowledge-service`, `ocr-api`) chỉ nằm trong mạng `foxai-internal` —
+> không thể `curl` trực tiếp từ host. Dùng `docker inspect` hoặc `docker exec` thay thế.
+
 ```bash
-# API Gateway
+# Xem trạng thái tất cả services (nhanh nhất)
+docker ps --filter "name=foxai" --format "table {{.Names}}\t{{.Status}}"
+
+# Kiểm tra health status các service có healthcheck
+docker inspect foxai-system-service --format='{{.State.Health.Status}}'
+docker inspect foxai-knowledge-service --format='{{.State.Health.Status}}'
+docker inspect foxai-ocr-api --format='{{.State.Health.Status}}'
+
+# Gọi health endpoint từ bên trong container (cần response body)
+docker exec foxai-system-service wget -qO- http://127.0.0.1:3002/health
+docker exec foxai-knowledge-service wget -qO- http://127.0.0.1:3005/health
+docker exec foxai-ocr-api wget -qO- http://127.0.0.1:3003/health
+
+# Qdrant — image không có wget/curl, dùng logs hoặc container tạm
+docker inspect foxai-qdrant --format='{{.State.Status}}'
+docker logs foxai-qdrant --tail 10
+
+# API Gateway — có thể curl trực tiếp từ host
 curl http://localhost:3001/health
-
-# System Service
-curl http://localhost:3002/health
-
-# Knowledge Service
-curl http://localhost:3005/health
-
-# OCR Service
-curl http://localhost:3003/health
 ```
 
-Kết quả mong đợi:
-```json
-{"status": "ok"}
-```
+Kết quả mong đợi: tất cả service ở trạng thái **`healthy`**.
 
 ### 7.3 Kiểm tra Web Portal
 
@@ -375,8 +384,18 @@ Mở browser: `http://your-domain.com:9001`
 
 ### 7.6 Kiểm tra Qdrant
 
+> **Lưu ý:** Qdrant không expose port ra host trong production — chỉ nằm trong mạng `foxai-internal`.
+
 ```bash
-curl http://localhost:6333/collections
+# Kiểm tra trạng thái container
+docker inspect foxai-qdrant --format='{{.State.Status}}'
+
+# Xem log khởi động (Qdrant image không có wget/curl)
+docker logs foxai-qdrant --tail 20
+
+# Gọi API qua container tạm trên cùng network
+docker run --rm --network foxainative_foxai-internal curlimages/curl \
+  curl -s http://qdrant:6333/collections
 ```
 
 ---
