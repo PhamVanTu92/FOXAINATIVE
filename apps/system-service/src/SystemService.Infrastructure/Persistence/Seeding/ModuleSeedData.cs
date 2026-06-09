@@ -6,12 +6,12 @@ namespace SystemService.Infrastructure.Persistence.Seeding;
 /// </summary>
 internal static class ModuleSeedData
 {
-    private static readonly string[] ReadExport        = [PermissionActionSeedData.Read, PermissionActionSeedData.Export];
-    private static readonly string[] ReadOnly          = [PermissionActionSeedData.Read];
-    private static readonly string[] ReadCrud          = [PermissionActionSeedData.Read, PermissionActionSeedData.Create, PermissionActionSeedData.Update, PermissionActionSeedData.Delete];
-    private static readonly string[] ReadCrudExport    = [PermissionActionSeedData.Read, PermissionActionSeedData.Create, PermissionActionSeedData.Update, PermissionActionSeedData.Delete, PermissionActionSeedData.Export];
-    private static readonly string[] ReadUpdateDelete  = [PermissionActionSeedData.Read, PermissionActionSeedData.Update, PermissionActionSeedData.Delete];
-    private static readonly string[] ReadCreateDelete  = [PermissionActionSeedData.Read, PermissionActionSeedData.Create, PermissionActionSeedData.Delete];
+    private static readonly string[] ReadExport = [PermissionActionSeedData.Read, PermissionActionSeedData.Export];
+    private static readonly string[] ReadOnly = [PermissionActionSeedData.Read];
+    private static readonly string[] ReadCrud = [PermissionActionSeedData.Read, PermissionActionSeedData.Create, PermissionActionSeedData.Update, PermissionActionSeedData.Delete];
+    private static readonly string[] ReadCrudExport = [PermissionActionSeedData.Read, PermissionActionSeedData.Create, PermissionActionSeedData.Update, PermissionActionSeedData.Delete, PermissionActionSeedData.Export];
+    private static readonly string[] ReadUpdateDelete = [PermissionActionSeedData.Read, PermissionActionSeedData.Update, PermissionActionSeedData.Delete];
+    private static readonly string[] ReadCreateDelete = [PermissionActionSeedData.Read, PermissionActionSeedData.Create, PermissionActionSeedData.Delete];
 
     public static readonly GroupSeed[] Groups =
     {

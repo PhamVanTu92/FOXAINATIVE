@@ -10,10 +10,10 @@ internal static class RoleDtoMapping
         var grants = role.RolePermissions?
             .Where(rp => rp.Module is not null && rp.Action is not null)
             .Select(rp => new RoleGrantDto(
-                ModuleId:   rp.ModuleId,
+                ModuleId: rp.ModuleId,
                 ModuleCode: rp.Module.Code,
                 ModuleName: rp.Module.Name,
-                ActionId:   rp.ActionId,
+                ActionId: rp.ActionId,
                 ActionCode: rp.Action.Code,
                 ActionName: rp.Action.Name))
             .OrderBy(g => g.ModuleCode).ThenBy(g => g.ActionCode)

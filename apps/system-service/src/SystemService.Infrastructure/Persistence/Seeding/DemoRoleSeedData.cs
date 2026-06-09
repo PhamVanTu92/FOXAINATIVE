@@ -5,11 +5,11 @@ namespace SystemService.Infrastructure.Persistence.Seeding;
 /// </summary>
 internal static class DemoRoleSeedData
 {
-    public const string KeToanTruong   = "KE_TOAN_TRUONG";
+    public const string KeToanTruong = "KE_TOAN_TRUONG";
     public const string NhanVienKeToan = "NHAN_VIEN_KE_TOAN";
-    public const string TruongPhong    = "TRUONG_PHONG";
-    public const string NhanVienOcr    = "NHAN_VIEN_OCR";
-    public const string NhanVien       = "NHAN_VIEN";
+    public const string TruongPhong = "TRUONG_PHONG";
+    public const string NhanVienOcr = "NHAN_VIEN_OCR";
+    public const string NhanVien = "NHAN_VIEN";
 
     public static readonly RoleSeedData.RoleSeed[] All =
     {
@@ -27,57 +27,57 @@ internal static class DemoRoleSeedData
     {
         [KeToanTruong] = new Dictionary<string, string[]>
         {
-            ["DASHBOARD"]          = new[] { "READ" },
-            ["REPORTS"]            = new[] { "READ", "EXPORT" },
-            ["NOTIFICATIONS"]      = new[] { "READ" },
-            ["USER_CONFIG"]        = new[] { "READ" },
-            ["KNOWLEDGE_MGMT"]     = new[] { "READ" },
-            ["KNOWLEDGE_REVIEW"]   = new[] { "READ", "UPDATE" },
-            ["OCR_RECOGNIZE"]      = new[] { "READ", "CREATE", "UPDATE" },
-            ["DOC_MGMT"]           = new[] { "READ", "CREATE", "UPDATE", "EXPORT" },
+            ["DASHBOARD"] = new[] { "READ" },
+            ["REPORTS"] = new[] { "READ", "EXPORT" },
+            ["NOTIFICATIONS"] = new[] { "READ" },
+            ["USER_CONFIG"] = new[] { "READ" },
+            ["KNOWLEDGE_MGMT"] = new[] { "READ" },
+            ["KNOWLEDGE_REVIEW"] = new[] { "READ", "UPDATE" },
+            ["OCR_RECOGNIZE"] = new[] { "READ", "CREATE", "UPDATE" },
+            ["DOC_MGMT"] = new[] { "READ", "CREATE", "UPDATE", "EXPORT" },
             ["CHATBOT_ACCOUNTING"] = new[] { "READ" },
         },
 
         [NhanVienKeToan] = new Dictionary<string, string[]>
         {
-            ["DASHBOARD"]          = new[] { "READ" },
-            ["NOTIFICATIONS"]      = new[] { "READ" },
-            ["OCR_RECOGNIZE"]      = new[] { "READ", "CREATE" },
-            ["DOC_MGMT"]           = new[] { "READ", "UPDATE" },
+            ["DASHBOARD"] = new[] { "READ" },
+            ["NOTIFICATIONS"] = new[] { "READ" },
+            ["OCR_RECOGNIZE"] = new[] { "READ", "CREATE" },
+            ["DOC_MGMT"] = new[] { "READ", "UPDATE" },
             ["CHATBOT_ACCOUNTING"] = new[] { "READ" },
         },
 
         [TruongPhong] = new Dictionary<string, string[]>
         {
-            ["DASHBOARD"]          = new[] { "READ" },
-            ["REPORTS"]            = new[] { "READ", "EXPORT" },
-            ["NOTIFICATIONS"]      = new[] { "READ" },
-            ["USER_CONFIG"]        = new[] { "READ" },
-            ["KNOWLEDGE_MGMT"]     = new[] { "READ", "CREATE", "UPDATE" },
-            ["KNOWLEDGE_REVIEW"]   = new[] { "READ", "UPDATE" },
-            ["KNOWLEDGE_UPLOAD"]   = new[] { "READ", "CREATE" },
-            ["OCR_RECOGNIZE"]      = new[] { "READ", "CREATE" },
-            ["DOC_MGMT"]           = new[] { "READ", "CREATE", "UPDATE", "EXPORT" },
+            ["DASHBOARD"] = new[] { "READ" },
+            ["REPORTS"] = new[] { "READ", "EXPORT" },
+            ["NOTIFICATIONS"] = new[] { "READ" },
+            ["USER_CONFIG"] = new[] { "READ" },
+            ["KNOWLEDGE_MGMT"] = new[] { "READ", "CREATE", "UPDATE" },
+            ["KNOWLEDGE_REVIEW"] = new[] { "READ", "UPDATE" },
+            ["KNOWLEDGE_UPLOAD"] = new[] { "READ", "CREATE" },
+            ["OCR_RECOGNIZE"] = new[] { "READ", "CREATE" },
+            ["DOC_MGMT"] = new[] { "READ", "CREATE", "UPDATE", "EXPORT" },
             ["CHATBOT_ACCOUNTING"] = new[] { "READ" },
-            ["CHATBOT_CSKH"]       = new[] { "READ" },
+            ["CHATBOT_CSKH"] = new[] { "READ" },
         },
 
         [NhanVienOcr] = new Dictionary<string, string[]>
         {
-            ["DASHBOARD"]      = new[] { "READ" },
-            ["NOTIFICATIONS"]  = new[] { "READ" },
-            ["OCR_RECOGNIZE"]  = new[] { "READ", "CREATE", "UPDATE" },
-            ["OCR_NORMALIZE"]  = new[] { "READ" },
-            ["DOC_MGMT"]       = new[] { "READ", "UPDATE" },
+            ["DASHBOARD"] = new[] { "READ" },
+            ["NOTIFICATIONS"] = new[] { "READ" },
+            ["OCR_RECOGNIZE"] = new[] { "READ", "CREATE", "UPDATE" },
+            ["OCR_NORMALIZE"] = new[] { "READ" },
+            ["DOC_MGMT"] = new[] { "READ", "UPDATE" },
         },
 
         [NhanVien] = new Dictionary<string, string[]>
         {
-            ["DASHBOARD"]          = new[] { "READ" },
-            ["NOTIFICATIONS"]      = new[] { "READ" },
-            ["DOC_MGMT"]           = new[] { "READ" },
+            ["DASHBOARD"] = new[] { "READ" },
+            ["NOTIFICATIONS"] = new[] { "READ" },
+            ["DOC_MGMT"] = new[] { "READ" },
             ["CHATBOT_ACCOUNTING"] = new[] { "READ" },
-            ["CHATBOT_CSKH"]       = new[] { "READ" },
+            ["CHATBOT_CSKH"] = new[] { "READ" },
         },
     };
 }

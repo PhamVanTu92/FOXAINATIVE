@@ -12,19 +12,19 @@ internal static class DemoOrgSeedData
     public const string RootCode = "FOXAI";
 
     // ── Level 1 — Departments ─────────────────────────────────────────────────
-    public const string BanGiamDoc     = "BAN_GIAM_DOC";
-    public const string PhongKeToan    = "PHONG_KE_TOAN";
-    public const string PhongOcr       = "PHONG_OCR";
+    public const string BanGiamDoc = "BAN_GIAM_DOC";
+    public const string PhongKeToan = "PHONG_KE_TOAN";
+    public const string PhongOcr = "PHONG_OCR";
     public const string PhongKinhDoanh = "PHONG_KINH_DOANH";
-    public const string PhongCongNghe  = "PHONG_CONG_NGHE";
+    public const string PhongCongNghe = "PHONG_CONG_NGHE";
 
     // ── Level 2 — Teams ───────────────────────────────────────────────────────
     // Ban Giám đốc
     public const string VpGiamDoc = "VP_GIAM_DOC";
-    public const string BoPháp    = "BO_PHAP_CHE";
+    public const string BoPháp = "BO_PHAP_CHE";
 
     // Phòng Kế toán
-    public const string ToKeToanTh  = "TO_KE_TOAN_TH";
+    public const string ToKeToanTh = "TO_KE_TOAN_TH";
     public const string ToThanhToan = "TO_THANH_TOAN";
 
     // Phòng OCR
@@ -33,11 +33,11 @@ internal static class DemoOrgSeedData
 
     // Phòng Kinh doanh
     public const string ToKinhDoanh = "TO_KINH_DOANH";
-    public const string ToCskh      = "TO_CSKH";
+    public const string ToCskh = "TO_CSKH";
 
     // Phòng Công nghệ
     public const string ToPhatTrien = "TO_PHAT_TRIEN";
-    public const string ToHaTang    = "TO_HA_TANG";
+    public const string ToHaTang = "TO_HA_TANG";
 
     // ── Data ──────────────────────────────────────────────────────────────────
     public static readonly OrgSeed Root = new(

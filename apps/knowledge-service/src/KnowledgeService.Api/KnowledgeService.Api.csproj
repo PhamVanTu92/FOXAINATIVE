@@ -5,6 +5,9 @@
     <AssemblyName>KnowledgeService.Api</AssemblyName>
     <UserSecretsId>foxai-knowledge-service-d4e5f6a7-b8c9</UserSecretsId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+
+    <Version>1.0.0</Version>
+  <AssemblyVersion>1.0.0.0</AssemblyVersion>
   </PropertyGroup>
 
   <ItemGroup>

@@ -27,7 +27,7 @@ export class LocalPdfOcrProvider implements IOcrProvider {
 }
 
 async function extractTextFromPdf(buffer: Buffer): Promise<string> {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
   const pdfjs = require('pdfjs-dist/legacy/build/pdf.js') as typeof import('pdfjs-dist/legacy/build/pdf');
   const doc = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
   let text = '';
