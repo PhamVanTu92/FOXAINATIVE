@@ -26,11 +26,13 @@ function roleInitials(name: string) {
   return name.split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
 }
 
-// ─── Custom Permission Checkbox ────────────────────────────────────────────────
-// Shows diff vs original: newly added = green ring, newly removed = red border+dash
-function PermBox({
-  checked, wasChecked, onChange,
+// ─── Action chip ───────────────────────────────────────────────────────────────
+// One togglable permission (module × action). Shows diff vs original:
+// newly added = green ring, newly removed = red dashed outline.
+function ActionChip({
+  name, checked, wasChecked, onChange,
 }: {
+  name: string;
   checked: boolean;
   wasChecked: boolean;
   onChange: () => void;
@@ -40,30 +42,31 @@ function PermBox({
 
   const cls = checked
     ? added
-      ? 'bg-primary-600 border-primary-600 ring-2 ring-success-400/70 ring-offset-1 shadow-sm'
-      : 'bg-primary-600 border-primary-600 shadow-sm hover:bg-primary-700'
+      ? 'bg-primary-600 border-primary-600 text-white ring-2 ring-success-400/70 ring-offset-1 shadow-sm'
+      : 'bg-primary-600 border-primary-600 text-white shadow-sm hover:bg-primary-700'
     : removed
-      ? 'bg-danger-50 border-danger-400 ring-2 ring-danger-300/60 ring-offset-1'
-      : 'bg-surface border-dark-200 hover:border-primary-500 hover:bg-primary-50';
+      ? 'bg-danger-50 border-danger-300 text-danger-600 border-dashed ring-1 ring-danger-200'
+      : 'bg-surface border-dark-200 text-content-secondary hover:border-primary-400 hover:bg-primary-50';
 
   return (
     <button
       type="button"
       onClick={onChange}
-      className={`w-5 h-5 rounded flex items-center justify-center transition-all duration-150 border-2 ${cls}`}
+      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-medium transition-all duration-150 ${cls}`}
     >
       {checked
-        ? <Check size={11} strokeWidth={3} className="text-white" />
+        ? <Check size={11} strokeWidth={3} />
         : removed
-          ? <Minus size={11} strokeWidth={3} className="text-danger-400" />
+          ? <Minus size={11} strokeWidth={3} />
           : null
       }
+      {name}
     </button>
   );
 }
 
-// Column header checkbox — uses Minus icon for indeterminate state
-function ColBox({
+// Module-level tri-state checkbox (primary tint) — selects all actions of a module
+function CardCheckbox({
   checked, indeterminate, onChange,
 }: {
   checked: boolean;
@@ -75,11 +78,12 @@ function ColBox({
     <button
       type="button"
       onClick={onChange}
+      title={active ? 'Bỏ chọn toàn bộ quyền của phân hệ này' : 'Chọn toàn bộ quyền của phân hệ này'}
       className={[
-        'w-5 h-5 rounded flex items-center justify-center transition-all border-2',
+        'mt-0.5 w-5 h-5 rounded flex items-center justify-center transition-all border-2 shrink-0',
         active
-          ? 'bg-white/30 border-white/70 hover:bg-white/40'
-          : 'bg-primary-700/40 border-white/30 hover:border-white/60',
+          ? 'bg-primary-600 border-primary-600 hover:bg-primary-700 shadow-sm'
+          : 'bg-surface border-dark-200 hover:border-primary-500 hover:bg-primary-50',
       ].join(' ')}
     >
       {indeterminate && !checked
@@ -318,11 +322,12 @@ function UnsavedChangesModal({
 export function RoleConfigView() {
   const {
     roles, rolesLoading, search, setSearch, selectedRole,
-    moduleGroups, allActions, checked, originalChecked, permLoading, saving,
+    moduleGroups, checked, originalChecked, permLoading, saving,
     error, successMsg,
     showCreate, setShowCreate, editRole, setEditRole, deleteRole, setDeleteRole,
-    handleSelectRole, toggleCell, toggleColumn, columnState,
-    toggleGroupColumn, groupColumnState,
+    handleSelectRole, toggleCell,
+    toggleModuleAll, moduleState,
+    toggleGroupAll, groupState,
     selectAll, deselectAll, savePermissions, isDirty,
     onRoleCreated, onRoleUpdated, onRoleDeleted,
   } = useRoleConfig();
@@ -635,157 +640,109 @@ export function RoleConfigView() {
                   <Shield size={32} className="text-dark-200" />
                   <span className="text-sm text-content-muted">Chưa có phân hệ nào được cấu hình.</span>
                 </div>
+              ) : visibleGroups.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-48 gap-3">
+                  <Search size={28} className="text-dark-200" />
+                  <span className="text-sm text-content-muted">Không tìm thấy phân hệ phù hợp.</span>
+                </div>
               ) : (
-                <table className="w-full text-sm border-collapse">
-                  {/* Sticky header */}
-                  <thead className="sticky top-0 z-10">
-                    <tr className="bg-gradient-to-r from-primary-600 to-primary-700 shadow">
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-white/90 uppercase tracking-wide w-64 sticky left-0 z-20 bg-primary-600">
-                        Phân hệ / Module
-                      </th>
-                      {allActions.map(action => {
-                        const { checked: colChecked, indeterminate } = columnState(action.id);
-                        return (
-                          <th key={action.id} className="px-3 py-3 text-center text-xs font-semibold text-white/90 uppercase tracking-wider min-w-[82px]">
-                            <div className="flex flex-col items-center gap-2">
-                              <span>{action.name}</span>
-                              <ColBox
-                                checked={colChecked}
-                                indeterminate={indeterminate}
-                                onChange={() => toggleColumn(action.id)}
-                              />
-                            </div>
-                          </th>
-                        );
-                      })}
-                    </tr>
-                  </thead>
+                <div className="px-6 py-5 space-y-4">
+                  {visibleGroups.map(group => {
+                    const gs        = groupState(group);
+                    const collapsed = isCollapsed(group.id);
+                    const modules   = visibleModules(group.id, group.modules);
 
-                  <tbody>
-                    {visibleGroups.map(group => {
-                      const groupGranted = group.modules.reduce(
-                        (n, m) => n + m.allowedActions.filter(a => checked.has(toKey(m.id, a.id))).length, 0
-                      );
-                      const groupTotal = group.modules.reduce((n, m) => n + m.allowedActions.length, 0);
+                    return (
+                      <section key={group.id} className="rounded-xl border border-default bg-surface overflow-hidden shadow-sm">
+                        {/* Group header — select-all + name + count + collapse */}
+                        <div className="flex items-center gap-3 px-4 py-2.5 bg-gradient-to-r from-warning-50 to-orange-50 border-b border-warning-200/70">
+                          <GroupColBox
+                            checked={gs.checked}
+                            indeterminate={gs.indeterminate}
+                            onChange={() => toggleGroupAll(group)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => toggleGroup(group.id)}
+                            className="flex items-center gap-2 flex-1 min-w-0 text-left select-none"
+                          >
+                            <ChevronRight
+                              size={14}
+                              className={`text-warning-500 transition-transform duration-150 shrink-0 ${collapsed ? '' : 'rotate-90'}`}
+                            />
+                            <span className="text-xs font-bold text-warning-700 uppercase tracking-widest truncate">{group.name}</span>
+                            <span className="text-xs text-warning-500/80 shrink-0">({group.modules.length} phân hệ)</span>
+                          </button>
+                          {gs.total > 0 && (
+                            <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-semibold ${
+                              gs.checked
+                                ? 'bg-success-100 text-success-700'
+                                : gs.granted > 0
+                                  ? 'bg-primary-100 text-primary-700'
+                                  : 'bg-dark-100 text-dark-400'
+                            }`}>
+                              {gs.granted} / {gs.total}
+                            </span>
+                          )}
+                        </div>
 
-                      return (
-                        <React.Fragment key={group.id}>
-                          {/* Group header row — name cell + per-action group checkboxes */}
-                          <tr className="border-y border-warning-200/70 bg-gradient-to-r from-warning-50 to-orange-50">
-                            {/* Left: chevron + group name + stats — click to collapse */}
-                            <td
-                              className="px-4 py-2 cursor-pointer select-none sticky left-0 z-[2] bg-gradient-to-r from-warning-50 to-orange-50 shadow-[1px_0_0_0_#fcd34d]"
-                              onClick={() => toggleGroup(group.id)}
-                            >
-                              <div className="flex items-center gap-2">
-                                <ChevronRight
-                                  size={14}
-                                  className={`text-warning-500 transition-transform duration-150 shrink-0 ${
-                                    isCollapsed(group.id) ? '' : 'rotate-90'
-                                  }`}
-                                />
-                                <span className="text-xs font-bold text-warning-700 uppercase tracking-widest">{group.name}</span>
-                                <span className="text-xs text-warning-500/80">({group.modules.length} phân hệ)</span>
-                                {groupTotal > 0 && (
-                                  <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-semibold ${
-                                    groupGranted === groupTotal && groupGranted > 0
-                                      ? 'bg-success-100 text-success-700'
-                                      : groupGranted > 0
-                                        ? 'bg-primary-100 text-primary-700'
-                                        : 'bg-dark-100 text-dark-400'
-                                  }`}>
-                                    {groupGranted} / {groupTotal}
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                            {/* Per-action group-level checkboxes */}
-                            {allActions.map(action => {
-                              const hasEligible = group.modules.some(m =>
-                                m.allowedActions.some(a => a.id === action.id)
-                              );
-                              const { checked: grpChecked, indeterminate: grpIndet } =
-                                groupColumnState(group.id, action.id);
+                        {/* Module cards — hidden when collapsed */}
+                        {!collapsed && (
+                          <div className="p-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                            {modules.map(module => {
+                              const ms = moduleState(module);
                               return (
-                                <td key={action.id} className="px-3 py-2 text-center">
-                                  {hasEligible ? (
-                                    <div className="flex justify-center">
-                                      <GroupColBox
-                                        checked={grpChecked}
-                                        indeterminate={grpIndet}
-                                        onChange={() => toggleGroupColumn(group.id, action.id)}
-                                      />
+                                <div
+                                  key={module.id}
+                                  className={`rounded-lg border p-3 transition-colors ${
+                                    ms.checked
+                                      ? 'border-primary-200 bg-primary-50/40'
+                                      : ms.indeterminate
+                                        ? 'border-primary-100 bg-primary-50/20'
+                                        : 'border-dark-200 bg-surface hover:border-primary-200'
+                                  }`}
+                                >
+                                  {/* Card header: select-all + name + code + count */}
+                                  <div className="flex items-start gap-2.5 mb-2.5">
+                                    <CardCheckbox
+                                      checked={ms.checked}
+                                      indeterminate={ms.indeterminate}
+                                      onChange={() => toggleModuleAll(module)}
+                                    />
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-sm font-medium text-content-primary leading-snug">{module.name}</p>
+                                      <p className="text-xs text-content-muted font-mono truncate mt-0.5">{module.code}</p>
                                     </div>
-                                  ) : (
-                                    <span className="text-warning-300/60 text-xs select-none">—</span>
-                                  )}
-                                </td>
-                              );
-                            })}
-                          </tr>
-
-                          {/* Module rows — hidden when group is collapsed */}
-                          {!isCollapsed(group.id) && visibleModules(group.id, group.modules).map((module, idx) => {
-                            const allowedSet   = new Set(module.allowedActions.map(a => a.id));
-                            const rowGranted   = module.allowedActions.filter(a => checked.has(toKey(module.id, a.id))).length;
-                            const rowTotal     = module.allowedActions.length;
-                            const allGranted   = rowGranted === rowTotal && rowTotal > 0;
-                            const rowBg        = idx % 2 === 1 ? 'bg-dark-50' : 'bg-surface';
-
-                            return (
-                              <tr
-                                key={module.id}
-                                className={`group/row border-b border-strong transition-colors hover:bg-primary-50/30 ${rowBg}`}
-                              >
-                                {/* Module name + row count — sticky first column */}
-                                <td className={`px-5 py-2.5 sticky left-0 z-[1] group-hover/row:bg-primary-50/30 shadow-[1px_0_0_0_#e2e8f0] ${rowBg}`}>
-                                  <div className="flex items-center justify-between gap-2 min-w-0">
-                                    <div className="min-w-0">
-                                      <span className="text-sm text-content-secondary font-medium">{module.name}</span>
-                                    </div>
-                                    {rowTotal > 0 && (
+                                    {ms.total > 0 && (
                                       <span className={`shrink-0 text-xs font-medium tabular-nums ${
-                                        allGranted ? 'text-success-600' : rowGranted > 0 ? 'text-primary-500' : 'text-content-muted'
+                                        ms.checked ? 'text-success-600' : ms.granted > 0 ? 'text-primary-500' : 'text-content-muted'
                                       }`}>
-                                        {rowGranted}/{rowTotal}
+                                        {ms.granted}/{ms.total}
                                       </span>
                                     )}
                                   </div>
-                                </td>
 
-                                {/* Action cells */}
-                                {allActions.map(action => {
-                                  const isAllowed      = allowedSet.has(action.id);
-                                  const isCellChecked  = checked.has(toKey(module.id, action.id));
-                                  const wasOrigChecked = originalChecked.has(toKey(module.id, action.id));
-
-                                  return (
-                                    <td
-                                      key={action.id}
-                                      className={`px-3 py-2.5 text-center ${!isAllowed ? 'bg-dark-100/50' : ''}`}
-                                    >
-                                      {isAllowed ? (
-                                        <div className="flex justify-center">
-                                          <PermBox
-                                            checked={isCellChecked}
-                                            wasChecked={wasOrigChecked}
-                                            onChange={() => toggleCell(module.id, action.id)}
-                                          />
-                                        </div>
-                                      ) : (
-                                        <span className="text-dark-200/80 text-xs select-none" title="Không áp dụng">—</span>
-                                      )}
-                                    </td>
-                                  );
-                                })}
-                              </tr>
-                            );
-                          })}
-                        </React.Fragment>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                                  {/* Action chips — only the actions this module supports */}
+                                  <div className="flex flex-wrap gap-1.5 pl-[1.625rem]">
+                                    {module.allowedActions.map(action => (
+                                      <ActionChip
+                                        key={action.id}
+                                        name={action.name}
+                                        checked={checked.has(toKey(module.id, action.id))}
+                                        wasChecked={originalChecked.has(toKey(module.id, action.id))}
+                                        onChange={() => toggleCell(module.id, action.id)}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </section>
+                    );
+                  })}
+                </div>
               )}
             </div>
           </>

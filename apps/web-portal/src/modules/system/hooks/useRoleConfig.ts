@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { rolesApi, moduleGroupsApi, modulesApi } from '@/lib/users-api';
-import type { RoleItem, ModuleGroup, Module, PermissionAction, PermissionPair } from '@/lib/users-api';
+import type { RoleItem, Module, PermissionPair } from '@/lib/users-api';
 
 type PermKey = string;
 
@@ -33,8 +33,6 @@ export function useRoleConfig() {
 
   // ── Permission matrix ─────────────────────────────────────────────────────
   const [moduleGroups, setModuleGroups] = useState<ModuleGroupView[]>([]);
-  // Union of all allowedActions across all modules — used as column headers
-  const [allActions, setAllActions] = useState<PermissionAction[]>([]);
   const [checked, setChecked] = useState<Set<PermKey>>(new Set());
   const [originalChecked, setOriginalChecked] = useState<Set<PermKey>>(new Set());
   const [permLoading, setPermLoading] = useState(false);
@@ -91,22 +89,6 @@ export function useRoleConfig() {
         .sort((a, b) => a.sortOrder - b.sortOrder);
 
       setModuleGroups(enriched);
-
-      // Compute union of all allowedActions across all modules (sorted by sortOrder, deduplicated)
-      const seen = new Set<string>();
-      const union: PermissionAction[] = [];
-      for (const g of enriched) {
-        for (const m of g.modules) {
-          for (const a of m.allowedActions) {
-            if (!seen.has(a.id)) {
-              seen.add(a.id);
-              union.push(a);
-            }
-          }
-        }
-      }
-      union.sort((a, b) => a.sortOrder - b.sortOrder);
-      setAllActions(union);
     }).catch(() => {});
   }, [loadRoles]);
 
@@ -141,64 +123,52 @@ export function useRoleConfig() {
     });
   }
 
-  // Only toggle modules that actually support this action
-  function toggleColumn(actionId: string) {
-    const eligibleIds = moduleGroups
-      .flatMap(g => g.modules)
-      .filter(m => m.allowedActions.some(a => a.id === actionId))
-      .map(m => m.id);
-    const allChecked = eligibleIds.every(mId => checked.has(toKey(mId, actionId)));
+  // Toggle ALL allowedActions of a single module on/off
+  function toggleModuleAll(module: Module) {
+    const keys = module.allowedActions.map(a => toKey(module.id, a.id));
+    const allChecked = keys.length > 0 && keys.every(k => checked.has(k));
     setChecked(prev => {
       const next = new Set(prev);
-      if (allChecked) {
-        eligibleIds.forEach(mId => next.delete(toKey(mId, actionId)));
-      } else {
-        eligibleIds.forEach(mId => next.add(toKey(mId, actionId)));
-      }
+      if (allChecked) keys.forEach(k => next.delete(k));
+      else keys.forEach(k => next.add(k));
       return next;
     });
   }
 
-  // Count only modules that support this action
-  function columnState(actionId: string) {
-    const eligibleIds = moduleGroups
-      .flatMap(g => g.modules)
-      .filter(m => m.allowedActions.some(a => a.id === actionId))
-      .map(m => m.id);
-    if (eligibleIds.length === 0) return { checked: false, indeterminate: false };
-    const count = eligibleIds.filter(mId => checked.has(toKey(mId, actionId))).length;
-    return { checked: count === eligibleIds.length, indeterminate: count > 0 && count < eligibleIds.length };
+  // Granted/total + checked/indeterminate state for one module
+  function moduleState(module: Module) {
+    const total = module.allowedActions.length;
+    const granted = module.allowedActions.filter(a => checked.has(toKey(module.id, a.id))).length;
+    return {
+      granted,
+      total,
+      checked: total > 0 && granted === total,
+      indeterminate: granted > 0 && granted < total,
+    };
   }
 
-  // Toggle all eligible modules in ONE group for ONE action
-  function toggleGroupColumn(groupId: string, actionId: string) {
-    const group = moduleGroups.find(g => g.id === groupId);
-    if (!group) return;
-    const eligibleIds = group.modules
-      .filter(m => m.allowedActions.some(a => a.id === actionId))
-      .map(m => m.id);
-    const allChecked = eligibleIds.every(mId => checked.has(toKey(mId, actionId)));
+  // Toggle EVERY (module, action) permission within a group on/off
+  function toggleGroupAll(group: ModuleGroupView) {
+    const keys = group.modules.flatMap(m => m.allowedActions.map(a => toKey(m.id, a.id)));
+    const allChecked = keys.length > 0 && keys.every(k => checked.has(k));
     setChecked(prev => {
       const next = new Set(prev);
-      if (allChecked) {
-        eligibleIds.forEach(mId => next.delete(toKey(mId, actionId)));
-      } else {
-        eligibleIds.forEach(mId => next.add(toKey(mId, actionId)));
-      }
+      if (allChecked) keys.forEach(k => next.delete(k));
+      else keys.forEach(k => next.add(k));
       return next;
     });
   }
 
-  // Checked/indeterminate state for a group × action cell
-  function groupColumnState(groupId: string, actionId: string) {
-    const group = moduleGroups.find(g => g.id === groupId);
-    if (!group) return { checked: false, indeterminate: false };
-    const eligibleIds = group.modules
-      .filter(m => m.allowedActions.some(a => a.id === actionId))
-      .map(m => m.id);
-    if (eligibleIds.length === 0) return { checked: false, indeterminate: false };
-    const count = eligibleIds.filter(mId => checked.has(toKey(mId, actionId))).length;
-    return { checked: count === eligibleIds.length, indeterminate: count > 0 && count < eligibleIds.length };
+  // Granted/total + checked/indeterminate state for one group
+  function groupState(group: ModuleGroupView) {
+    const keys = group.modules.flatMap(m => m.allowedActions.map(a => toKey(m.id, a.id)));
+    const granted = keys.filter(k => checked.has(k)).length;
+    return {
+      granted,
+      total: keys.length,
+      checked: keys.length > 0 && granted === keys.length,
+      indeterminate: granted > 0 && granted < keys.length,
+    };
   }
 
   // Only select valid (module, action) pairs per allowedActions
@@ -275,7 +245,7 @@ export function useRoleConfig() {
     search, setSearch,
     selectedRole,
     // permission matrix
-    moduleGroups, allActions, checked, originalChecked, permLoading, saving,
+    moduleGroups, checked, originalChecked, permLoading, saving,
     // feedback
     error, successMsg,
     // modals
@@ -284,8 +254,9 @@ export function useRoleConfig() {
     deleteRole, setDeleteRole,
     // actions
     handleSelectRole,
-    toggleCell, toggleColumn, columnState,
-    toggleGroupColumn, groupColumnState,
+    toggleCell,
+    toggleModuleAll, moduleState,
+    toggleGroupAll, groupState,
     selectAll, deselectAll,
     savePermissions,
     isDirty,
