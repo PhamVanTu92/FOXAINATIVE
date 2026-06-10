@@ -5,7 +5,6 @@ import { KNOWLEDGE_PACKAGE } from '../grpc/knowledge-grpc.module';
 import { callGrpc } from '../common/grpc/grpc-error-mapper';
 import {
   AddKnowledgeFileRequest,
-  AllFileCountsMessage,
   GetKnowledgeFileRequest,
   MoveKnowledgeFileRequest,
   CreateDocumentVersionRequest,
@@ -19,7 +18,6 @@ import {
   GetStatsRequest,
   KnowledgeBaseMessage,
   KnowledgeDocumentMessage,
-  KnowledgeDocumentVersionMessage,
   KnowledgeFileMessage,
   KnowledgeGrpcService,
   ListAllKnowledgeFilesRequest,

@@ -1,11 +1,14 @@
 const path = require('path');
 
 /** @type {import('next').NextConfig} */
+const isDockerBuild = process.env['DOCKER_BUILD'] === 'true';
+
 const nextConfig = {
-  output: 'standalone',
-  experimental: {
+  // standalone chỉ bật khi build trong Docker (tránh lỗi EPERM symlink trên Windows)
+  output: isDockerBuild ? 'standalone' : undefined,
+  experimental: isDockerBuild ? {
     outputFileTracingRoot: path.join(__dirname, '../../'),
-  },
+  } : {},
   reactStrictMode: true,
 
   // Proxy /api/* sang server khi dev local (tránh CORS)

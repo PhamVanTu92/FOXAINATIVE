@@ -27,6 +27,7 @@ RUN pnpm -C packages/shared-types run build
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV DOCKER_BUILD=true
 
 RUN pnpm -C apps/web-portal run build
 

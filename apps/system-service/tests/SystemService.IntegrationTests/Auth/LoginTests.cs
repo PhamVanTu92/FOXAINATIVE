@@ -42,7 +42,9 @@ public sealed class LoginTests(PostgresContainerFixture postgres) : IAsyncLifeti
         response.User.Should().NotBeNull();
         response.User.Email.Should().Be(DataSeeder.DefaultAdminEmail);
         response.User.Roles.Should().Contain("SUPER_ADMIN");
-        response.User.Permissions.Should().Contain("SYSTEM_ADMIN");
+        // SUPER_ADMIN có GrantAll → permissions dạng MODULE.ACTION (vd USER_CONFIG.READ)
+        response.User.Permissions.Should().NotBeEmpty();
+        response.User.Permissions.Should().Contain("USER_CONFIG.READ");
     }
 
     [Fact]

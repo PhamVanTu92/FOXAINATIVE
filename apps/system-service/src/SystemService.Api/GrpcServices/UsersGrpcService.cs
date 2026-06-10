@@ -144,15 +144,15 @@ public sealed class UsersGrpcService(ISender sender) : UsersService.UsersService
         var stats = await sender.Send(new GetSystemStatsQuery(), context.CancellationToken);
         var response = new SystemStatsResponse
         {
-            TotalUsers  = stats.TotalUsers,
+            TotalUsers = stats.TotalUsers,
             ActiveUsers = stats.ActiveUsers,
-            TotalRoles  = stats.TotalRoles,
+            TotalRoles = stats.TotalRoles,
         };
         response.UsersByDepartment.AddRange(
             stats.UsersByDepartment.Select(d => new DepartmentUserCount
             {
                 DepartmentName = d.DepartmentName,
-                UserCount      = d.UserCount
+                UserCount = d.UserCount
             }));
         return response;
     }

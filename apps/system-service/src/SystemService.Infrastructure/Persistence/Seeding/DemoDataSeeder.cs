@@ -17,8 +17,8 @@ public static class DemoDataSeeder
     public static async Task SeedAsync(IServiceProvider services, CancellationToken ct = default)
     {
         using var scope = services.CreateScope();
-        var sp     = scope.ServiceProvider;
-        var db     = sp.GetRequiredService<SystemDbContext>();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<SystemDbContext>();
         var hasher = sp.GetRequiredService<IPasswordHasher>();
         var logger = sp.GetRequiredService<ILogger<SystemDbContext>>();
 
@@ -46,11 +46,11 @@ public static class DemoDataSeeder
             {
                 role = new Role
                 {
-                    Id          = Guid.NewGuid(),
-                    Code        = seed.Code,
-                    Name        = seed.Name,
+                    Id = Guid.NewGuid(),
+                    Code = seed.Code,
+                    Name = seed.Name,
                     Description = seed.Description,
-                    IsSystem    = seed.IsSystem,
+                    IsSystem = seed.IsSystem,
                 };
                 db.Roles.Add(role);
             }
@@ -71,10 +71,10 @@ public static class DemoDataSeeder
 
                     role.RolePermissions.Add(new RolePermission
                     {
-                        Role      = role,
-                        RoleId    = role.Id,
-                        ModuleId  = module.Id,
-                        ActionId  = action.Id,
+                        Role = role,
+                        RoleId = role.Id,
+                        ModuleId = module.Id,
+                        ActionId = action.Id,
                         GrantedAt = DateTime.UtcNow,
                     });
                 }
@@ -95,11 +95,11 @@ public static class DemoDataSeeder
         {
             root = new OrganizationNode
             {
-                Id       = Guid.NewGuid(),
-                Code     = DemoOrgSeedData.Root.Code,
-                Name     = DemoOrgSeedData.Root.Name,
-                Level    = DemoOrgSeedData.Root.Level,
-                Path     = DemoOrgSeedData.Root.Path,
+                Id = Guid.NewGuid(),
+                Code = DemoOrgSeedData.Root.Code,
+                Name = DemoOrgSeedData.Root.Name,
+                Level = DemoOrgSeedData.Root.Level,
+                Path = DemoOrgSeedData.Root.Path,
                 ParentId = null,
             };
             db.OrganizationNodes.Add(root);
@@ -113,11 +113,11 @@ public static class DemoDataSeeder
 
             db.OrganizationNodes.Add(new OrganizationNode
             {
-                Id       = Guid.NewGuid(),
-                Code     = dept.Code,
-                Name     = dept.Name,
-                Level    = dept.Level,
-                Path     = dept.Path,
+                Id = Guid.NewGuid(),
+                Code = dept.Code,
+                Name = dept.Name,
+                Level = dept.Level,
+                Path = dept.Path,
                 ParentId = root.Id,
             });
         }
@@ -133,7 +133,7 @@ public static class DemoDataSeeder
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var roles = await db.Roles.ToDictionaryAsync(r => r.Code, ct);
-        var orgs  = await db.OrganizationNodes.ToDictionaryAsync(o => o.Code, ct);
+        var orgs = await db.OrganizationNodes.ToDictionaryAsync(o => o.Code, ct);
         var passwordHash = hasher.Hash(DemoUserSeedData.DefaultPassword);
 
         foreach (var seed in DemoUserSeedData.All)
@@ -145,20 +145,20 @@ public static class DemoDataSeeder
 
             var user = new User
             {
-                Id             = Guid.NewGuid(),
-                Username       = seed.Username,
-                Email          = seed.Email,
-                PasswordHash   = passwordHash,
-                FullName       = seed.FullName,
-                Phone          = seed.Phone,
-                Status         = UserStatus.Active,
+                Id = Guid.NewGuid(),
+                Username = seed.Username,
+                Email = seed.Email,
+                PasswordHash = passwordHash,
+                FullName = seed.FullName,
+                Phone = seed.Phone,
+                Status = UserStatus.Active,
                 OrganizationId = org?.Id,
             };
 
             user.UserRoles.Add(new UserRole
             {
-                User       = user,
-                Role       = role,
+                User = user,
+                Role = role,
                 AssignedAt = DateTime.UtcNow,
             });
 
