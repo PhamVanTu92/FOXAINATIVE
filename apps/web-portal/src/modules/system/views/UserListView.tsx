@@ -4,11 +4,10 @@ import React, { useState } from 'react';
 import {
   Search, Download, Plus, Pencil,
   ChevronRight, X, Users, UserCheck, UserX,
-  Shield, Key, AlertCircle, RefreshCw,
+  Shield, AlertCircle, RefreshCw,
 } from 'lucide-react';
 import { useUsers } from '../hooks/useUsers';
-import { UserPermissionsModal } from './UserPermissionsModal';
-import { usersApi } from '@/lib/users-api';
+import { usersApi, userRolesApi } from '@/lib/users-api';
 import type { UserItem, RoleItem, OrgNode } from '@/lib/users-api';
 import { SelectDropdown } from '@/components/SelectDropdown';
 import { useRoutePermission } from '@/hooks/usePermission';
@@ -98,7 +97,7 @@ function UserModal({ editing, roles, orgs, onClose, onSaved }: {
   const [fullName, setFullName] = useState(editing?.fullName ?? '');
   const [phone, setPhone] = useState(editing?.phone ?? '');
   const [organizationId, setOrganizationId] = useState(editing?.organizationId ?? '');
-  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>(editing?.roles ?? []);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -127,6 +126,14 @@ function UserModal({ editing, roles, orgs, onClose, onSaved }: {
           phone: phone.trim() || undefined,
           organizationId: organizationId || undefined,
         });
+        // Đồng bộ vai trò: gán những vai trò mới chọn, gỡ những vai trò bỏ chọn
+        const original = editing!.roles;
+        const toAdd = selectedRoles.filter(c => !original.includes(c));
+        const toRemove = original.filter(c => !selectedRoles.includes(c));
+        await Promise.all([
+          ...toAdd.map(c => userRolesApi.assign(editing!.id, c)),
+          ...toRemove.map(c => userRolesApi.remove(editing!.id, c)),
+        ]);
       }
       onSaved();
       onClose();
@@ -180,25 +187,23 @@ function UserModal({ editing, roles, orgs, onClose, onSaved }: {
               className="w-full"
             />
           </Field>
-          {isNew && (
-            <Field label="Vai trò">
-              <div className="space-y-1 max-h-40 overflow-y-auto border border-default rounded-lg p-2">
-                {roles.length === 0 ? (
-                  <p className="text-xs text-content-muted text-center py-2">Chưa có vai trò nào</p>
-                ) : roles.map(role => (
-                  <label key={role.code} className="flex items-center gap-2 cursor-pointer hover:bg-subtle px-2 py-1 rounded">
-                    <input type="checkbox" className="rounded"
-                      checked={selectedRoles.includes(role.code)}
-                      onChange={() => toggleRole(role.code)} />
-                    <span className="text-sm text-content-secondary">{role.name}</span>
-                    {role.description && (
-                      <span className="text-xs text-content-muted ml-auto truncate">{role.description}</span>
-                    )}
-                  </label>
-                ))}
-              </div>
-            </Field>
-          )}
+          <Field label="Vai trò" hint="Tích chọn để gán vai trò cho người dùng">
+            <div className="space-y-1 max-h-40 overflow-y-auto border border-default rounded-lg p-2">
+              {roles.length === 0 ? (
+                <p className="text-xs text-content-muted text-center py-2">Chưa có vai trò nào</p>
+              ) : roles.map(role => (
+                <label key={role.code} className="flex items-center gap-2 cursor-pointer hover:bg-subtle px-2 py-1 rounded">
+                  <input type="checkbox" className="rounded"
+                    checked={selectedRoles.includes(role.code)}
+                    onChange={() => toggleRole(role.code)} />
+                  <span className="text-sm text-content-secondary">{role.name}</span>
+                  {role.description && (
+                    <span className="text-xs text-content-muted ml-auto truncate">{role.description}</span>
+                  )}
+                </label>
+              ))}
+            </div>
+          </Field>
           {error && <ErrorBanner message={error} />}
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose}
@@ -341,7 +346,6 @@ export function UserListView() {
     roles, orgMap, flatOrgs, stats,
     showCreate, setShowCreate,
     editingUser, setEditingUser,
-    permissionsUser, setPermissionsUser,
     deletingUser, setDeletingUser,
     handleToggleStatus, handleRefresh,
     loadUsers, loadStats,
@@ -520,14 +524,8 @@ export function UserListView() {
                     <div className="flex items-center justify-end gap-1">
                       {canUpdate && (
                         <button onClick={() => setEditingUser(user)}
-                          className="p-1.5 text-content-muted hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors" title="Chỉnh sửa">
+                          className="p-1.5 text-content-muted hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors" title="Chỉnh sửa & gán vai trò">
                           <Pencil size={14} />
-                        </button>
-                      )}
-                      {canUpdate && (
-                        <button onClick={() => setPermissionsUser(user)}
-                          className="p-1.5 text-content-muted hover:text-warning-600 hover:bg-warning-50/10 rounded-lg transition-colors" title="Phân quyền">
-                          <Key size={14} />
                         </button>
                       )}
                     </div>
@@ -577,13 +575,6 @@ export function UserListView() {
         <UserModal editing={editingUser} roles={roles} orgs={flatOrgs}
           onClose={() => setEditingUser(null)}
           onSaved={() => { loadUsers(); loadStats(); }}
-        />
-      )}
-      {permissionsUser && (
-        <UserPermissionsModal
-          user={permissionsUser}
-          onClose={() => setPermissionsUser(null)}
-          onRolesChanged={() => loadUsers()}
         />
       )}
     </div>

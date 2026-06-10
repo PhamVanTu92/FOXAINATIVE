@@ -51,7 +51,6 @@ export function useUsers() {
   // ── Modal state ───────────────────────────────────────────────────────────────
   const [showCreate, setShowCreate] = useState(false);
   const [editingUser, setEditingUser] = useState<UserItem | null>(null);
-  const [permissionsUser, setPermissionsUser] = useState<UserItem | null>(null);
   const [deletingUser, setDeletingUser] = useState<UserItem | null>(null);
 
   // ── Load main list ────────────────────────────────────────────────────────────
@@ -178,7 +177,6 @@ export function useUsers() {
     // modals
     showCreate, setShowCreate,
     editingUser, setEditingUser,
-    permissionsUser, setPermissionsUser,
     deletingUser, setDeletingUser,
     // actions
     handleToggleStatus, handleRefresh,
